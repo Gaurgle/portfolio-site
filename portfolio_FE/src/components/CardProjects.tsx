@@ -190,7 +190,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
 
     return (
         <div
-            className="relative group bg-zinc-950 border border-zinc-700/70 rounded-md overflow-hidden
+            className="relative group w-full h-full bg-zinc-950 border border-zinc-700/70 rounded-md overflow-hidden
                        hover:border-zinc-500 transition-all duration-500 hover:-translate-y-1
                        opacity-0 animate-fade-up flex flex-col"
             style={{animationDelay: `${idx * 100 + 100}ms`}}
