@@ -664,17 +664,37 @@ html.lenis, html.lenis body { height: auto; }
        media band, single info column, clamped description, two highlights
        (the full copy lives on desktop) */
     .hscroll-pin .featured-card .edit-media {
-        height: 34%;
+        height: 30%;
+    }
+    /* Body is a flex column so the info block (highlights, tags, github
+       link) pins to the bottom and is never clipped; the description takes
+       the leftover space and truncates instead of shoving the link
+       off-card. Fixes content overflowing the pinned card on phones. */
+    .hscroll-pin .featured-card .edit-body {
+        display: flex;
+        flex-direction: column;
+        padding: 1.25rem;
     }
     .hscroll-pin .featured-card .edit-cols {
+        display: flex;
+        flex-direction: column;
         grid-template-columns: 1fr;
         gap: 0.75rem;
+        flex: 1;
+        min-height: 0;
     }
     .hscroll-pin .featured-card .edit-desc {
         display: -webkit-box;
         -webkit-line-clamp: 4;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+    /* The info column (highlights + tags + link) keeps its natural height
+       and sits at the card's bottom edge. */
+    .hscroll-pin .featured-card .edit-cols > div {
+        flex: none;
     }
     .hscroll-pin .featured-card li:nth-child(n + 3) {
         display: none;
