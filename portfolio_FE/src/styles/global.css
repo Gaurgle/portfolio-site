@@ -668,6 +668,13 @@ html.lenis, html.lenis body { height: auto; }
     .hscroll-pin .featured-card .edit-media {
         height: 8rem;
     }
+    /* Slim the title on mobile (desktop keeps text-4xl) so the freed height
+       goes to the description - more copy fits the same fixed card. */
+    .hscroll-pin .featured-card h3 {
+        font-size: 1.25rem;
+        line-height: 1.15;
+        margin-bottom: 0.5rem;
+    }
     /* Body is a flex column: description sits at the top and truncates
        cleanly (fixed line count, no flex-shrink so it never clips mid-line),
        and the tags + github link pin to the card's bottom edge. */
@@ -686,7 +693,7 @@ html.lenis, html.lenis body { height: auto; }
     }
     .hscroll-pin .featured-card .edit-desc {
         display: -webkit-box;
-        -webkit-line-clamp: 3;
+        -webkit-line-clamp: 6;
         -webkit-box-orient: vertical;
         overflow: hidden;
         flex: none;
