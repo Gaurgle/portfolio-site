@@ -11,19 +11,19 @@ import ChapterMark from "./ChapterMark.astro";
          data-cmd="cat about.txt" data-cmd-color="#cba6f7"
          class="relative max-w-6xl mx-auto px-4">
 
-    <div class="md:flex md:flex-row-reverse md:gap-10">
+    <div class="lg:flex lg:flex-row-reverse lg:gap-10">
         <!-- Chapter mark: sticky on the right for the whole section -->
-        <div class="md:w-[42%] shrink-0 md:sticky md:top-0 md:h-screen flex flex-col justify-center items-center md:items-end md:text-right pt-24 md:pt-0 z-0">
+        <div class="lg:w-[42%] shrink-0 lg:sticky lg:top-0 lg:h-screen flex flex-col justify-center items-center lg:items-end lg:text-right pt-24 lg:pt-0 z-0">
             <ChapterMark n="01" label="ABOUT"
                          line1="Backend. Android." accent="Audio" color="#cba6f7" />
         </div>
 
         <!-- Story cards on the left, with a small entry hold (little pin) -->
         <!-- Extra tail: about keeps the frame a while before journey arrives -->
-        <div data-hold="0.35" class="md:w-[58%] relative z-10 pt-16 pb-8 md:pt-[18vh] md:pb-[30vh]">
+        <div data-hold="0.35" class="lg:w-[58%] relative z-10 pt-16 pb-8 lg:pt-[18vh] lg:pb-[30vh]">
             <!-- Big gaps on desktop (each card owns the frame); compact on
                  mobile where there is no focus effect to justify them -->
-            <div data-hold-content class="space-y-14 md:space-y-[40vh]">
+            <div data-hold-content class="space-y-14 lg:space-y-[40vh]">
 
             <!-- Who I Am -->
             <!-- TODO: add self-portrait image to this card or as a separate card -->

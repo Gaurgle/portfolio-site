@@ -111,7 +111,7 @@ export default function ProjectsGrid() {
     return (
         <div>
             {/* ==================== desktop: ls listing ==================== */}
-            <div className="hidden md:block">
+            <div className="hidden lg:block">
                 <p className="font-mono text-sm text-zinc-400 mb-1">
                     <span className="text-ctp-blue">$</span> ls projects/
                     {filter && (
@@ -266,7 +266,7 @@ export default function ProjectsGrid() {
             </div>
 
             {/* ==================== mobile: swipe carousel ==================== */}
-            <div className="md:hidden">
+            <div className="lg:hidden">
                 <div
                     ref={trackRef}
                     onScroll={onTrackScroll}

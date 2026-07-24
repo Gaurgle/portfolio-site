@@ -33,11 +33,11 @@ const SidebarToggle: React.FC = () => {
         <>
             <div
                 id="sidebar-overlay"
-                className="hidden md:hidden fixed inset-0 z-30 bg-black/50"
+                className="hidden lg:hidden fixed inset-0 z-30 bg-black/50"
             />
             <button
                 id="sidebar-toggle"
-                className="md:hidden fixed top-5 left-4 z-[90] p-2 rounded-lg
+                className="lg:hidden fixed top-5 left-4 z-[90] p-2 rounded-lg
                  text-zinc-300 hover:text-zinc-200 transition-colors duration-200 focus:outline-none"
                 aria-label="Toggle Sidebar"
             >

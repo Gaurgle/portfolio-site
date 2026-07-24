@@ -8,11 +8,11 @@ import ChapterMark from "./ChapterMark.astro";
      it reachable without JS. -->
 <noscript><style>.contact-panel { visibility: visible; }</style></noscript>
 <div class="contact-panel" data-section="contact" data-cmd="mail roos" data-cmd-color="#fab387">
-    <div class="w-full max-w-6xl px-6 md:ml-54 flex flex-col md:flex-row items-center md:justify-between gap-4 md:gap-10">
+    <div class="w-full max-w-6xl px-6 flex flex-col lg:flex-row items-center lg:justify-between gap-4 lg:gap-10">
         <!-- Form on the left -->
         <div class="w-full max-w-xl">
             <!-- Typed prompt: desktop only - mobile fits everything in 88dvh -->
-            <p class="hidden md:block font-mono text-sm text-zinc-300 mb-6">
+            <p class="hidden lg:block font-mono text-sm text-zinc-300 mb-6">
                 <span class="text-ctp-peach">$</span> <span data-type-cmd="mail roos"></span>
             </p>
             <ContactForm client:idle />
@@ -22,7 +22,7 @@ import ChapterMark from "./ChapterMark.astro";
         <div class="shrink-0 order-first md:order-none">
             <ChapterMark n="04" label="CONTACT"
                          pre="say " accent="hello" color="#fab387"
-                         width="w-[min(11rem,50vw)] md:w-[min(24rem,26vw)]" />
+                         width="w-[min(11rem,50vw)] lg:w-[min(24rem,26vw)]" />
         </div>
     </div>
 </div>

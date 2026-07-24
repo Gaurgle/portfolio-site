@@ -36,7 +36,7 @@ const isHome = Astro.url.pathname === "/";
      the z-50 banner, so this cannot be a sticky element inside a section).
      The scroll spy re-types the active section's command into it. -->
 <div id="dock-prompt"
-     class="fixed z-[60] top-[26px] left-8 max-w-[11.5rem] overflow-hidden whitespace-nowrap font-mono text-sm text-zinc-300 pointer-events-none select-none hidden md:block">
+     class="fixed z-[60] top-[26px] left-8 max-w-[11.5rem] overflow-hidden whitespace-nowrap font-mono text-sm text-zinc-300 pointer-events-none select-none hidden lg:block">
     <span id="dock-sigil">$</span> <span id="dock-cmd"></span><span id="dock-caret">▍</span>
 </div>
 
@@ -50,7 +50,7 @@ const isHome = Astro.url.pathname === "/";
 {revealFooter && <slot name="reveal-panel" />}
 
 <!-- GRID CONTAINER -->
-<div class:list={["min-h-screen md:ml-54 md:pl-54", revealFooter ? "page-over-panel" : "relative z-20"]}>
+<div class:list={["min-h-screen", revealFooter ? "page-over-panel" : "relative z-20"]}>
     <!-- Static particle background, parallax-driven (inside the stacking
          context so the opaque page background does not hide it) -->
     <ParticleLayers />

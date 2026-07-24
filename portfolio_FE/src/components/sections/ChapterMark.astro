@@ -19,7 +19,7 @@ const {
     accent,
     post = ".",
     color,
-    width = "w-[min(18rem,84vw)] md:w-[min(28rem,36vw)]",
+    width = "w-[min(18rem,84vw)] lg:w-[min(28rem,36vw)]",
     // Each section can give its special word its own face.
     accentStyle = "font-family:Georgia,'Times New Roman',serif;font-style:italic",
 } = Astro.props;
@@ -34,31 +34,42 @@ function fit(text: string, slack = 1) {
 const l1 = line1 ? fit(line1) : null;
 // The accent line runs a wider face (Ramose + stroke), so give it slack.
 const l2 = fit(`${pre}${accent}${post}`, 0.9);
+// Row boxes are sized with the padding-top hack instead of CSS aspect-ratio:
+// the svgs' viewBoxes deliberately differ from the box ratio (the text is
+// stretched to fill via preserveAspectRatio="none"), and WebKit lets an
+// svg's intrinsic viewBox ratio beat CSS aspect-ratio, collapsing the row.
+// Percentages are relative to the mark's width: 300/720, 115/720, 235/720.
 // A single-line hook fills the whole hook area (double height), so the mark
 // keeps the same number-to-text proportions as the two-line variant.
-const hookAspect = line1 ? "aspect-[720/115]" : "aspect-[720/235]";
+const hookPad = line1 ? "15.98%" : "32.64%";
 ---
 
 <div class:list={["chapter-mark inline-block select-none", width]}
      aria-label={`${n} ${label}: ${line1 ?? ""} ${pre}${accent}${post}`}>
     <!-- Numeral: slightly WIDER than the hook lines (optical alignment reads
          better with a small overhang than with exact equal widths) -->
-    <svg class="block w-[106%] -ml-[3%] aspect-[720/300]" viewBox="0 0 720 300" preserveAspectRatio="none" aria-hidden="true">
-        <text class="cm-num" x="-8" y="290" font-size="400" textLength="736" lengthAdjust="spacingAndGlyphs" fill="#ffffff">{n}</text>
-    </svg>
+    <div class="relative w-[106%] -ml-[3%]" style="padding-top: 44.17%">
+        <svg class="absolute inset-0 h-full w-full" viewBox="0 0 720 300" preserveAspectRatio="none" aria-hidden="true">
+            <text class="cm-num" x="-8" y="290" font-size="400" textLength="736" lengthAdjust="spacingAndGlyphs" fill="#ffffff">{n}</text>
+        </svg>
+    </div>
 
     <!-- Hook: one or two rows, tight letters, flush to the rectangle edges -->
     <div class="mt-[4%] space-y-[3%]">
         {l1 && line1 && (
-            <svg class="block w-full aspect-[720/115]" viewBox={`0 0 720 ${l1.vb}`} preserveAspectRatio="none" aria-hidden="true">
-                <text x="0" y={l1.y} font-size={l1.fs} textLength="720" lengthAdjust="spacingAndGlyphs">{line1}</text>
-            </svg>
+            <div class="relative w-full" style="padding-top: 15.98%">
+                <svg class="absolute inset-0 h-full w-full" viewBox={`0 0 720 ${l1.vb}`} preserveAspectRatio="none" aria-hidden="true">
+                    <text x="0" y={l1.y} font-size={l1.fs} textLength="720" lengthAdjust="spacingAndGlyphs">{line1}</text>
+                </svg>
+            </div>
         )}
-        <svg class:list={["block w-full", hookAspect]} viewBox={`0 0 720 ${l2.vb}`} preserveAspectRatio="none" aria-hidden="true">
-            <text x="0" y={l2.y} font-size={l2.fs} textLength="720" lengthAdjust="spacingAndGlyphs">{pre}<tspan
-                fill={color} stroke={color} stroke-width="4" paint-order="stroke"
-                style={accentStyle}>{accent}</tspan>{post}</text>
-        </svg>
+        <div class="relative w-full" style={`padding-top: ${hookPad}`}>
+            <svg class="absolute inset-0 h-full w-full" viewBox={`0 0 720 ${l2.vb}`} preserveAspectRatio="none" aria-hidden="true">
+                <text x="0" y={l2.y} font-size={l2.fs} textLength="720" lengthAdjust="spacingAndGlyphs">{pre}<tspan
+                    fill={color} stroke={color} stroke-width="4" paint-order="stroke"
+                    style={accentStyle}>{accent}</tspan>{post}</text>
+            </svg>
+        </div>
     </div>
 
     <div class="font-mono tracking-[0.35em] text-lg md:text-xl text-white/45 mt-4">{label}</div>

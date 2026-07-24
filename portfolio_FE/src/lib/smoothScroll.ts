@@ -29,8 +29,11 @@ const cleanups: Array<() => void> = [];
 const prefersReducedMotion = (): boolean =>
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/* Desktop = the sidebar layout. Tablets and landscape phones (768-1023px)
+   run the mobile choreography: the pinned side-by-side compositions need
+   more width than they have. Must mirror the breakpoints in global.css. */
 const isDesktop = (): boolean =>
-    window.matchMedia("(min-width: 768px)").matches;
+    window.matchMedia("(min-width: 1024px)").matches;
 
 function nativeProgress(): number {
     const el = document.documentElement;

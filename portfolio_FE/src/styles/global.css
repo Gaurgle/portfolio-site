@@ -441,7 +441,7 @@ html.lenis, html.lenis body { height: auto; }
     transform: scale(calc(1 + var(--scrub, 0) * 4)) translateY(calc(var(--scrub, 0) * -30px));
     will-change: opacity, transform;
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
     [data-hero-scrub] .hero-boom {
         filter: blur(calc(var(--scrub, 0) * 9px));
         will-change: opacity, transform, filter;
@@ -452,7 +452,7 @@ html.lenis, html.lenis body { height: auto; }
 }
 /* Mobile: smaller inflation (smaller composited textures) and no heavy
    text-shadow glow on the scaling layer - keeps the explosion at 60fps */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
     [data-hero-scrub] .hero-boom {
         transform: scale(calc(1 + var(--scrub, 0) * 1.9)) translateY(calc(var(--scrub, 0) * -20px));
     }
@@ -483,7 +483,7 @@ html.lenis, html.lenis body { height: auto; }
 
 /* Pinned dwell pages: the viewport-sized child sticks while the section's
    extra height (set by smoothScroll.ts from data-pin) scrolls by */
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
     [data-pin] > .pin-viewport {
         position: sticky;
         top: 0;
@@ -494,7 +494,7 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 /* Sections opting into the pin on mobile too (the hero's explosion) */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
     [data-pin][data-pin-mobile] > .pin-viewport {
         position: sticky;
         top: 0;
@@ -577,7 +577,7 @@ html.lenis, html.lenis body { height: auto; }
 .hscroll-pin {
     position: relative;
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
     .hscroll-pin {
         margin-left: calc(50% - 50vw);
         margin-right: calc(50% - 50vw);
@@ -627,7 +627,7 @@ html.lenis, html.lenis body { height: auto; }
 }
 /* Mobile: the filmstrip becomes a pinned vertical deck like the journey -
    cards rise from below (engine cardstack path) and land nearly flush. */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
     .hscroll-pin .hscroll-viewport {
         position: sticky;
         top: 0;
@@ -646,15 +646,18 @@ html.lenis, html.lenis body { height: auto; }
     .hscroll-pin [data-hscroll-track] {
         position: relative;
         width: 100%;
-        /* card + one 10px deck edge per covered card (--deck-n from markup) */
-        height: calc(min(30rem, 60svh) + var(--deck-n, 3) * 10px);
+        /* card + one 10px deck edge per covered card (--deck-n from markup).
+           The 100svh - 19rem term keeps the deck clear of the chapter header
+           sharing the pinned screen on short-but-wide viewports (a resized
+           desktop window just under 1024px) - on phones it never wins. */
+        height: calc(min(30rem, 60svh, 100svh - 19rem) + var(--deck-n, 3) * 10px);
     }
     .hscroll-pin .featured-card {
         position: absolute;
         top: 0;
         left: 1rem;
         right: 1rem;
-        height: min(30rem, 60svh);
+        height: min(30rem, 60svh, 100svh - 19rem);
         will-change: transform;
     }
     /* Compact card content so one project fits one phone screen: smaller
@@ -681,7 +684,7 @@ html.lenis, html.lenis body { height: auto; }
 /* Short phones (SE-class): the deck card gets one more compaction tier -
    smaller shot, 3-line description. (The contact panel's short-phone
    tier lives after its base mobile block below.) */
-@media (max-width: 767px) and (max-height: 700px) {
+@media (max-width: 1023px) and (max-height: 700px) {
     .hscroll-pin .featured-card .edit-media {
         height: 26%;
     }
@@ -698,7 +701,7 @@ html.lenis, html.lenis body { height: auto; }
 .journey-stack {
     position: relative;
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
     .journey-stack .journey-viewport {
         position: sticky;
         top: 0;
@@ -707,21 +710,28 @@ html.lenis, html.lenis body { height: auto; }
         display: flex;
         align-items: center;
         justify-content: center;
+        /* Clear the fixed sidebar: without this the centered composition
+           slides under the nav (the numeral over the links, the headline's
+           first letters swallowed by the backdrop blur) */
+        padding-left: 9.5rem;
+    }
+    /* Mark + pile are sized against the column right of the sidebar
+       (100vw - 9.5rem), not the full viewport, so the pinned row fits
+       from 1024px up without hiding under the nav */
+    .journey-stack .chapter-mark {
+        width: min(26rem, calc((100vw - 9.5rem) * 0.32));
     }
     .journey-stack .stack-area {
         position: relative;
         /* card size + 5 cascade offsets (6 cards); offsets mirror data-off-x/y */
-        width: calc(min(40rem, 54vw) + 5 * 26px);
+        width: calc(min(38rem, (100vw - 9.5rem) * 0.45) + 5 * 26px);
         height: calc(min(28rem, 58vh) + 5 * 48px);
-    }
-    .journey-stack [data-stack-card] {
-        height: min(28rem, 58vh);
     }
     .journey-stack [data-stack-card] {
         position: absolute;
         top: 0;
         left: 0;
-        width: min(40rem, 54vw);
+        width: min(38rem, calc((100vw - 9.5rem) * 0.45));
         height: min(30rem, 64vh);
         will-change: transform;
     }
@@ -734,7 +744,7 @@ html.lenis, html.lenis body { height: auto; }
 /* Mobile: same pinned pile, but as a vertical deck - cards rise from below
    (smoothScroll.ts drives the transforms) and land nearly flush, each one
    leaving a 10px edge of the card underneath. */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
     .journey-stack .journey-viewport {
         position: sticky;
         top: 0;
@@ -752,21 +762,55 @@ html.lenis, html.lenis body { height: auto; }
     .journey-stack .stack-area {
         position: relative;
         width: 100%;
-        /* card + 5 deck edges (6 cards); offsets mirror measureCardStacks */
-        height: calc(min(28rem, 57svh) + 5 * 10px);
+        /* card + 5 deck edges (6 cards); offsets mirror measureCardStacks.
+           100svh - 17rem: clear the chapter mark above the deck on
+           short-but-wide viewports (same guard as the featured deck) */
+        height: calc(min(28rem, 57svh, 100svh - 17rem) + 5 * 10px);
     }
     .journey-stack [data-stack-card] {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
-        height: min(28rem, 57svh);
+        height: min(28rem, 57svh, 100svh - 17rem);
         will-change: transform;
     }
     .journey-stack [data-stack-card] .edit-card {
         height: 100%;
         /* Top edge with a touch of blur: sharp but not cut-out */
         box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* Landscape phones: barely any height, so the pinned decks get a compact
+   tier - taller share of the viewport, slimmer mark, smaller card type,
+   and a scrollable card body as the last-resort fallback (same pragmatism
+   as the contact panel's landscape fallback) */
+@media (max-width: 1023px) and (max-height: 520px) {
+    .journey-stack .chapter-mark,
+    .hscroll-pin .chapter-mark {
+        width: min(9rem, 24vw);
+    }
+    .journey-stack .stack-area {
+        height: calc(min(24rem, 80svh) + 5 * 10px);
+    }
+    .journey-stack [data-stack-card] {
+        height: min(24rem, 80svh);
+    }
+    .hscroll-pin [data-hscroll-track] {
+        height: calc(min(26rem, 80svh) + var(--deck-n, 3) * 10px);
+    }
+    .hscroll-pin .featured-card {
+        height: min(26rem, 80svh);
+    }
+    .journey-stack .edit-body h3,
+    .hscroll-pin .featured-card h3 {
+        font-size: 1.375rem;
+        margin-bottom: 0.5rem;
+    }
+    .journey-stack .edit-body,
+    .hscroll-pin .featured-card .edit-body {
+        overflow-y: auto;
     }
 }
 
@@ -881,7 +925,7 @@ html.lenis, html.lenis body { height: auto; }
    continuous page (no independent inner scroll). overflow-y stays as a
    fallback for extreme cases like landscape phones, where it re-enables
    scrolling instead of hiding the form. */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
     .contact-panel {
         justify-content: center;
         overflow-y: auto;
@@ -889,7 +933,7 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 /* Short-phone tier (after the base block: same specificity, later wins) */
-@media (max-width: 767px) and (max-height: 700px) {
+@media (max-width: 1023px) and (max-height: 700px) {
     .contact-panel {
         padding: 0.5rem 0;
     }
@@ -906,6 +950,26 @@ html.lenis, html.lenis body { height: auto; }
         padding: 0.75rem;
     }
 }
+/* Desktop: the inner row normally centers (max-w-6xl), but below ~1470px
+   the centering offset shrinks under the sidebar width and the form slides
+   beneath the nav. Pin the left edge to whichever is larger: the natural
+   centering offset or the sidebar clearance. */
+@media (min-width: 1024px) {
+    .contact-panel > div {
+        align-self: stretch;
+        width: auto; /* defeat w-full so the margin shrinks the box instead of overflowing it */
+        margin-left: max(9.5rem, calc((100vw - 72rem) / 2));
+    }
+    /* Same clearance for the centered flow sections (mx-auto only clears
+       the sidebar when the viewport is wide enough for the centering
+       offset to exceed it). Above ~1470px this is exactly mx-auto. */
+    #about,
+    #projects {
+        margin-left: max(9.5rem, calc((100vw - 72rem) / 2));
+        margin-right: max(0px, calc((100vw - 72rem) / 2));
+    }
+}
+
 /* The compose card sits on the indigo panel - fully opaque, or the
    gradient bleeds through and the form reads washed out */
 .contact-panel .terminal-card {
