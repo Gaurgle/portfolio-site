@@ -191,7 +191,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
     return (
         <div
             className="relative group w-full h-full bg-zinc-950 border border-zinc-700/70 rounded-md overflow-hidden
-                       hover:border-zinc-500 transition-all duration-500 hover:-translate-y-1
+                       transition-colors duration-500
                        opacity-0 animate-fade-up flex flex-col"
             style={{animationDelay: `${idx * 100 + 100}ms`}}
             onMouseEnter={handleMouseEnter}
@@ -260,7 +260,10 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                 <h3 className="text-lg font-bold leading-tight text-white">
                     {project.projectTitle}
                 </h3>
-                <div className="flex-1 min-h-0 overflow-y-auto text-xs text-zinc-400 leading-relaxed">
+                <div
+                    className="flex-1 min-h-0 overflow-hidden text-xs text-zinc-400 leading-relaxed
+                               [mask-image:linear-gradient(to_bottom,black_85%,transparent)]"
+                >
                     <p>{project.description}</p>
                 </div>
 
