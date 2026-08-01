@@ -15,6 +15,9 @@ const featured = projects
     .sort((a, b) => (a.featuredOrder ?? 99) - (b.featuredOrder ?? 99));
 const firstImage = (p: (typeof projects)[number]) =>
     Array.isArray(p.image) ? p.image[0] : p.image;
+// Every shot of a project, so the lightbox can page through them all
+const allImages = (p: (typeof projects)[number]) =>
+    (Array.isArray(p.image) ? p.image : [p.image]).filter(Boolean) as string[];
 
 // Accent per card (rgb triplets for the CSS var): green, mauve, blue, peach
 const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
@@ -61,7 +64,10 @@ const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
                         {firstImage(p) ? (
                             <div class="edit-media">
                                 <img src={firstImage(p)} alt={p.projectTitle} loading="lazy"
-                                     class="h-full w-full object-contain lg:grayscale lg:hover:grayscale-0 transition-all duration-500" />
+                                     data-lightbox
+                                     data-images={JSON.stringify(allImages(p))}
+                                     data-title={p.projectTitle}
+                                     class="h-full w-full object-contain transition-all duration-500 cursor-zoom-in" />
                             </div>
                         ) : (
                             <div class="edit-media flex items-center justify-center font-mono text-xs text-zinc-600">
@@ -110,9 +116,16 @@ const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
                 <svg class="w-[clamp(22rem,42vw,38rem)] h-auto text-ctp-blue drop-shadow-[0_0_40px_rgba(137,180,250,0.5)]"
                      viewBox="0 0 100 100" aria-hidden="true">
                     <!-- The engine scrubs the assembly: outline draws itself
-                         (dashoffset), the fill floods, the label stamps in -->
+                         (dashoffset), the fill floods, the label stamps in.
+                         The closing run back to the start is written out as an
+                         explicit L instead of leaning on Z: getTotalLength()
+                         does not reliably count Z's implied segment, and when
+                         it comes up short the dash never reaches the start
+                         point and the top-left corner stays open. Round joins
+                         keep that corner clean while the outline is drawing. -->
                     <path fill="currentColor" stroke="currentColor" stroke-width="1.2"
-                          d="M2,10 H78 V68 H94 L61,99 L28,68 H44 V44 H2 Z" />
+                          stroke-linejoin="round" stroke-linecap="round"
+                          d="M2,10 H78 V68 H94 L61,99 L28,68 H44 V44 H2 L2,10 Z" />
                     <!-- Letters are individual tspans: the engine stamps
                          them on one at a time, typewriter-style. PROJECTS
                          translates to y=14.6 so its P's ink top sits level
@@ -128,3 +141,100 @@ const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
         </div>
     </div>
 </div>
+
+<script>
+    /**
+     * Featured shots expand on click. The grid below uses the React Lightbox;
+     * this strip is server-rendered with no island, so it gets a small vanilla
+     * twin that matches it (terminal bar, backdrop, arrow + Esc keys).
+     */
+    function openLightbox(images: string[], title: string) {
+        let index = 0;
+
+        const overlay = document.createElement("div");
+        overlay.className =
+            "fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm";
+
+        const frame = document.createElement("div");
+        frame.className =
+            "relative w-[85vw] max-w-5xl bg-zinc-950 border border-zinc-700/60 rounded-xl " +
+            "shadow-2xl shadow-black/50 overflow-hidden";
+        frame.addEventListener("click", (e) => e.stopPropagation());
+
+        const bar = document.createElement("div");
+        bar.className =
+            "flex items-center gap-2 px-4 py-2.5 bg-zinc-900/80 border-b border-zinc-800";
+        bar.innerHTML =
+            '<span class="w-3 h-3 rounded-full bg-red-500/80"></span>' +
+            '<span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>' +
+            '<span class="w-3 h-3 rounded-full bg-green-500/80"></span>';
+        const label = document.createElement("span");
+        label.className = "ml-3 font-mono text-xs text-zinc-400";
+        label.textContent = title;
+        bar.appendChild(label);
+
+        const img = document.createElement("img");
+        img.className = "w-full max-h-[75vh] object-contain bg-black";
+        img.src = images[0];
+        img.alt = title;
+
+        const close = () => {
+            document.removeEventListener("keydown", onKey);
+            overlay.remove();
+        };
+
+        const step = (delta: number) => {
+            index = (index + delta + images.length) % images.length;
+            img.src = images[index];
+        };
+
+        function onKey(e: KeyboardEvent) {
+            if (e.key === "Escape") close();
+            if (images.length > 1 && e.key === "ArrowRight") step(1);
+            if (images.length > 1 && e.key === "ArrowLeft") step(-1);
+        }
+
+        if (images.length > 1) {
+            for (const [dir, glyph, side] of [
+                [-1, "‹", "left-4"],
+                [1, "›", "right-4"],
+            ] as const) {
+                const btn = document.createElement("button");
+                btn.className =
+                    `absolute ${side} top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center ` +
+                    "rounded-full bg-black/50 text-white/80 hover:bg-black/70 hover:text-white " +
+                    "transition-all duration-200 text-2xl";
+                btn.textContent = glyph;
+                btn.addEventListener("click", () => step(dir));
+                frame.appendChild(btn);
+            }
+        }
+
+        overlay.addEventListener("click", close);
+        bar.firstChild?.addEventListener("click", close);
+        frame.prepend(img);
+        frame.prepend(bar);
+        overlay.appendChild(frame);
+        document.body.appendChild(overlay);
+        document.addEventListener("keydown", onKey);
+    }
+
+    function wireLightboxes() {
+        for (const el of document.querySelectorAll<HTMLImageElement>("img[data-lightbox]")) {
+            if (el.dataset.lightboxWired) continue;
+            el.dataset.lightboxWired = "1";
+            el.addEventListener("click", () => {
+                let images: string[] = [];
+                try {
+                    images = JSON.parse(el.dataset.images ?? "[]");
+                } catch {
+                    images = [];
+                }
+                if (images.length === 0 && el.src) images = [el.src];
+                if (images.length > 0) openLightbox(images, el.dataset.title ?? "");
+            });
+        }
+    }
+
+    document.addEventListener("astro:page-load", wireLightboxes);
+</script>

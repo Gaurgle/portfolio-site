@@ -65,7 +65,7 @@ function PlayButton({src, title}: { src: string; title: string }) {
     );
 }
 
-function Lightbox({images, startIndex, title, onClose}: {
+export function Lightbox({images, startIndex, title, onClose}: {
     images: string[];
     startIndex: number;
     title: string;
@@ -209,8 +209,8 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                             src={src}
                             alt={`${project.projectTitle}${hasMultiple ? ` slide ${i + 1}` : ""}`}
                             loading="lazy"
-                            className={`absolute inset-0 h-full w-full object-cover transition-all duration-700
-                                       md:grayscale md:group-hover:grayscale-0 md:group-hover:scale-105
+                            className={`absolute inset-0 h-full w-full object-contain transition-all duration-700
+                                       md:group-hover:scale-105
                                        ${i === currentIndex ? "opacity-100" : "opacity-0"}`}
                         />
                     ))}

@@ -1022,3 +1022,16 @@ html.lenis, html.lenis body { height: auto; }
     }
     [data-marquee-track] { transform: none !important; }
 }
+
+/* Rough-notation annotations in the about cards.
+   The SVGs are injected at runtime and sit outside the card's reveal
+   animation, so without this they paint fully drawn before the text they
+   annotate has faded in. They stay invisible until the script has primed
+   their stroke-dashoffset and marked them ready; from then on the draw-in
+   is driven by hover. */
+svg.rough-annotation {
+    opacity: 0;
+}
+svg.rough-annotation.rn-primed {
+    opacity: 1;
+}

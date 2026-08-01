@@ -87,7 +87,10 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
 
         <!-- ...then the rest, flowing freely: after the pinned filmstrip a
              plain-scrolling grid is the contrast that makes the pins land -->
-        <div class="relative z-10 mt-10 md:mt-[6vh]">
+        <!-- Negative top margin on desktop: the grid climbs over the arrow's
+             tail while it is still fading out, so the two overlap instead of
+             handing off across a gap of empty scroll. -->
+        <div class="relative z-10 mt-10 md:mt-[6vh] lg:-mt-[20vh]">
             <h3 class="font-bold uppercase tracking-[0.3em] text-xl md:text-2xl text-white/80 select-none mb-10">
                 <span class="text-ctp-blue font-mono mr-2">//</span>more projects
             </h3>

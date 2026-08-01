@@ -32,12 +32,13 @@ import ChapterMark from "./ChapterMark.astro";
                     <h3 class="text-base md:text-lg font-bold tracking-[0.2em] uppercase text-ctp-mauve mb-3">Who I Am</h3>
                     <p data-word-reveal class="text-base md:text-lg text-zinc-100 leading-relaxed">
                         Backend and Android developer based in
-                        <span class="text-white" data-rn="box">Stockholm, Sweden</span>.
+                        <span class="text-white" data-rn="underline">Stockholm, Sweden</span>.
                         Building APIs, services, and apps with
                         <span class="text-white" data-rn="underline">Kotlin</span>,
                         <span class="text-white" data-rn="underline">Java</span>, and
                         <span class="text-white" data-rn="underline">Spring Boot</span>/<span class="text-white" data-rn="underline">Ktor</span>.
-                        Hands-on with Bluetooth LE, Jetpack Compose, and full-stack systems.
+                        Hands-on with <span class="text-white" data-rn="underline">Bluetooth LE</span>,
+                        <span class="text-white" data-rn="underline">Jetpack Compose</span>, and full-stack systems.
                         Java Developer program at
                         <span class="text-white" data-rn="underline">Nackademin</span> and a
                         BLE/LE Audio internship at
@@ -55,9 +56,9 @@ import ChapterMark from "./ChapterMark.astro";
                     <p data-word-reveal class="text-base md:text-lg text-zinc-100 leading-relaxed">
                         15+ years in the music industry - and counting. Drums and musical
                         direction with
-                        <span class="text-white" data-rn="underline">Benjamin Ingrosso</span> (incl. Eurovision),
+                        <span class="text-white" data-rn="underline">Benjamin Ingrosso</span> (incl. <span class="text-white" data-rn="underline">Eurovision</span>),
                         MIDI and tracks engineering for
-                        <span class="text-white" data-rn="circle">Loreen</span>,
+                        <span class="text-white" data-rn="underline">Loreen</span>,
                         <span class="text-white" data-rn="underline">Veronica Maggio</span> and
                         <span class="text-white" data-rn="underline">Eva Dahlgren</span>,
                         mixing credits for
@@ -78,15 +79,15 @@ import ChapterMark from "./ChapterMark.astro";
                     <h3 class="text-base md:text-lg font-bold tracking-[0.2em] uppercase text-ctp-blue mb-3">As a Developer</h3>
                     <p data-word-reveal class="text-base md:text-lg text-zinc-100 leading-relaxed mb-3">
                         My main focus is
-                        <span class="text-white" data-rn="circle">Android</span> development in
+                        <span class="text-white" data-rn="underline">Android</span> development in
                         <span class="text-white" data-rn="underline">Kotlin</span> with
                         <span class="text-white" data-rn="underline">Jetpack Compose</span>, building apps end to end
                         and often working close to the hardware. Right now that includes a
                         <span class="text-white" data-rn="underline">Bluetooth LE</span> and
                         <span class="text-white" data-rn="underline">LE Audio</span> testing tool: it connects to
-                        devices, digs into GATT services and characteristics, and runs automated
+                        devices, digs into <span class="text-white" data-rn="underline">GATT</span> services and characteristics, and runs automated
                         test scripts through an embedded
-                        <span class="text-white" data-rn="underline">Lua</span> engine. Coroutines, thread-safe
+                        <span class="text-white" data-rn="underline">Lua</span> engine. <span class="text-white" data-rn="underline">Coroutines</span>, thread-safe
                         operation queuing, and getting predictable behavior out of real hardware
                         is the kind of problem I enjoy most.
                     </p>
@@ -150,24 +151,57 @@ import ChapterMark from "./ChapterMark.astro";
         // One <svg.rough-annotation> per annotated word; stagger by word, not by path
         const words = () => card.querySelectorAll("svg.rough-annotation");
 
-        // Prime each stroke: dash the whole length and start fully retracted (hidden)
-        words().forEach((svg) => {
-            svg.querySelectorAll("path").forEach((p) => {
-                const len = p.getTotalLength();
-                p.style.strokeDasharray = String(len);
-                p.style.strokeDashoffset = String(len);
-            });
-        });
-
         let lingerTimer = 0;
+        let primed = false;
+
+        /**
+         * Dash each stroke to its own length and retract it fully, so the
+         * annotation is present but undrawn.
+         *
+         * This runs on demand rather than at setup because getTotalLength()
+         * returns 0 for a path the browser has not laid out yet, and a stroke
+         * dashed to 0 is a stroke with no dashing at all: fully drawn. That is
+         * how sketches ended up visible on cards further down the page before
+         * anything was hovered. If any path measures 0 we leave the whole card
+         * alone (still opacity:0 via .rn-primed in global.css) and try again on
+         * the next interaction, by which point it is definitely on screen.
+         */
+        const prime = () => {
+            if (primed) return true;
+            const svgs = words();
+            if (svgs.length === 0) return false;
+
+            let measured = true;
+            svgs.forEach((svg) => {
+                svg.querySelectorAll("path").forEach((p) => {
+                    const len = p.getTotalLength();
+                    if (!len) {
+                        measured = false;
+                        return;
+                    }
+                    p.style.strokeDasharray = String(len);
+                    p.style.strokeDashoffset = String(len);
+                });
+            });
+            if (!measured) return false;
+
+            svgs.forEach((svg) => svg.classList.add("rn-primed"));
+            primed = true;
+            return true;
+        };
 
         const drawIn = () => {
-            const svgs = words();
-            svgs.forEach((svg, i) => {
-                const delay = i * STAGGER_MS; // left-to-right
-                svg.querySelectorAll("path").forEach((p) => {
-                    p.style.transition = `stroke-dashoffset ${DRAW_MS}ms ease ${delay}ms`;
-                    p.style.strokeDashoffset = "0";
+            if (!prime()) return;
+            // The retracted state has to paint before the transition starts,
+            // otherwise the browser coalesces both into one frame and the
+            // annotation simply appears, fully drawn, with no draw at all.
+            requestAnimationFrame(() => {
+                words().forEach((svg, i) => {
+                    const delay = i * STAGGER_MS; // left-to-right
+                    svg.querySelectorAll("path").forEach((p) => {
+                        p.style.transition = `stroke-dashoffset ${DRAW_MS}ms ease ${delay}ms`;
+                        p.style.strokeDashoffset = "0";
+                    });
                 });
             });
         };
@@ -185,15 +219,35 @@ import ChapterMark from "./ChapterMark.astro";
             });
         };
 
-        card.addEventListener("mouseenter", () => {
-            clearTimeout(lingerTimer);
-            drawIn();
-        });
+        // Desktop: the text stands on its own and the annotation is a reward for
+        // hovering. Touch devices have no hover, so there the card draws itself
+        // in once when it is properly on screen.
+        const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-        card.addEventListener("mouseleave", () => {
-            clearTimeout(lingerTimer);
-            lingerTimer = window.setTimeout(drawOut, LINGER_MS);
-        });
+        if (canHover) {
+            card.addEventListener("mouseenter", () => {
+                clearTimeout(lingerTimer);
+                drawIn();
+            });
+
+            card.addEventListener("mouseleave", () => {
+                clearTimeout(lingerTimer);
+                lingerTimer = window.setTimeout(drawOut, LINGER_MS);
+            });
+            return;
+        }
+
+        const io = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (!entry.isIntersecting) continue;
+                    io.disconnect();
+                    drawIn();
+                }
+            },
+            { threshold: 0.6 },
+        );
+        io.observe(card);
     }
 
     function setupAnnotations() {

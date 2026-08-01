@@ -98,9 +98,21 @@ function setupWordReveals(reduced: boolean): void {
                 } else {
                     const span = document.createElement("span");
                     span.className = "wr-w";
-                    // Delay cap: very long paragraphs finish together at
-                    // the tail instead of dripping in for seconds.
-                    span.style.setProperty("--wi", String(Math.min(wi++, 45)));
+                    // Punctuation stranded by the split - the "." after an
+                    // annotated name, the "," between two of them, the "/" in
+                    // "Spring Boot/Ktor" - is its own text node and would
+                    // otherwise get its own stagger index and rise a beat
+                    // after the word it belongs to, reading as a misplaced
+                    // mark. Reuse the previous word's index so it travels with
+                    // its word instead of trailing it.
+                    const isPunctuation = !/[\p{L}\p{N}]/u.test(part);
+                    if (isPunctuation && wi > 0) {
+                        span.style.setProperty("--wi", String(Math.min(wi - 1, 45)));
+                    } else {
+                        // Delay cap: very long paragraphs finish together at
+                        // the tail instead of dripping in for seconds.
+                        span.style.setProperty("--wi", String(Math.min(wi++, 45)));
+                    }
                     span.textContent = part;
                     frag.appendChild(span);
                 }
@@ -430,9 +442,15 @@ function measureShowcases(): Showcase[] {
         const per = Math.round(vh * 0.75);
         const settle = Math.round(vh * 0.3);
         // Generous exit: the pile's departure AND the arrow's assembly
-        // (outline draw, flood, label stamp) are both scrubbed across it.
-        const exitDist = Math.round(vh * 1.1);
-        const arrowDwell = Math.round(vh * 0.25);
+        // (outline draw, flood, label stamp) are both scrubbed across it, so
+        // this is the dial that sets how much scroll the whole assembly gets.
+        // The label's share of that is widened separately in the scrub, so the
+        // lettering slows without dragging out the draw and flood with it.
+        const exitDist = Math.round(vh * 1.4);
+        // Short dwell: the arrow does not need to sit finished on an empty
+        // stage, and a long one leaves dead scroll between it and the grid it
+        // points at. The grid climbs over its tail instead (see index.astro).
+        const arrowDwell = Math.round(vh * 0.12);
         const buffer = Math.round(vh * 0.3);
         // Cascade offsets; keep in sync with the .hscroll-pin CSS calc.
         const offX = parseFloat(section.dataset.offX ?? "24");
@@ -983,21 +1001,27 @@ function bindScrollDriven(reduced: boolean): void {
             // Then it exits the way it points: sliding down and fading as
             // the section releases into the grid.
             if (sc.arrowEl) {
-                const draw = Math.max(0, Math.min(1, (easedE - 0.52) / 0.28));
-                const flood = Math.max(0, Math.min(1, (easedE - 0.8) / 0.13));
+                const draw = Math.max(0, Math.min(1, (easedE - 0.38) / 0.3));
+                const flood = Math.max(0, Math.min(1, (easedE - 0.68) / 0.1));
                 if (sc.arrowPath) {
                     sc.arrowPath.style.strokeDashoffset =
                         String(sc.arrowLen * (1 - draw));
                     sc.arrowPath.style.fillOpacity = flood.toFixed(3);
-                    // The outline is scaffolding: it dissolves as the fill
-                    // floods, leaving a pure silhouette - a centered SVG
-                    // stroke otherwise protrudes past the fill edge and
-                    // reads as a misaligned lighter rim at rest.
-                    sc.arrowPath.style.strokeOpacity = (1 - flood).toFixed(3);
+                    // The stroke STAYS. An SVG stroke is centered on the path,
+                    // so it reaches half a stroke-width past the fill edge:
+                    // fading it out shrinks the silhouette, and the outline you
+                    // drew is visibly bigger than the arrow you end up with.
+                    // Keeping it at full opacity in the fill's own color makes
+                    // both states the same shape, and same-color-at-full-alpha
+                    // leaves no rim to give it away.
+                    sc.arrowPath.style.strokeOpacity = "1";
                 }
                 // Letters stamp on one at a time (M-O-R-E, then PROJECTS
                 // running down the leg) - hard on/off, like a typewriter.
-                const stamp = Math.max(0, Math.min(1, (easedE - 0.86) / 0.14));
+                // This is the widest window of the three phases: the label is
+                // the part worth reading, and it landed too fast to register
+                // when it shared a sliver of scroll with the flood.
+                const stamp = Math.max(0, Math.min(1, (easedE - 0.78) / 0.22));
                 const n = sc.arrowLetters.length || 1;
                 sc.arrowLetters.forEach((letter, i) => {
                     letter.style.opacity = stamp * n >= i + 0.6 ? "1" : "0";

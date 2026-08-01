@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import { projects } from "../data/projects";
-import { ProjectCard } from "./CardProjects";
+import { ProjectCard, Lightbox } from "./CardProjects";
 import PlayButton from "./PlayButton";
 
 type Project = (typeof projects)[number];
@@ -27,6 +28,10 @@ export default function ProjectsGrid() {
     const rest = projects
         .filter((p) => !("featured" in p) || !p.featured)
         .sort((a, b) => presentability(a) - presentability(b));
+
+    // The desktop preview opens full size on click, same lightbox the mobile
+    // cards use, so every project picture on the page expands.
+    const [lightboxOpen, setLightboxOpen] = useState(false);
 
     /* ------------------------- mobile carousel ------------------------- */
     const trackRef = useRef<HTMLDivElement>(null);
@@ -157,8 +162,8 @@ export default function ProjectsGrid() {
                             return (
                                 <div
                                     key={p.projectTitle}
-                                    onClick={() => setActive(p)}
-                                    onKeyDown={(e) => e.key === "Enter" && setActive(p)}
+                                    onClick={() => { setActive(p); setLightboxOpen(false); }}
+                                    onKeyDown={(e) => { if (e.key === "Enter") { setActive(p); setLightboxOpen(false); } }}
                                     role="button"
                                     tabIndex={0}
                                     style={{ "--rc": accent } as CSSProperties}
@@ -201,7 +206,7 @@ export default function ProjectsGrid() {
                         resizes between projects - only content swaps. */}
                     <div className="w-[34rem] shrink-0 relative flex flex-col">
                         {shown && (
-                            <p className="absolute bottom-full left-0 mb-4 font-mono text-base text-white">
+                            <p className="absolute bottom-full left-0 mb-1 font-mono text-base text-white">
                                 {shown.projectTitle.toLowerCase().replaceAll(" ", "-")}
                                 <span className="text-ctp-blue animate-pulse">_</span>
                             </p>
@@ -209,9 +214,9 @@ export default function ProjectsGrid() {
                         {!shown ? (
                             <div className="w-full h-[28rem] flex flex-col justify-end p-8 bg-zinc-900/20 border border-zinc-800 rounded-md">
                                 <p className="text-3xl font-bold leading-tight text-white/90 mb-4">
-                                    {rest.length} more experiments,
+                                    {rest.length} more
                                     <br />
-                                    tools and games<span className="text-ctp-blue">.</span>
+                                    projects<span className="text-ctp-blue">.</span>
                                 </p>
                                 <p className="font-mono text-xs text-zinc-500">
                                     <span className="text-ctp-blue">$</span> click a row to open it here
@@ -223,7 +228,8 @@ export default function ProjectsGrid() {
                                 src={firstImage(shown)!}
                                 alt=""
                                 decoding="async"
-                                className="w-full h-[28rem] object-cover rounded-md animate-fade-in-fast"
+                                onClick={() => setLightboxOpen(true)}
+                                className="w-full h-[28rem] object-contain rounded-md animate-fade-in-fast cursor-zoom-in"
                             />
                         ) : (
                             <div className="w-full h-[28rem] flex items-center justify-center bg-zinc-900/30 border border-zinc-800 rounded-md font-mono text-xs text-zinc-600">
@@ -235,8 +241,8 @@ export default function ProjectsGrid() {
                             </div>
                         )}
                         {shown && (
-                            <div className="flex-none mt-3 h-36 overflow-hidden space-y-2">
-                                <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3">
+                            <div className="flex-none mt-3 h-48 overflow-hidden space-y-2">
+                                <p className="text-sm text-zinc-400 leading-relaxed line-clamp-6">
                                     {shown.description}
                                 </p>
                                 <p className="font-mono text-xs text-zinc-500 truncate">
@@ -264,6 +270,16 @@ export default function ProjectsGrid() {
                     </div>
                 </div>
             </div>
+
+            {lightboxOpen && shown && firstImage(shown) && createPortal(
+                <Lightbox
+                    images={(Array.isArray(shown.image) ? shown.image : [shown.image]).filter(Boolean) as string[]}
+                    startIndex={0}
+                    title={shown.projectTitle}
+                    onClose={() => setLightboxOpen(false)}
+                />,
+                document.body,
+            )}
 
             {/* ==================== mobile: swipe carousel ==================== */}
             <div className="lg:hidden">
