@@ -291,7 +291,7 @@ export default function ProjectsGrid() {
                     {rest.map((project, idx) => (
                         <div
                             key={project.projectTitle}
-                            className="snap-center shrink-0 w-[78vw] h-[min(30rem,72svh)] flex"
+                            className="snap-center shrink-0 w-[78vw] h-[min(35rem,78svh)] flex"
                         >
                             <ProjectCard project={project} idx={idx} />
                         </div>

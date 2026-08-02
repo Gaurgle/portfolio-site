@@ -544,6 +544,22 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
+/* Tablet-width phones and small tablets still use the mobile deck (the desktop
+   filmstrip starts at lg). The card is roughly twice as wide here, so the media
+   band scales with it - otherwise object-contain fits to the band's height and
+   the screenshot reads as a stamp in the middle of a wide card. */
+@media (min-width: 640px) and (max-width: 1023px) {
+    .hscroll-pin [data-hscroll-track] {
+        height: calc(36rem + var(--deck-n, 3) * 10px);
+    }
+    .hscroll-pin .featured-card {
+        height: 36rem;
+    }
+    .hscroll-pin .featured-card .edit-media {
+        height: 17rem;
+    }
+}
+
 /* Typed command prompts */
 [data-type-cmd] {
     display: inline-block;
@@ -648,7 +664,7 @@ html.lenis, html.lenis body { height: auto; }
         position: relative;
         width: 100%;
         /* card + one 10px deck edge per covered card (--deck-n from markup). */
-        height: calc(26rem + var(--deck-n, 3) * 10px);
+        height: calc(28rem + var(--deck-n, 3) * 10px);
     }
     /* Fixed rem height, NOT a viewport unit or a %-of-viewport: the mobile
        URL bar collapsing/expanding changes the viewport height, and anything
@@ -660,13 +676,16 @@ html.lenis, html.lenis body { height: auto; }
         top: 0;
         left: 1rem;
         right: 1rem;
-        height: 26rem;
+        height: 28rem;
         will-change: transform;
     }
     /* Media band is a fixed rem too (not % of the card) so the screenshot
-       never resizes. */
+       never resizes. Deep enough that a wide terminal shot (16:9-ish) still
+       reads: object-contain scales to the SHORTER axis, so a shallow band on
+       a wide card leaves the image marooned in the middle with dead air on
+       both sides. */
     .hscroll-pin .featured-card .edit-media {
-        height: 8rem;
+        height: 10rem;
     }
     /* Slim the title on mobile (desktop keeps text-4xl) so the freed height
        goes to the description - more copy fits the same fixed card. */
