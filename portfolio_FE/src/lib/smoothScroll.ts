@@ -91,6 +91,14 @@ function setupWordReveals(reduced: boolean): void {
             const text = node.textContent ?? "";
             if (!text.trim()) return;
             const frag = document.createDocumentFragment();
+            // A text node that opens with punctuation and no leading space is
+            // the tail of the element before it: the "." in
+            // "<span>IMRSV Music</span>." lives in a separate text node from
+            // the name it terminates. Remembered here so it can be tied back
+            // to that element once the fragment is in the document.
+            const opensWithPunctuation = /^[^\s\p{L}\p{N}]/u.test(text);
+            let leadPunctuation: HTMLElement | null = null;
+
             for (const part of text.split(/(\s+)/)) {
                 if (!part) continue;
                 if (/^\s+$/.test(part)) {
@@ -114,10 +122,50 @@ function setupWordReveals(reduced: boolean): void {
                         span.style.setProperty("--wi", String(Math.min(wi++, 45)));
                     }
                     span.textContent = part;
+                    if (isPunctuation && opensWithPunctuation && !frag.firstChild) {
+                        leadPunctuation = span;
+                    }
                     frag.appendChild(span);
                 }
             }
-            node.parentNode?.replaceChild(frag, node);
+
+            const parent = node.parentNode;
+            parent?.replaceChild(frag, node);
+
+            // Every .wr-w is display:inline-block, and the line breaker allows
+            // a break after any atomic inline - so a "." that follows an
+            // annotated name can start the next line on its own. Measured: it
+            // orphans at ~1% of container widths, which is why it only showed
+            // up at one specific viewport. A word joiner does NOT prevent it.
+            // Tying the element and its punctuation into a nowrap shell does.
+            if (leadPunctuation && parent) {
+                // Walk back past any rough-notation overlay: it injects its
+                // <svg> as a sibling directly after the word it annotates, so
+                // the naive previousSibling is the drawing, not the text.
+                let anchor: Node | null = leadPunctuation.previousSibling;
+                while (
+                    anchor &&
+                    anchor.nodeType === Node.ELEMENT_NODE &&
+                    (anchor as Element).classList?.contains("rough-annotation")
+                ) {
+                    anchor = anchor.previousSibling;
+                }
+
+                if (anchor && anchor.nodeType === Node.ELEMENT_NODE) {
+                    const shell = document.createElement("span");
+                    shell.style.whiteSpace = "nowrap";
+                    parent.insertBefore(shell, anchor);
+                    // Move the whole run, anchor through punctuation, so any
+                    // overlay in between keeps its position in the order.
+                    let cursor: Node | null = anchor;
+                    while (cursor) {
+                        const next: Node | null = cursor.nextSibling;
+                        shell.appendChild(cursor);
+                        if (cursor === leadPunctuation) break;
+                        cursor = next;
+                    }
+                }
+            }
         };
         [...el.childNodes].forEach(walk);
     }
