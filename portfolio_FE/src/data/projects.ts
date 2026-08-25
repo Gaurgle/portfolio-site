@@ -246,7 +246,7 @@ export const projects = [
       "/pictures/portfolio-2.webp",
       "/pictures/portfolio-3.webp",
     ],
-    link: "https://github.com/gaurgle/DevOps_Portfolio/",
+    link: "https://github.com/Gaurgle/portfolio-site/",
     demoUrl: "https://andreasroos.vercel.app",
   },
 ];

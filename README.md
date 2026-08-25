@@ -1,21 +1,19 @@
 ![Status](https://img.shields.io/badge/Status-Active-success)
-![GitHub last commit](https://img.shields.io/github/last-commit/Gaurgle/DevOps_Portfolio)
+![GitHub last commit](https://img.shields.io/github/last-commit/Gaurgle/portfolio-site)
 ![Frontend](https://img.shields.io/badge/Frontend-Astro-FF5A03?logo=astro)
 ![Backend](https://img.shields.io/badge/Backend-Spring%20Boot-6DB33F?logo=springboot)
 ![Database](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql)
 
 [![Frontend Demo](https://img.shields.io/badge/Frontend-Demo-blue?logo=vercel)](https://andreasroos.vercel.app)
 
-# DevOps Portfolio
-This is a showcase portfolio application built as a part of the DevOps course at Nackademin.
-
-A full-stack developer portfolio with an **Astro** frontend (live on **Vercel**) and a containerized **Spring Boot + PostgreSQL** backend kept as a DevOps showcase (Docker, Flyway, GitHub Actions CI). The live site's contact form is handled by **Web3Forms** — no server or database required to run.
+# Portfolio
+A full-stack developer portfolio with an **Astro** frontend (live on **Vercel**) and a containerized **Spring Boot + PostgreSQL** backend kept as an infrastructure showcase (Docker, Flyway, GitHub Actions CI). The live site's contact form is handled by **Web3Forms**, so no server or database is required to run it.
 
 ---
 ## 📖 Documentation
 
-- [Frontend README →](https://github.com/Gaurgle/DevOps_Portfolio/blob/main/portfolio_FE/README.md)
-- [Backend README →](https://github.com/Gaurgle/DevOps_Portfolio/blob/main/portfolio_BE/README.md)
+- [Frontend README →](https://github.com/Gaurgle/portfolio-site/blob/main/portfolio_FE/README.md)
+- [Backend README →](https://github.com/Gaurgle/portfolio-site/blob/main/portfolio_BE/README.md)
 
 ---
 
@@ -29,7 +27,7 @@ A full-stack developer portfolio with an **Astro** frontend (live on **Vercel**)
 ## 📁 Project Structure
 
 ```text
-DevOps_Portfolio/
+portfolio-site/
 ├── portfolio_FE/    → Astro frontend (deployed on Vercel)
 └── portfolio_BE/    → Spring Boot backend (containerized showcase, run locally)
 ```
