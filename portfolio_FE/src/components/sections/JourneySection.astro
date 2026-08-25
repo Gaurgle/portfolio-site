@@ -8,19 +8,45 @@
  */
 import ChapterMark from "./ChapterMark.astro";
 
-const milestones = [
+type Milestone = {
+    n: string;
+    cmd: string;
+    color: string;
+    title: string;
+    paras: string[];
+    /** Names carry more weight scanned as a list than buried in a sentence,
+     *  so only the milestone that earns a roll call gets one. */
+    credits?: { label: string; names: string[] }[];
+};
+
+const milestones: Milestone[] = [
     {
         n: "01",
         cmd: "music",
         color: "text-ctp-green",
         title: "Studio & stage",
         paras: [
-            "15+ years in music. Drums and musical direction with Benjamin " +
-            "Ingrosso, MIDI and tracks engineering for Loreen, Veronica Maggio " +
-            "and Eva Dahlgren.",
-            "Mixing credits: Vault Boy, Benjamin Ingrosso, Liam Payne, Astrid S " +
-            "and many more. Signed producer at TEN Music Group - these days " +
-            "mastering at IMRSV Music.",
+            "15+ years in music: drums and musical direction on stage, MIDI " +
+            "and tracks engineering, mixing in the studio.",
+            "Songwriter and producer, formerly signed to TEN Music Group. " +
+            "These days mastering at IMRSV Music.",
+        ],
+        credits: [
+            {
+                label: "studio",
+                names: [
+                    "Liam Payne", "Astrid S", "Vault Boy", "Cherrie", "Matt Simons",
+                    "MishCatt", "Shy Martin", "Sarah Barrios", "Bonn", "Erik Hassle",
+                    "Felix Sandman", "Marcus & Martinus", "Sabina Ddumba",
+                ],
+            },
+            {
+                label: "live",
+                names: [
+                    "Veronica Maggio", "Benjamin Ingrosso", "Loreen", "Zara Larsson",
+                    "Molly Sanden", "Eva Dahlgren", "Lova",
+                ],
+            },
         ],
     },
     {
@@ -114,6 +140,17 @@ const milestones = [
                                             <p class="text-sm md:text-base text-zinc-300 leading-relaxed max-w-xl">{p}</p>
                                         ))}
                                     </div>
+                                    {m.credits && (
+                                        <div class="font-mono text-[10px] md:text-[11px] tracking-[0.08em] uppercase text-zinc-500 mt-3 md:mt-4 space-y-1">
+                                            <p>credits <span class="text-zinc-700">//</span></p>
+                                            {m.credits.map((c) => (
+                                                <p>
+                                                    <span class="text-zinc-600">{c.label}:</span>{" "}
+                                                    <span class="text-zinc-400">{c.names.join(" · ")}</span>
+                                                </p>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

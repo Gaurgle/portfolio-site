@@ -5,7 +5,7 @@ export const projects = [
     description:
       "Android app for testing Bluetooth LE and LE Audio devices. Lua scripting for custom test sequences, live GATT discovery, and real-time device communication.",
     tags: ["Kotlin", "Jetpack Compose", "BLE", "Lua", "MVVM"],
-    image: ["/pictures/BLE app 1.png", "/pictures/BLE app 2.png"],
+    image: ["/pictures/ble-app-1.webp", "/pictures/ble-app-2.webp"],
     link: "#",
     featured: true,
     featuredOrder: 1,
@@ -29,9 +29,9 @@ export const projects = [
       "REST API for BLE and LE Audio test sessions and result storage. Real-time SSE events, a Svelte and TypeScript dashboard, containerized with Docker.",
     tags: ["Kotlin", "Ktor", "PostgreSQL", "Docker", "Svelte", "TypeScript"],
     image: [
-      "/pictures/WTP 1 Screenshot 2026-03-31 at 23.16.18.png",
-      "/pictures/WTP 2 Screenshot 2026-03-31 at 23.16.58.png",
-      "/pictures/WTP 3 Screenshot 2026-03-31 at 23.18.22.png",
+      "/pictures/wtp-1.webp",
+      "/pictures/wtp-2.webp",
+      "/pictures/wtp-3.webp",
     ],
     link: "#",
     featured: true,
@@ -55,7 +55,7 @@ export const projects = [
     description:
       "Kotlin engine that automates release prep for a music studio. It reads the batch from the studio's database, finds every master, Atmos and artwork file on the working volume, and stages a validated upload set.",
     tags: ["Kotlin", "Gradle", "SQLite", "Compose Multiplatform", "TDD"],
-    image: "/pictures/release-pipeline.png",
+    image: "/pictures/release-pipeline.webp",
     link: "#",
     wip: true,
     featured: true,
@@ -81,8 +81,8 @@ export const projects = [
       "C++20 engine that hides cryptographically keyed data inside audio. Inaudible, key-dependent, and built to survive what real files go through on their way around the world.",
     tags: ["C++20", "JUCE", "DSP", "CMake", "ATDD"],
     image: [
-      "/pictures/WM 1 Screenshot 2026-03-31 at 23.27.01.png",
-      "/pictures/WM 2 Screenshot 2026-03-31 at 23.27.58.png",
+      "/pictures/wm-1.webp",
+      "/pictures/wm-2.webp",
     ],
     link: "#",
     wip: true,
@@ -127,7 +127,7 @@ export const projects = [
     description:
       "Multi-repo dashboard TUI, the interactive sibling of repoz. It shows commits ahead and behind, uncommitted work, open PRs, CI results, worktrees and stashes across every repo you touch. Pulls and branch cleanup are one keystroke away.",
     tags: ["Rust", "ratatui", "GitHub API", "TUI", "Git"],
-    image: "/pictures/fleetz.png",
+    image: "/pictures/fleetz.webp",
     link: "#",
   },
   {
@@ -135,7 +135,7 @@ export const projects = [
     description:
       "See what changed across your repos since you last sat down. It asks GitHub which repos were pushed to recently, fetches them in parallel, and prints behind, ahead, uncommitted and untracked in one shot. No config, no daemon, just bash.",
     tags: ["Bash", "GitHub CLI", "jq", "Git"],
-    image: "/pictures/repoz.png",
+    image: "/pictures/repoz.webp",
     link: "https://github.com/Gaurgle/repoz",
   },
   {
@@ -143,7 +143,7 @@ export const projects = [
     description:
       "Terminal noise generator for focus. White, pink and brown noise synthesized in real time, with binaural brainwave presets and a rain layer on top. Nothing is sampled. It all comes out of the DSP.",
     tags: ["Rust", "cpal", "ratatui", "DSP", "Audio"],
-    image: "/pictures/noiz.png",
+    image: "/pictures/noiz.webp",
     link: "https://github.com/Gaurgle/noiz",
     details: {
       long:
@@ -164,10 +164,10 @@ export const projects = [
       "Local-first notes and todos in one Rust binary. Notes live where the work lives and mirror to a global home so nothing gets lost, and the todo TUI handles subtasks, priorities and vim-style navigation. v1 is finished and in daily use. notez2 is the cross-machine rewrite, adding a desktop app on the same core.",
     tags: ["Rust", "ratatui", "CLI", "Tauri", "SvelteKit"],
     image: [
-      "/pictures/notez-local.png",
-      "/pictures/notez-global.png",
-      "/pictures/todoz-local.png",
-      "/pictures/todoz-global.png",
+      "/pictures/notez-local.webp",
+      "/pictures/notez-global.webp",
+      "/pictures/todoz-local.webp",
+      "/pictures/todoz-global.webp",
     ],
     link: "https://github.com/Gaurgle/notez2",
     details: {
@@ -188,7 +188,7 @@ export const projects = [
     description:
       "Interactive terminal dictionary of the Kotlin standard library. Signatures, gotchas and a one-line example per entry, plus a second library of tiered Kotlin and Android fundamentals. Give it a query and it prints the answer and exits. Give it none and it opens the browser.",
     tags: ["Rust", "ratatui", "Kotlin", "CLI", "TUI"],
-    image: "/pictures/stdz.png",
+    image: "/pictures/stdz.webp",
     link: "#",
   },
   {
@@ -196,7 +196,7 @@ export const projects = [
     description:
       "A spatial bulletin board in the terminal. Ideas and todos as post-it notes on a big pannable, zoomable board, with a four-level detail ladder and switchable worlds. The model and the projection math sit in a UI-agnostic crate, so one brain drives both the TUI and a desktop app.",
     tags: ["Rust", "ratatui", "TUI"],
-    image: "/pictures/pinz.png",
+    image: "/pictures/pinz.webp",
     link: "#",
     wip: true,
   },
@@ -205,7 +205,7 @@ export const projects = [
     description:
       "Swedish salary calculator for consulting and employment. Tell it what a number represents and it back-solves the rest of the chain, from brutto and netto through arbetsgivaravgift, moms and effektiv timlön, then rates the result against the market. Income tax is computed the way Skatteverket does it, per kommun.",
     tags: ["Rust", "ratatui", "TUI"],
-    image: "/pictures/zalary.png",
+    image: "/pictures/zalary.webp",
     link: "#",
     wip: true,
   },
@@ -242,9 +242,9 @@ export const projects = [
       "This site. Astro, React and Tailwind on the front, deployed on Vercel. The containerized Spring Boot and PostgreSQL backend stays alongside as a DevOps showcase, with Flyway migrations, Docker and GitHub Actions CI.",
     tags: ["Astro", "React", "Tailwind", "Kotlin", "Spring Boot", "Docker"],
     image: [
-      "/pictures/Portfolio 1 Screenshot 2026-03-31 at 20.15.34.png",
-      "/pictures/Portfolio 2 Screenshot 2026-03-31 at 23.19.40.png",
-      "/pictures/Portfolio 3 Screenshot 2026-03-31 at 23.18.59.png",
+      "/pictures/portfolio-1.webp",
+      "/pictures/portfolio-2.webp",
+      "/pictures/portfolio-3.webp",
     ],
     link: "https://github.com/gaurgle/DevOps_Portfolio/",
     demoUrl: "https://andreasroos.vercel.app",

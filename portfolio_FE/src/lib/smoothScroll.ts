@@ -387,6 +387,78 @@ function measureCardStacks(): CardStack[] {
 }
 
 /* ------------------------------------------------------------------ */
+/* Static layout (prefers-reduced-motion)                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Reduced motion turns every scroll-driven effect off, but the markup those
+ * effects drive is not laid out to stand on its own: the pinned viewports
+ * stick and clip, and both card piles are absolutely positioned stacks whose
+ * cards sit on top of each other until the engine transforms them apart.
+ *
+ * Undo those rules inline so the page reads as a plain document - every card
+ * in normal flow, fully visible, nothing pinned and nothing overlapping. The
+ * `reduced-motion` class on `<html>` is the hook for any CSS that needs to
+ * opt out of the same choreography.
+ */
+function layoutStatic(): void {
+    const style = (selector: string, styles: Partial<CSSStyleDeclaration>) => {
+        for (const el of document.querySelectorAll<HTMLElement>(selector)) {
+            Object.assign(el.style, styles);
+        }
+    };
+
+    // Section heights exist only to buy scroll for the choreography.
+    style("[data-pin], [data-cardstack], [data-hscroll]", { height: "auto" });
+
+    // Pinned viewports: stop sticking, stop clipping, stop reserving a screen.
+    style(".pin-viewport, .journey-viewport, .hscroll-viewport", {
+        position: "static",
+        height: "auto",
+        overflow: "visible",
+    });
+    // The showcase viewport centers several stage layers as flex siblings;
+    // in flow they have to stack instead of sitting side by side.
+    style(".hscroll-viewport", { display: "block" });
+
+    // Full-bleed exists so cards can fly in from the window edge. In flow it
+    // just breaks the page's column.
+    style(".hscroll-pin", { marginLeft: "0", marginRight: "0" });
+
+    // The pile stages: fixed-size boxes holding absolute cards.
+    style("[data-hscroll-track], .stack-area", {
+        position: "static",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.5rem",
+        width: "auto",
+        height: "auto",
+    });
+    style("[data-stack-card], [data-spotlight]", {
+        position: "static",
+        width: "auto",
+        height: "auto",
+        transform: "none",
+        opacity: "1",
+        willChange: "auto",
+    });
+
+    // Stage layers the engine flies across the pin: the chapter mark, the
+    // docked headline, the finale arrow. Each is either absolute itself or
+    // centered by an absolute wrapper; dropping that puts them in flow above
+    // and below the cards, in DOM order.
+    for (const el of document.querySelectorAll<HTMLElement>(
+        "[data-cover-content], [data-hscroll-headline], [data-hscroll-arrow]",
+    )) {
+        for (const box of [el, el.parentElement]) {
+            if (box && getComputedStyle(box).position === "absolute") {
+                box.style.position = "static";
+            }
+        }
+    }
+}
+
+/* ------------------------------------------------------------------ */
 /* Pinned dwell sections                                               */
 /* ------------------------------------------------------------------ */
 
@@ -1264,6 +1336,7 @@ export function destroySmoothScroll(): void {
 export function initSmoothScroll(): void {
     destroySmoothScroll();
     const reduced = prefersReducedMotion();
+    document.documentElement.classList.toggle("reduced-motion", reduced);
 
     if (!reduced) {
         // Low lerp + slightly damped wheel = heavier, more deliberate glide.
@@ -1283,6 +1356,7 @@ export function initSmoothScroll(): void {
         document
             .querySelectorAll("[data-reveal]")
             .forEach((el) => el.classList.add("is-visible"));
+        layoutStatic();
     }
 
     setupWordReveals(reduced);

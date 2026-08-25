@@ -2,68 +2,7 @@ import React, {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import BorderBeam from "./HibubbaIO/BorderBeam.tsx";
 import {projects} from "../data/projects.ts";
-
-function PlayButton({src, title}: { src: string; title: string }) {
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-
-    useEffect(() => {
-        const onGlobalPlay = () => {
-            if (audioRef.current) audioRef.current.pause();
-        };
-        window.addEventListener("card-audio:play", onGlobalPlay);
-        return () => window.removeEventListener("card-audio:play", onGlobalPlay);
-    }, []);
-
-    useEffect(() => {
-        const a = (audioRef.current ??= new Audio(src));
-        const onEnd = () => setIsPlaying(false);
-        const onPause = () => setIsPlaying(false);
-        const onPlay = () => setIsPlaying(true);
-
-        a.addEventListener("ended", onEnd);
-        a.addEventListener("pause", onPause);
-        a.addEventListener("play", onPlay);
-
-        return () => {
-            a.removeEventListener("ended", onEnd);
-            a.removeEventListener("pause", onPause);
-            a.removeEventListener("play", onPlay);
-            a.pause();
-        };
-    }, [src]);
-
-    const toggle = async () => {
-        const a = (audioRef.current ??= new Audio(src));
-        a.preload = "none";
-
-        if (a.paused) {
-            window.dispatchEvent(new CustomEvent("card-audio:play"));
-            try {
-                await a.play();
-                setIsPlaying(true);
-            } catch {
-                setIsPlaying(false);
-            }
-        } else {
-            a.pause();
-            setIsPlaying(false);
-        }
-    };
-
-    return (
-        <button
-            onClick={toggle}
-            aria-label={`Play ${title}`}
-            title={`Play ${title}`}
-            className="w-8 h-8 grid place-items-center rounded-md bg-black/80 border border-zinc-800
-                       text-zinc-300 text-xs hover:bg-zinc-900 hover:text-white hover:border-zinc-700
-                       transition-all duration-200"
-        >
-            {isPlaying ? "II" : "\u25B6"}
-        </button>
-    );
-}
+import {imageSize} from "../data/imageSizes.ts";
 
 export function Lightbox({images, startIndex, title, onClose}: {
     images: string[];
@@ -73,6 +12,8 @@ export function Lightbox({images, startIndex, title, onClose}: {
 }) {
     const hasMultiple = images.length > 1;
     const [currentIndex, setCurrentIndex] = useState(startIndex);
+    const frameRef = useRef<HTMLDivElement>(null);
+    const closeRef = useRef<HTMLButtonElement>(null);
 
     const goNext = () => {
         setCurrentIndex(prev => (prev + 1) % images.length);
@@ -82,9 +23,33 @@ export function Lightbox({images, startIndex, title, onClose}: {
         setCurrentIndex(prev => (prev - 1 + images.length) % images.length);
     };
 
+    // The opener stays focused underneath the overlay; focus moves into the
+    // dialog on open and comes back here on close.
     useEffect(() => {
+        const opener = document.activeElement as HTMLElement | null;
+        closeRef.current?.focus();
+        return () => opener?.focus();
+    }, []);
+
+    useEffect(() => {
+        /** Every control in the dialog is a button, so this is the tab ring. */
+        const trapTab = (e: KeyboardEvent) => {
+            const frame = frameRef.current;
+            if (!frame) return;
+            const items = Array.from(frame.querySelectorAll("button"));
+            if (!items.length) return;
+            const edge = e.shiftKey ? items[0] : items[items.length - 1];
+            const wrap = e.shiftKey ? items[items.length - 1] : items[0];
+            const active = document.activeElement;
+            if (active === edge || !frame.contains(active)) {
+                e.preventDefault();
+                wrap.focus();
+            }
+        };
+
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();
+            if (e.key === "Tab") trapTab(e);
             if (hasMultiple && e.key === "ArrowRight") goNext();
             if (hasMultiple && e.key === "ArrowLeft") goPrev();
         };
@@ -96,15 +61,19 @@ export function Lightbox({images, startIndex, title, onClose}: {
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
             onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
         >
             <div
+                ref={frameRef}
                 className="relative w-[85vw] max-w-5xl bg-zinc-950 border border-zinc-700/60 rounded-xl
                            shadow-2xl shadow-black/50 overflow-hidden"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Terminal bar */}
                 <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900/80 border-b border-zinc-800">
-                    <button onClick={onClose} className="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-400 transition-colors" aria-label="Close"/>
+                    <button ref={closeRef} type="button" onClick={onClose} className="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-400 transition-colors" aria-label="Close"/>
                     <span className="w-3 h-3 rounded-full bg-yellow-500/80"/>
                     <span className="w-3 h-3 rounded-full bg-green-500/80"/>
                     <span className="ml-3 font-mono text-xs text-zinc-400">{title}</span>
@@ -116,7 +85,9 @@ export function Lightbox({images, startIndex, title, onClose}: {
                         <img
                             key={src}
                             src={src}
+                            {...imageSize(src)}
                             alt={`${title}${hasMultiple ? ` slide ${i + 1}` : ""}`}
+                            decoding="async"
                             className={`w-full max-h-[75vh] object-contain transition-opacity duration-700
                                        ${i === currentIndex ? "opacity-100" : "opacity-0 absolute inset-0"}`}
                         />
@@ -199,16 +170,20 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
         >
             {/* Image slideshow / placeholder */}
             {hasImage ? (
-                <div
-                    className="h-44 w-full overflow-hidden flex-shrink-0 relative cursor-zoom-in"
+                <button
+                    type="button"
+                    aria-label={`Open ${project.projectTitle} screenshots`}
+                    className="h-44 w-full overflow-hidden flex-shrink-0 relative cursor-zoom-in text-left"
                     onClick={() => setLightboxOpen(true)}
                 >
                     {images.map((src, i) => (
                         <img
                             key={src}
                             src={src}
+                            {...imageSize(src)}
                             alt={`${project.projectTitle}${hasMultiple ? ` slide ${i + 1}` : ""}`}
                             loading="lazy"
+                            decoding="async"
                             className={`absolute inset-0 h-full w-full object-contain transition-all duration-700
                                        md:group-hover:scale-105
                                        ${i === currentIndex ? "opacity-100" : "opacity-0"}`}
@@ -226,7 +201,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                             ))}
                         </div>
                     )}
-                </div>
+                </button>
             ) : (
                 <div className="h-44 w-full flex-shrink-0 relative flex items-center justify-center
                                 bg-zinc-900/30 border-b border-zinc-800/50 overflow-hidden select-none">
@@ -305,12 +280,6 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                     )}
                 </div>
             </div>
-
-            {project.songSrc && (
-                <div className="absolute top-[60px] right-2 z-20">
-                    <PlayButton src={project.songSrc} title={project.projectTitle}/>
-                </div>
-            )}
 
             <BorderBeam className="rounded-xl z-10"/>
         </div>

@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import { projects } from "../data/projects";
+import { imageSize } from "../data/imageSizes";
 import { ProjectCard, Lightbox } from "./CardProjects";
-import PlayButton from "./PlayButton";
 
 type Project = (typeof projects)[number];
 
@@ -223,14 +223,21 @@ export default function ProjectsGrid() {
                                 </p>
                             </div>
                         ) : firstImage(shown) ? (
-                            <img
-                                key={shown.projectTitle}
-                                src={firstImage(shown)!}
-                                alt=""
-                                decoding="async"
+                            <button
+                                type="button"
+                                aria-label="Open screenshots"
                                 onClick={() => setLightboxOpen(true)}
-                                className="w-full h-[28rem] object-contain rounded-md animate-fade-in-fast cursor-zoom-in"
-                            />
+                                className="block w-full cursor-zoom-in"
+                            >
+                                <img
+                                    key={shown.projectTitle}
+                                    src={firstImage(shown)!}
+                                    {...imageSize(firstImage(shown)!)}
+                                    alt=""
+                                    decoding="async"
+                                    className="w-full h-[28rem] object-contain rounded-md animate-fade-in-fast cursor-zoom-in"
+                                />
+                            </button>
                         ) : (
                             <div className="w-full h-[28rem] flex items-center justify-center bg-zinc-900/30 border border-zinc-800 rounded-md font-mono text-xs text-zinc-600">
                                 <span>
@@ -260,9 +267,6 @@ export default function ProjectsGrid() {
                                            className="text-zinc-400 hover:text-white transition-colors duration-200">
                                             live &rarr;
                                         </a>
-                                    )}
-                                    {shown.songSrc && (
-                                        <PlayButton src={shown.songSrc} title={shown.projectTitle} />
                                     )}
                                 </div>
                             </div>

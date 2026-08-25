@@ -38,10 +38,13 @@ const l2 = fit(`${pre}${accent}${post}`, 0.9);
 // the svgs' viewBoxes deliberately differ from the box ratio (the text is
 // stretched to fill via preserveAspectRatio="none"), and WebKit lets an
 // svg's intrinsic viewBox ratio beat CSS aspect-ratio, collapsing the row.
-// Percentages are relative to the mark's width: 300/720, 115/720, 235/720.
-// A single-line hook fills the whole hook area (double height), so the mark
-// keeps the same number-to-text proportions as the two-line variant.
-const hookPad = line1 ? "15.98%" : "32.64%";
+// Percentages are relative to the mark's width: 300/720 and 115/720.
+// The box height alone decides how tall the glyphs render, because the
+// viewBox is scaled to fit it - font-size only trades stroke width against
+// letter spacing. So every hook row shares one percentage: the double-height
+// box the single-line variant used to get drew 03 and 04 at twice the
+// x-height of 01 and 02, and the four marks stopped reading as one family.
+const hookPad = "15.98%";
 ---
 
 <div class:list={["chapter-mark inline-block select-none", width]}
@@ -57,7 +60,7 @@ const hookPad = line1 ? "15.98%" : "32.64%";
     <!-- Hook: one or two rows, tight letters, flush to the rectangle edges -->
     <div class="mt-[4%] space-y-[3%]">
         {l1 && line1 && (
-            <div class="relative w-full" style="padding-top: 15.98%">
+            <div class="relative w-full" style={`padding-top: ${hookPad}`}>
                 <svg class="absolute inset-0 h-full w-full" viewBox={`0 0 720 ${l1.vb}`} preserveAspectRatio="none" aria-hidden="true">
                     <text x="0" y={l1.y} font-size={l1.fs} textLength="720" lengthAdjust="spacingAndGlyphs">{line1}</text>
                 </svg>
