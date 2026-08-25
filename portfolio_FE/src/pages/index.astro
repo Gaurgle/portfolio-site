@@ -27,9 +27,14 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
         <div data-hero-scrub class="pin-viewport relative min-h-[100svh] md:min-h-[calc(100vh-120px)] flex flex-col items-center justify-center pb-[9vh]">
         <div class="hero-boom max-w-4xl mx-auto px-4 flex flex-col items-center justify-center text-center">
 
-            <!-- ASCII Art Name with pixelated glow (extra bottom margin keeps
-                 the hover sketch underline clear of the tagline) -->
-            <div class="relative mb-16 opacity-0 animate-fade-up">
+            <!-- ASCII Art Name with pixelated glow. Bottom margin stays wide
+                 enough that the hover sketch underline clears the tagline. -->
+            <!-- The glyph is decorative ASCII: the sr-only span carries the
+                 real heading text for assistive tech and search. h1 is
+                 display: contents so the visual layout is unchanged. -->
+            <h1 class="contents">
+                <span class="sr-only">Andreas Roos</span>
+            <div class="relative mb-8 opacity-0 animate-fade-up">
                 <!-- Soft color glow blobs (desktop only: three large blurred
                      layers inside the scaling explosion kill phone GPUs) -->
                 <div class="hidden md:block absolute inset-[-40%] -z-10 opacity-30">
@@ -40,7 +45,7 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
                     </div>
                 </div>
 
-                <pre data-roos class="font-mono text-xs sm:text-base md:text-xl lg:text-2xl ascii-art text-white ascii-glow select-none cursor-pointer" set:html={`
+                <pre data-roos aria-hidden="true" class="font-mono text-xs sm:text-base md:text-xl lg:text-2xl ascii-art text-white ascii-glow select-none cursor-pointer" set:html={`
 ██████╗  ██████╗  ██████╗ ███████╗
 ██╔══██╗██╔═══██╗██╔═══██╗██╔════╝
 ██████╔╝██║   ██║██║   ██║███████╗
@@ -49,8 +54,14 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
 ╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝
 `} />
             </div>
+            </h1>
+
 
         </div>
+
+        <!-- Tags sit outside the explosion so they get their own exit: the
+             four words scatter sideways and lift off while ROOS zooms -->
+        <p class="hero-tagline font-mono text-xs sm:text-sm md:text-base text-zinc-400 tracking-wide whitespace-nowrap opacity-0 animate-fade-up -mt-2" style="animation-delay: 350ms"><span class="hero-tag" style="--dx: -1.5">Backend</span> <span class="hero-sep text-zinc-600">-</span> <span class="hero-tag" style="--dx: -0.5">Android</span> <span class="hero-sep text-zinc-600">-</span> <span class="hero-tag" style="--dx: 0.5">Bluetooth LE</span> <span class="hero-sep text-zinc-600">-</span> <span class="hero-tag" style="--dx: 1.5">Stockholm</span></p>
 
         <!-- Terminal path: outside the explosion - it only fades, early -->
         <p class="hero-path font-mono text-sm text-zinc-400 mt-4">

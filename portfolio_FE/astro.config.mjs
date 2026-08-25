@@ -6,13 +6,6 @@ import tailwind from '@astrojs/tailwind';
 
 // https://astro.build/config
 export default defineConfig({
-
-
+  site: "https://andreasroos.vercel.app",
   integrations: [react(), tailwind()],
-  vite: {
-    css: {
-      preprocessorOptions: {
-      }
-    }
-  }
 });

@@ -9,13 +9,31 @@ export default function ContactForm() {
         loading: false, ok: null, error: ""
     });
     const [robot, setRobot] = useState("");
+    // Survives the form reset, so the success state can name the address the
+    // reply is going to.
+    const [sentTo, setSentTo] = useState("");
 
     const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         setForm((f) => ({...f, [e.target.name]: e.target.value}));
 
+    const reset = () => {
+        setStatus({loading: false, ok: null, error: ""});
+        setSentTo("");
+    };
+
     const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (robot) return;
+        // Fail loudly rather than posting to web3forms without an access key
+        // and surfacing whatever HTTP error comes back.
+        if (!WEB3FORMS_KEY) {
+            setStatus({
+                loading: false,
+                ok: false,
+                error: "form backend not configured, mail larsnilsandreas@pm.me instead",
+            });
+            return;
+        }
         setStatus({loading: true, ok: null, error: ""});
         try {
             const res = await fetch("https://api.web3forms.com/submit", {
@@ -34,6 +52,7 @@ export default function ContactForm() {
             if (!data.success) {
                 throw new Error(data.message || `HTTP error ${res.status}`);
             }
+            setSentTo(form.email);
             setStatus({loading: false, ok: true, error: ""});
             setForm({name: "", email: "", message: ""});
         } catch (err: any) {
@@ -70,6 +89,24 @@ export default function ContactForm() {
                     <span className="font-mono text-xs text-zinc-300 ml-2">compose</span>
                 </div>
 
+                {/* Live region: the swap from form to sent state, and any
+                    error under the send button, get announced. */}
+                <div aria-live="polite">
+                {status.ok ? (
+                <div className="p-4 md:p-6 space-y-3">
+                    <p className="font-mono text-sm text-ctp-green">&gt; message sent</p>
+                    <p className="text-sm text-zinc-400">
+                        I&apos;ll get back to you at {sentTo}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={reset}
+                        className="font-mono text-xs text-zinc-400 hover:text-white transition-colors duration-200"
+                    >
+                        &gt; write another
+                    </button>
+                </div>
+                ) : (
                 <form onSubmit={onSubmit} className="p-4 md:p-6 space-y-3.5 md:space-y-5">
                     <input
                         name="company"
@@ -87,6 +124,8 @@ export default function ContactForm() {
                         <input
                             name="name"
                             required
+                            autoComplete="name"
+                            maxLength={80}
                             value={form.name}
                             onChange={onChange}
                             className={inputClass}
@@ -102,6 +141,8 @@ export default function ContactForm() {
                             type="email"
                             name="email"
                             required
+                            autoComplete="email"
+                            maxLength={120}
                             value={form.email}
                             onChange={onChange}
                             className={inputClass}
@@ -116,6 +157,7 @@ export default function ContactForm() {
                         <textarea
                             name="message"
                             required
+                            maxLength={2000}
                             rows={5}
                             value={form.message}
                             onChange={onChange}
@@ -134,17 +176,14 @@ export default function ContactForm() {
                         {status.loading ? "> sending..." : "> send"}
                     </button>
 
-                    {status.ok && (
-                        <p className="font-mono text-sm text-ctp-green">
-                            &#10003; message sent successfully
-                        </p>
-                    )}
                     {status.ok === false && (
                         <p className="font-mono text-sm text-ctp-red">
                             &#10007; {status.error}
                         </p>
                     )}
                 </form>
+                )}
+                </div>
             </div>
         </div>
     );

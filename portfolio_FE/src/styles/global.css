@@ -7,6 +7,81 @@
     font-display: swap;
 }
 
+/* Self-hosted latin subsets: no third-party font host on the critical path,
+   so first paint never waits on an external stylesheet and DNS round trip. */
+
+@font-face {
+    font-family: "Inter";
+    src: url("/fonts/inter-latin-400-normal.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Inter";
+    src: url("/fonts/inter-latin-500-normal.woff2") format("woff2");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Inter";
+    src: url("/fonts/inter-latin-600-normal.woff2") format("woff2");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Inter";
+    src: url("/fonts/inter-latin-700-normal.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Inter";
+    src: url("/fonts/inter-latin-800-normal.woff2") format("woff2");
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Noto Sans Mono";
+    src: url("/fonts/noto-sans-mono-latin-400-normal.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Noto Sans Mono";
+    src: url("/fonts/noto-sans-mono-latin-500-normal.woff2") format("woff2");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Noto Sans Mono";
+    src: url("/fonts/noto-sans-mono-latin-700-normal.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Archivo Black";
+    src: url("/fonts/archivo-black-latin-400-normal.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -450,6 +525,21 @@ html.lenis, html.lenis body { height: auto; }
 [data-hero-scrub] .hero-path {
     opacity: calc(1 - min(1, var(--scrub, 0) * 1.8));
 }
+/* Tagline exit: each tag carries --dx (-1.5 .. 1.5), so the outer words
+   fly furthest; the row sinks as it scatters (away from the zooming glyph) and is gone by mid-scrub.
+   Separators just fade, so the line reads as breaking apart, not sliding. */
+[data-hero-scrub] .hero-tag {
+    display: inline-block;
+    transform: translate(
+        calc(var(--scrub, 0) * var(--dx, 0) * 26vw),
+        calc(var(--scrub, 0) * 14vh)
+    );
+    opacity: calc(1 - min(1, var(--scrub, 0) * 1.6));
+    will-change: transform, opacity;
+}
+[data-hero-scrub] .hero-sep {
+    opacity: calc(1 - min(1, var(--scrub, 0) * 3));
+}
 /* Mobile: smaller inflation (smaller composited textures) and no heavy
    text-shadow glow on the scaling layer - keeps the explosion at 60fps */
 @media (max-width: 1023px) {
@@ -710,12 +800,22 @@ html.lenis, html.lenis body { height: auto; }
         flex: 1;
         min-height: 0;
     }
+    /* Description drops out of the mono uppercase .edit-cols voice at phone
+       width: 11px tracked caps is a label treatment, and a full paragraph of
+       it is a wall at 390px. The tags and github rows keep the mono, so the
+       card still reads as a terminal object - the contrast is the point. */
     .hscroll-pin .featured-card .edit-desc {
         display: -webkit-box;
         -webkit-line-clamp: 6;
         -webkit-box-orient: vertical;
         overflow: hidden;
         flex: none;
+        font-family: theme("fontFamily.sans");
+        font-size: 14px;
+        line-height: 1.55;
+        letter-spacing: 0;
+        text-transform: none;
+        color: rgb(212 212 216); /* zinc-300 */
     }
     /* The bullet highlights are bonus copy - the full list lives on desktop.
        Drop them on mobile so title + description + tags + link fit one fixed
@@ -852,6 +952,15 @@ html.lenis, html.lenis body { height: auto; }
     }
     .journey-stack .edit-body,
     .hscroll-pin .featured-card .edit-body {
+        overflow-y: auto;
+    }
+}
+
+/* Short portrait phones (iPhone SE class): the journey's first card carries
+   the credits roll-call and runs a few lines past the fixed card, so its
+   body scrolls instead of clipping the last line. */
+@media (max-width: 1023px) and (max-height: 720px) {
+    .journey-stack .edit-body {
         overflow-y: auto;
     }
 }
@@ -1033,6 +1142,8 @@ html.lenis, html.lenis body { height: auto; }
 @media (prefers-reduced-motion: reduce) {
     [data-reveal],
     [data-hero-scrub] .hero-boom,
+    [data-hero-scrub] .hero-tag,
+    [data-hero-scrub] .hero-sep,
     [data-hero-scrub] .hero-path {
         opacity: 1 !important;
         transform: none !important;
@@ -1040,6 +1151,17 @@ html.lenis, html.lenis body { height: auto; }
         animation: none !important;
     }
     [data-marquee-track] { transform: none !important; }
+}
+/* The engine stamps this class when the visitor prefers reduced motion:
+   the CSS-only entrances (hero fade-up, tagline, project cards, carets)
+   sit outside the scroll engine's reach, so they are silenced here. */
+html.reduced-motion .animate-fade-up,
+html.reduced-motion .animate-fade-in,
+html.reduced-motion .animate-fade-in-fast,
+html.reduced-motion .animate-pulse {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
 }
 
 /* Rough-notation annotations in the about cards.

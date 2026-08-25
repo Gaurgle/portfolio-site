@@ -15,14 +15,13 @@ The main goal of the application is to provide a responsive and interactive inte
 ### 🐣 **Features**
 ##### Modern UI Design:
 - Terminal/pixel-art aesthetic with Catppuccin color scheme
-- Interactive components: mini terminal, pixel eagle mascot, text-roll effects, tech stack glow blob
+- Interactive components: mini terminal, rough-notation sketches, tech marquee, pinned card decks
 - Responsive layout using [TailwindCSS](https://tailwindcss.com/) across all screen sizes
 
 ##### 🧑‍✈️ **Nav bar**
 - A sticky navigation bar built using Astro, React and Tailwind with:
 	- Collapsible sidebar with links to `Projects`, `About` and `Contact`
 	- Social media icons for GitHub and LinkedIn
-	- Pixel eagle animation walking across the banner
 
 ### ⚙️ **Tech**
 - Astro: Static site generator that inegrates seamlessly with React components.
@@ -37,28 +36,30 @@ The main goal of the application is to provide a responsive and interactive inte
   ├── components/
   │    ├── HibubbaIO/
   │    │    ├── BorderBeam.tsx        # Moving border effect on project cards
-  │    │    ├── HoverBlobs.tsx        # Interactive hoverable element
-  │    │    ├── StaticBlobs.tsx       # Static visual components
-  │    ├── Banner.astro               # Sticky header with nav and eagle
+  │    ├── sections/                  # One-pager chapters (About, Journey, FeaturedShowcase, ContactPanel, ChapterMark)
+  │    ├── Banner.astro               # Fixed header with social links
   │    ├── CardProjects.tsx           # Project cards with lightbox carousel
-  │    ├── CommonHead.astro           # Shared <head> used in BaseLayout
-  │    ├── ContactForm.tsx            # Contact form (Web3Forms — client-side, no backend)
+  │    ├── CommonHead.astro           # Shared <head>: meta, OG/Twitter, JSON-LD, font preloads
+  │    ├── ContactForm.tsx            # Contact form (Web3Forms, client-side, no backend)
   │    ├── EasterEggs.tsx             # Console ASCII art, CRT mode, rm -rf glitch
   │    ├── MiniTerminal.tsx           # Interactive terminal on the homepage
-  │    ├── MusicPlayer.tsx            # Audio player component
-  │    ├── PixelEagle.tsx             # Pixel art eagle mascot animation
+  │    ├── ParticleLayers.astro       # Parallax starfield canvases
+  │    ├── ProjectsGrid.tsx           # "More projects" listing (desktop ls view, mobile carousel)
   │    ├── Sidebar.astro              # Fixed sidebar with nav links and CV downloads
-  │    ├── SidebarNav.tsx             # Sidebar navigation with text-roll effect
+  │    ├── SidebarNav.tsx             # Sidebar navigation with scroll spy
   │    ├── SidebarToggle.tsx          # Hamburger menu toggle (mobile)
-  │    ├── TechStack.tsx              # Tech stack grid with glow blob effect
-  │    ├── TextRoll.tsx               # Character roll animation for links
+  │    ├── TechMarquee.tsx            # Tech stack marquee band
+  │
+  ├── lib/
+  │    ├── smoothScroll.ts            # Lenis scroll engine: pins, card decks, showcase, spy
+  │    ├── sketch.ts                  # rough-notation hover sketches
   │
   ├── styles/
-  │    ├── @fontsource                # Font imports
-  │    ├── global.css                 # Global styles, animations, CRT mode
+  │    ├── global.css                 # @font-face (self-hosted), global styles, animations, CRT mode
   │
   ├── data/
   │    ├── projects.ts                # Project data (titles, images, tags, links)
+  │    ├── imageSizes.ts              # Intrinsic screenshot sizes for width/height on <img>
   │
   ├── pages/
   │    ├── index.astro                # Homepage with ASCII art and terminal
@@ -73,12 +74,13 @@ The main goal of the application is to provide a responsive and interactive inte
 
 
 ### **Development notes**
-- Astro enables server-side rendering (SSR) and integrates seamlessly with React.
-- TailwindCSS configuration is defined in `tailwind.config.cjs`
+- Static build (`astro build`), deployed to Vercel from `main`.
+- TailwindCSS configuration is defined in `tailwind.config.js`
+- Assets: screenshots are WebP in `public/pictures/`, fonts are self-hosted woff2 in `public/fonts/` (no Google Fonts at runtime). `public/og.jpg` is the share-preview image.
 - The contact form posts to [Web3Forms](https://web3forms.com) and needs `PUBLIC_WEB3FORMS_KEY` in `.env.local` (free access key, public-safe). Without it the form renders but submissions fail.
 
 ### 🌈 **BubbaUI**
-- Imported React/TS components from [Bubba UI](https://bubba-ui-one.vercel.app/) — `BorderBeam`, `HoverBlobs`, `StaticBlobs`, and `ParticleBg`.
+- Imported React/TS components from [Bubba UI](https://bubba-ui-one.vercel.app/): `BorderBeam` and `ParticleBg`.
 
 ---
 
