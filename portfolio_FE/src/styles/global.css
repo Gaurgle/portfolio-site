@@ -634,22 +634,6 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
-/* Tablet-width phones and small tablets still use the mobile deck (the desktop
-   filmstrip starts at lg). The card is roughly twice as wide here, so the media
-   band scales with it - otherwise object-contain fits to the band's height and
-   the screenshot reads as a stamp in the middle of a wide card. */
-@media (min-width: 640px) and (max-width: 1023px) {
-    .hscroll-pin [data-hscroll-track] {
-        height: calc(36rem + var(--deck-n, 3) * 10px);
-    }
-    .hscroll-pin .featured-card {
-        height: 36rem;
-    }
-    .hscroll-pin .featured-card .edit-media {
-        height: 17rem;
-    }
-}
-
 /* Typed command prompts */
 [data-type-cmd] {
     display: inline-block;
@@ -835,6 +819,24 @@ html.lenis, html.lenis body { height: auto; }
         .hscroll-pin .featured-card .edit-body {
             overflow-y: auto;
         }
+    }
+}
+
+/* Tablet-width phones and small tablets use the same mobile deck (the desktop
+   filmstrip starts at lg), but the card is roughly twice as wide, so it gets a
+   taller card and a deeper media band. This MUST sit after the base mobile
+   block above: both match 640-1023px at equal specificity, so source order
+   decides - earlier and the base phone sizes would win and leave the wide
+   card's screenshot as a stamp marooned in a shallow band. */
+@media (min-width: 640px) and (max-width: 1023px) {
+    .hscroll-pin [data-hscroll-track] {
+        height: calc(36rem + var(--deck-n, 3) * 10px);
+    }
+    .hscroll-pin .featured-card {
+        height: 36rem;
+    }
+    .hscroll-pin .featured-card .edit-media {
+        height: 17rem;
     }
 }
 
