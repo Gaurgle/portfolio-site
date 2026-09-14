@@ -16,6 +16,8 @@ The main goal of the application is to provide a responsive and interactive inte
 ##### Modern UI Design:
 - Terminal/pixel-art aesthetic with Catppuccin color scheme
 - Interactive components: mini terminal, rough-notation sketches, tech marquee, pinned card decks
+- Homepage clouds are real WebGL2 volumes with internal shadowing, scroll-driven approach, rotation and evolving density. Cloud sizes and entry paths vary, with long gaps between passes and a soft blur near the camera. A larger opening cloud accelerates toward the camera during the ROOS exit. Near, middle and distant volumes overlap, with separate travel speeds. Clouds condense and disperse through their density field instead of fading their opacity. Entry coverage reuses the existing nearest volume with a soft spatial mask; there is no second ray-marching pass or content-anchored curtain. Clouds grow as they approach and pass out of view; mouse movement and content do not affect them. On desktop, slow independent drift, rotation on three axes and density evolution continue while reading. Mobile renders one smaller volume on scroll; reduced motion keeps it still. No cloud assets or additional packages are required. Unsupported graphics leaves the starfield visible.
+- On mobile, Journey and featured cards share a height measured from their content. Cards never scroll internally; when a deck and its heading cannot fit on screen, the cards use normal page flow. Browser toolbar height changes do not resize the cards.
 - Responsive layout using [TailwindCSS](https://tailwindcss.com/) across all screen sizes
 
 ##### 🧑‍✈️ **Nav bar**

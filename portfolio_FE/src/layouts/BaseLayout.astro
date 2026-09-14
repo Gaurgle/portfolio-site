@@ -5,6 +5,7 @@ import Banner from "../components/Banner.astro";
 import Sidebar from "../components/Sidebar.astro";
 import SidebarToggle from "../components/SidebarToggle";
 import ParticleLayers from "../components/ParticleLayers.astro";
+import CloudLayers from "../components/CloudLayers.astro";
 import EasterEggs from "../components/EasterEggs";
 
 // revealFooter: the page content lifts away at the end to expose a fixed
@@ -54,6 +55,7 @@ const isHome = Astro.url.pathname === "/";
     <!-- Static particle background, parallax-driven (inside the stacking
          context so the opaque page background does not hide it) -->
     <ParticleLayers />
+    {isHome && <CloudLayers />}
 
     <!-- Warm hue at the bottom edge, teasing the contact panel -->
     {revealFooter && <div id="bottom-hue" aria-hidden="true"></div>}

@@ -181,7 +181,6 @@ export const projects = [
     tags: ["Rust", "ratatui", "TUI"],
     image: "/pictures/pinz.webp",
     link: "#",
-    wip: true,
   },
   {
     projectTitle: "zalary",

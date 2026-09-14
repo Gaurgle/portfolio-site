@@ -1,0 +1,40 @@
+---
+/** Volumetric atmosphere, with a brief foreground pass at section entrances. */
+---
+<canvas id="cloud-atmosphere" aria-hidden="true"></canvas>
+<canvas id="cloud-foreground" aria-hidden="true"></canvas>
+
+<style>
+    #cloud-atmosphere, #cloud-foreground {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100svh;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0.85;
+    }
+    #cloud-foreground { z-index: 11; opacity: 0; }
+    @media (min-width: 1024px) {
+        #cloud-atmosphere, #cloud-foreground { height: 100vh; }
+    }
+</style>
+
+<script>
+    import { mountClouds } from "../lib/clouds";
+    let dispose: (() => void) | undefined;
+    document.addEventListener("astro:page-load", () => {
+        dispose?.();
+        const canvas = document.querySelector<HTMLCanvasElement>("#cloud-atmosphere");
+        if (!canvas) { dispose = undefined; return; }
+        const foreground = document.querySelector<HTMLCanvasElement>("#cloud-foreground");
+        let release = mountClouds(canvas, foreground);
+        const restore = () => { release(); release = mountClouds(canvas, foreground); };
+        canvas.addEventListener("webglcontextrestored", restore);
+        dispose = () => {
+            canvas.removeEventListener("webglcontextrestored", restore);
+            release();
+        };
+    });
+    document.addEventListener("astro:before-swap", () => { dispose?.(); dispose = undefined; });
+</script>

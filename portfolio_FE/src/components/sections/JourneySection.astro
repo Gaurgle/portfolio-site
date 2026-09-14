@@ -14,68 +14,43 @@ type Milestone = {
     color: string;
     title: string;
     paras: string[];
-    /** Names carry more weight scanned as a list than buried in a sentence,
-     *  so only the milestone that earns a roll call gets one. */
-    credits?: { label: string; names: string[] }[];
+
 };
 
 const milestones: Milestone[] = [
     {
-        "n": "01",
-        "cmd": "music",
-        "color": "text-ctp-green",
-        "title": "Studio & stage",
-        "paras": [
-            "My work in music has included drumming, musical direction, MIDI and playback engineering, mixing, and production.",
-            "I was also a songwriter and producer signed to TEN Music Group."
-        ],
-        "credits": [
-            {
-                "label": "selected studio credits",
-                "names": [
-                    "Liam Payne",
-                    "Astrid S",
-                    "Vault Boy"
-                ]
-            },
-            {
-                "label": "selected live credits",
-                "names": [
-                    "Benjamin Ingrosso",
-                    "Veronica Maggio",
-                    "Loreen"
-                ]
-            }
+        n: "01", cmd: "music", color: "text-ctp-green", title: "Studio & stage",
+        paras: [
+            "I've worked in music since 2009, as a drummer, producer, mix engineer and musical director.",
+            "With Benjamin Ingrosso, I turned the artist's ideas into arrangements and a show the musicians and crew could run together. For Veronica Maggio and Loreen, I worked with MIDI and playback."
         ]
     },
     {
-        "n": "02",
-        "cmd": "studies",
-        "color": "text-ctp-blue",
-        "title": "Learning software",
-        "paras": [
-            "I studied Java development at Nackademin. That gave me a grounding in object-oriented programming, databases, networking, and testing.",
-            "Backend development was my starting point. I use Kotlin and Java with Spring Boot or Ktor in my projects."
+        n: "02", cmd: "studies", color: "text-ctp-blue", title: "Learning software",
+        paras: [
+            "I studied Java development at Nackademin from 2024 to 2026, starting with backend services, databases and testing.",
+            "Kotlin became my preferred language. I now use it for APIs with Ktor and Spring Boot, Android apps with Jetpack Compose, and tools for my own work."
         ]
     },
     {
-        "n": "03",
-        "cmd": "internship",
-        "color": "text-ctp-mauve",
-        "title": "Bluetooth at Sigma",
-        "paras": [
-            "During my internship at Sigma Connectivity, I worked on an Android app for Bluetooth testing, using Kotlin and Jetpack Compose.",
-            "The work included device scanning, GATT operations, and Lua test scripts, followed by work with LE Audio. I enjoyed investigating what happened when the devices didn't behave as expected."
+        n: "03", cmd: "internship", color: "text-ctp-mauve", title: "Bluetooth at Sigma",
+        paras: [
+            "At Sigma Connectivity, I built a Bluetooth test platform: an Android app, a Ktor backend with PostgreSQL, and a Svelte dashboard.",
+            "A Lua API let testers write their own sequences. Debugging against real devices led me further into Bluetooth LE and LE Audio, and made me want to keep working in that area."
         ]
     },
     {
-        "n": "04",
-        "cmd": "audio tools",
-        "color": "text-ctp-peach",
-        "title": "What I'm building",
-        "paras": [
-            "I'm developing a release-preparation tool for the studio and experimenting with audio watermarking in C++.",
-            "Both come from problems I know through music work: handling release files and exploring how information can travel inside audio. The projects below show where that work stands."
+        n: "04", cmd: "studio tools", color: "text-ctp-peach", title: "Software at IMRSV",
+        paras: [
+            "Alongside mastering records, I build Kotlin tools for release preparation and work on integrations, storage, backups and networking.",
+            "I use these workflows myself. That gives me a fairly direct reason to check the awkward cases and write tests before trusting a tool with a release."
+        ]
+    },
+    {
+        n: "05", cmd: "now", color: "text-ctp-pink", title: "Where I am now",
+        paras: [
+            "I also work part-time at Code Boss on backend and frontend development for clients, plus customer support.",
+            "I'm looking for a backend or Android role where I can work with other developers and grow in a shared codebase. Kotlin is my first choice; Bluetooth and audio are interests I'd like to take further."
         ]
     }
 ];
@@ -113,17 +88,7 @@ const milestones: Milestone[] = [
                                             <p class="text-sm md:text-base text-zinc-300 leading-relaxed max-w-xl">{p}</p>
                                         ))}
                                     </div>
-                                    {m.credits && (
-                                        <div class="font-mono text-[10px] md:text-[11px] tracking-[0.08em] uppercase text-zinc-500 mt-3 md:mt-4 space-y-1">
-                                            <p>credits <span class="text-zinc-700">//</span></p>
-                                            {m.credits.map((c) => (
-                                                <p>
-                                                    <span class="text-zinc-600">{c.label}:</span>{" "}
-                                                    <span class="text-zinc-400">{c.names.join(" · ")}</span>
-                                                </p>
-                                            ))}
-                                        </div>
-                                    )}
+
                                 </div>
                             </div>
                         </div>

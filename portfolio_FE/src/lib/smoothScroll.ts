@@ -51,11 +51,44 @@ let layoutViewportH = 1;
 
 function updateViewport(): void {
     layoutViewportH = measureViewportHeight();
-    // Short landscape screens cannot hold a chapter heading and a deck.
-    // Use a flowing card list there; toolbar animation cannot toggle this.
-    document.documentElement.classList.toggle(
-        "short-mobile-viewport", !isDesktop() && layoutViewportH < 500,
-    );
+    measureMobileCards();
+}
+
+/** Size each mobile deck to its longest card, then pin only if it fits.
+ * Measurements run on layout changes, never on toolbar-driven resizes.
+ */
+function measureMobileCards(): void {
+    for (const section of document.querySelectorAll<HTMLElement>("[data-cardstack]")) {
+        section.classList.remove("flowing-cards");
+        section.style.removeProperty("--mobile-card-height");
+        if (isDesktop()) continue;
+
+        const cards = Array.from(section.querySelectorAll<HTMLElement>("[data-stack-card]"));
+        section.classList.add("measuring-cards");
+        const height = Math.ceil(Math.max(384, ...cards.map((card) =>
+            card.querySelector<HTMLElement>(".edit-card")!.offsetHeight,
+        )));
+        section.classList.remove("measuring-cards");
+        section.style.setProperty("--mobile-card-height", `${height}px`);
+
+        const viewport = section.querySelector<HTMLElement>(".journey-viewport, .hscroll-viewport")!;
+        const content = section.classList.contains("journey-stack")
+            ? viewport.firstElementChild as HTMLElement : viewport;
+        const css = getComputedStyle(content);
+        const children = Array.from(content.children).filter((el) =>
+            getComputedStyle(el).display !== "none" && getComputedStyle(el).position !== "absolute",
+        );
+        const required = children.reduce((sum, el) => {
+            const style = getComputedStyle(el);
+            return sum + el.getBoundingClientRect().height
+                + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+        }, 0) + (parseFloat(css.rowGap) || 0) * Math.max(0, children.length - 1)
+            + parseFloat(css.paddingTop) + parseFloat(css.paddingBottom);
+        const outer = getComputedStyle(viewport);
+        const clearance = content === viewport ? 0
+            : parseFloat(outer.paddingTop) + parseFloat(outer.paddingBottom);
+        section.classList.toggle("flowing-cards", required + clearance > layoutViewportH);
+    }
 }
 
 function nativeProgress(): number {
@@ -380,10 +413,10 @@ type CardStack = {
 
 function measureCardStacks(): CardStack[] {
     const result: CardStack[] = [];
-    if (document.documentElement.classList.contains("short-mobile-viewport")) return result;
     const desktop = isDesktop();
 
     for (const section of document.querySelectorAll<HTMLElement>("[data-cardstack]")) {
+        if (section.classList.contains("flowing-cards")) continue;
         // The featured strip carries both attributes: on desktop it is a
         // pinned pile with its own choreography (measureShowcases owns it
         // there) and only uses the plain cardstack deck on mobile.
@@ -1403,6 +1436,15 @@ export function initSmoothScroll(): void {
             .querySelectorAll("[data-reveal]")
             .forEach((el) => el.classList.add("is-visible"));
         layoutStatic();
+        // Static cards still share a height after fonts load or rotation.
+        let alive = true;
+        const resizeCards = () => measureMobileCards();
+        document.fonts.ready.then(() => alive && resizeCards());
+        window.addEventListener("resize", resizeCards);
+        cleanups.push(() => {
+            alive = false;
+            window.removeEventListener("resize", resizeCards);
+        });
     }
 
     setupWordReveals(reduced);
