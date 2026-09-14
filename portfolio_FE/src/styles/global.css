@@ -867,7 +867,7 @@ html.lenis, html.lenis body { height: auto; }
     }
     .journey-stack .stack-area {
         position: relative;
-        /* card size + 5 cascade offsets (6 cards); offsets mirror data-off-x/y */
+        /* Card size + cascade offsets; count comes from the milestone list. */
         width: calc(min(38rem, (100vw - 9.5rem) * 0.45) + var(--journey-edges, 3) * 26px);
         height: calc(min(28rem, 58vh) + var(--journey-edges, 3) * 48px);
     }
@@ -899,24 +899,33 @@ html.lenis, html.lenis body { height: auto; }
         align-items: center;
         justify-content: center;
     }
-    /* The chapter mark shares one pinned screen with the deck - slim it */
-    .journey-stack .chapter-mark {
-        width: min(12rem, 55vw);
+    /* Match the available screen, reserving space for the fixed header. */
+    .journey-stack .journey-viewport {
+        padding-top: 5rem;
+        padding-bottom: 1rem;
+    }
+    .journey-stack .journey-viewport > div {
+        height: 100%;
+        min-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        justify-content: center;
     }
     .journey-stack .stack-area {
         position: relative;
         width: 100%;
-        /* Card + one edge per covered card; offsets mirror measureCardStacks.
-           100svh - 17rem: clear the chapter mark above the deck on
-           short-but-wide viewports (same guard as the featured deck) */
-        height: calc(min(28rem, 57svh, 100svh - 17rem) + var(--journey-edges, 3) * 10px);
+        /* One stable deck size, capped by the room left below its heading.
+           Every card uses the same resulting height. */
+        height: calc(28rem + var(--journey-edges, 3) * 10px);
+        flex-shrink: 1;
+        min-height: 0;
     }
     .journey-stack [data-stack-card] {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
-        height: min(28rem, 57svh, 100svh - 17rem);
+        height: calc(100% - var(--journey-edges, 3) * 10px);
         will-change: transform;
     }
     .journey-stack [data-stack-card] .edit-card {
@@ -1222,4 +1231,14 @@ html.short-mobile-viewport .featured-card .edit-media {
 }
 html.short-mobile-viewport .hscroll-viewport {
     padding-top: 2rem;
+}
+
+/* One mobile numeral size across the three content chapters. Keep the
+   original 03 dimensions; hook text can occupy one or two lines beneath. */
+@media (max-width: 1023px) {
+    #about .chapter-mark,
+    #journey .chapter-mark,
+    #projects .chapter-mark {
+        width: min(8.5rem, 40vw);
+    }
 }
