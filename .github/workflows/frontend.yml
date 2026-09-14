@@ -35,5 +35,5 @@ jobs:
           path: portfolio_FE/dist
 
       - name: Trigger Vercel deploy
-        if: success()
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"

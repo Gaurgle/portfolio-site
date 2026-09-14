@@ -50,37 +50,6 @@ export default function ProjectsGrid() {
         }
     };
 
-    // One-time nudge: the track slides out and settles back when the
-    // section first appears, so the sideways axis announces itself.
-    useEffect(() => {
-        const track = trackRef.current;
-        if (!track) return;
-        if (window.matchMedia("(min-width: 768px)").matches) return;
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-        const io = new IntersectionObserver(
-            (entries) => {
-                for (const entry of entries) {
-                    if (!entry.isIntersecting) continue;
-                    io.disconnect();
-                    if (track.scrollLeft > 0) return;
-                    // Transform, not scrollLeft: snap-mandatory containers
-                    // yank programmatic scrolls straight back.
-                    track.style.transition =
-                        "transform 0.45s cubic-bezier(0.25, 1, 0.5, 1)";
-                    track.style.transform = "translateX(-72px)";
-                    window.setTimeout(() => {
-                        track.style.transform = "";
-                        window.setTimeout(() => (track.style.transition = ""), 500);
-                    }, 550);
-                }
-            },
-            { threshold: 0.4 },
-        );
-        io.observe(track);
-        return () => io.disconnect();
-    }, []);
-
     /* ------------------------- desktop ls list ------------------------- */
     const [filter, setFilter] = useState<string | null>(null);
     const [active, setActive] = useState<Project | null>(null);

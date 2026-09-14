@@ -36,6 +36,7 @@ const layers = [
 </div>
 
 <script>
+    import { measureViewportHeight } from "../lib/smoothScroll";
     function paintLayer(layer: HTMLElement) {
         const base = layer.querySelector<HTMLCanvasElement>("canvas:not([data-bright])");
         const bright = layer.querySelector<HTMLCanvasElement>("canvas[data-bright]");
@@ -46,7 +47,8 @@ const layers = [
         // cursor (mouse parallax), so the pattern must overhang both edges.
         const PAD = 48;
         const w = window.innerWidth + PAD * 2;
-        const h = window.innerHeight;
+        const h = measureViewportHeight();
+        layer.dataset.parallaxHeight = String(h);
 
         const density = parseInt(layer.dataset.density ?? "40", 10);
         const size = parseFloat(layer.dataset.size ?? "1.5");
@@ -101,7 +103,7 @@ const layers = [
         // Desktop only: the filmstrip that triggers it never runs on mobile,
         // so phones skip the extra full-screen texture entirely.
         if (bright) {
-            if (window.matchMedia("(min-width: 768px)").matches) {
+            if (window.matchMedia("(min-width: 1024px)").matches) {
                 draw(bright, 2.4, 2);
             } else {
                 bright.width = 0;
@@ -124,7 +126,7 @@ const layers = [
         // Below the desktop breakpoint only a width change is real.
         if (
             window.innerWidth === lastWidth &&
-            !window.matchMedia("(min-width: 768px)").matches
+            !window.matchMedia("(min-width: 1024px)").matches
         ) return;
         lastWidth = window.innerWidth;
         window.clearTimeout(resizeTimer);
