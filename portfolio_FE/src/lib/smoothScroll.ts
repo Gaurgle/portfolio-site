@@ -35,22 +35,36 @@ const prefersReducedMotion = (): boolean =>
 const isDesktop = (): boolean =>
     window.matchMedia("(min-width: 1024px)").matches;
 
-/** Match the CSS pin height, even when the URL bar is already collapsed. */
+let mobileViewportWidth = -1;
+let mobileViewportHeight = 0;
+
+/** Cache mobile geometry until a width change (rotation/split view).
+ * Some browsers update even their small viewport during toolbar transitions.
+ * Font/load remeasurement must not adopt a new toolbar height mid-gesture. */
 export function measureViewportHeight(): number {
-    if (isDesktop()) return window.innerHeight || 1;
+    if (isDesktop()) {
+        mobileViewportWidth = -1;
+        return window.innerHeight || 1;
+    }
+    if (window.innerWidth === mobileViewportWidth && mobileViewportHeight > 0) {
+        return mobileViewportHeight;
+    }
     const probe = document.createElement("div");
     probe.style.cssText =
         "position:fixed;top:0;width:0;height:100svh;visibility:hidden;pointer-events:none";
     document.body.appendChild(probe);
     const height = probe.getBoundingClientRect().height;
     probe.remove();
-    return height || window.innerHeight || 1;
+    mobileViewportWidth = window.innerWidth;
+    mobileViewportHeight = height || window.innerHeight || 1;
+    return mobileViewportHeight;
 }
 
 let layoutViewportH = 1;
 
 function updateViewport(): void {
     layoutViewportH = measureViewportHeight();
+    document.documentElement.style.setProperty("--mobile-viewport-height", `${layoutViewportH}px`);
     // Short landscape screens cannot hold a chapter heading and a deck.
     // Use a flowing card list there; toolbar animation cannot toggle this.
     document.documentElement.classList.toggle(
@@ -378,6 +392,33 @@ type CardStack = {
     vertical: boolean;
 };
 
+/** Measure all Journey cards in normal flow before choosing a pinned deck.
+ * No card gets a nested scroll area; when the complete content does not fit,
+ * the section stays in page flow instead. */
+function fitMobileJourney(): void {
+    for (const section of document.querySelectorAll<HTMLElement>(".journey-stack")) {
+        section.classList.remove("journey-flow");
+        section.style.removeProperty("--journey-card-height");
+        if (isDesktop()) continue;
+        section.classList.add("journey-flow");
+        const cards = Array.from(section.querySelectorAll<HTMLElement>("[data-stack-card]"));
+        const inner = section.querySelector<HTMLElement>(".journey-viewport > div");
+        const heading = inner?.firstElementChild as HTMLElement | null;
+        if (!cards.length || !inner || !heading) continue;
+
+        const cardHeight = Math.ceil(Math.max(...cards.map(card => card.offsetHeight))) + 2;
+        const viewport = section.querySelector<HTMLElement>(".journey-viewport")!;
+        const viewportStyle = getComputedStyle(viewport);
+        const gap = parseFloat(getComputedStyle(inner).rowGap) || 0;
+        const padding = parseFloat(viewportStyle.paddingTop) + parseFloat(viewportStyle.paddingBottom);
+        const needed = cardHeight + (cards.length - 1) * 10 + heading.offsetHeight + gap + padding;
+        section.style.setProperty("--journey-card-height", `${cardHeight}px`);
+        section.classList.toggle("journey-flow",
+            needed > layoutViewportH ||
+            document.documentElement.classList.contains("short-mobile-viewport"));
+    }
+}
+
 function measureCardStacks(): CardStack[] {
     const result: CardStack[] = [];
     if (document.documentElement.classList.contains("short-mobile-viewport")) return result;
@@ -388,6 +429,7 @@ function measureCardStacks(): CardStack[] {
         // pinned pile with its own choreography (measureShowcases owns it
         // there) and only uses the plain cardstack deck on mobile.
         if (desktop && section.hasAttribute("data-hscroll")) continue;
+        if (section.classList.contains("journey-flow")) continue;
         const cards = Array.from(
             section.querySelectorAll<HTMLElement>("[data-stack-card]"),
         );
@@ -835,7 +877,10 @@ function bindScrollDriven(reduced: boolean): void {
 
     // Order matters: pins add height, which shifts everything below them,
     // so they must be applied before any position is measured.
-    if (!reduced) applyPins();
+    if (!reduced) {
+        applyPins();
+        fitMobileJourney();
+    }
     let stacks = reduced ? [] : measureCardStacks();
     let showcases = reduced ? [] : measureShowcases();
     let markDrifts = reduced ? [] : measureMarkDrifts();
@@ -924,6 +969,7 @@ function bindScrollDriven(reduced: boolean): void {
         updateViewport();
         viewportH = layoutViewportH;
         applyPins();
+        fitMobileJourney();
         stacks = measureCardStacks();
         showcases = measureShowcases();
         markDrifts = measureMarkDrifts();
