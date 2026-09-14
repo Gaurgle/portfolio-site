@@ -35,6 +35,20 @@ const prefersReducedMotion = (): boolean =>
 const isDesktop = (): boolean =>
     window.matchMedia("(min-width: 1024px)").matches;
 
+/** Match the CSS pin height, even when the URL bar is already collapsed. */
+function measureViewportHeight(): number {
+    if (isDesktop()) return window.innerHeight || 1;
+    const probe = document.createElement("div");
+    probe.style.cssText =
+        "position:fixed;top:0;width:0;height:100svh;visibility:hidden;pointer-events:none";
+    document.body.appendChild(probe);
+    const height = probe.getBoundingClientRect().height;
+    probe.remove();
+    return height || window.innerHeight || 1;
+}
+
+let layoutViewportH = 1;
+
 function nativeProgress(): number {
     const el = document.documentElement;
     const max = el.scrollHeight - el.clientHeight;
@@ -322,11 +336,17 @@ function setupScrollSpy(reduced: boolean): void {
     // The contact panel is a fixed element, so the center-band observer never
     // fires for it - activate it by overall scroll progress instead.
     const contactSec = document.querySelector<HTMLElement>('[data-section="contact"]');
-    if (contactSec && lenis) {
+    if (contactSec) {
         const onSpyScroll = () => {
-            if (lenis && lenis.progress > 0.985) setActive(contactSec);
+            if ((lenis?.progress ?? nativeProgress()) > 0.985) setActive(contactSec);
         };
-        lenis.on("scroll", onSpyScroll);
+        if (lenis) {
+            lenis.on("scroll", onSpyScroll);
+        } else {
+            window.addEventListener("scroll", onSpyScroll, { passive: true });
+            cleanups.push(() => window.removeEventListener("scroll", onSpyScroll));
+        }
+        onSpyScroll();
     }
 }
 
@@ -365,18 +385,18 @@ function measureCardStacks(): CardStack[] {
 
         // Generous read-time: each coaster owns ~0.9 viewport of scroll
         // (a bit brisker on mobile, where scrolling is thumb-flicks).
-        const per = Math.round(window.innerHeight * (desktop ? 0.9 : 0.75));
+        const per = Math.round(layoutViewportH * (desktop ? 0.9 : 0.75));
         const distance = (cards.length - 1) * per;
         // Cushion on entry and exit: pinned, but the pile holds still for
         // this much vertical scroll before/after the landing sequence.
-        const buffer = Math.round(window.innerHeight * (desktop ? 0.45 : 0.3));
+        const buffer = Math.round(layoutViewportH * (desktop ? 0.45 : 0.3));
         // Cascade offset per card. Desktop: diagonal coaster pile (keep in
         // sync with .journey-stack CSS vars). Mobile: a slim vertical deck -
         // each landing card covers the pile, leaving a 10px edge per card.
         const offX = desktop ? parseFloat(section.dataset.offX ?? "26") : 0;
         const offY = desktop ? parseFloat(section.dataset.offY ?? "48") : 10;
 
-        section.style.height = `${window.innerHeight + distance + buffer * 2}px`;
+        section.style.height = `${layoutViewportH + distance + buffer * 2}px`;
         const top = section.getBoundingClientRect().top + window.scrollY;
         result.push({
             section, cards, top, per, distance, buffer, offX, offY,
@@ -476,7 +496,7 @@ function applyPins(): void {
             continue;
         }
         const dwell = parseFloat(section.dataset.pin ?? "0.6");
-        section.style.height = `${Math.round(window.innerHeight * (1 + dwell))}px`;
+        section.style.height = `${Math.round(layoutViewportH * (1 + dwell))}px`;
     }
 }
 
@@ -828,7 +848,7 @@ function bindScrollDriven(reduced: boolean): void {
     // the contact panel. Once the scroll RESTS inside the reveal band
     // (finger off, momentum spent), ease to the closer end - fully open or
     // fully closed. Never engages while the user is actively scrolling.
-    if (!reduced && panel && lenis) {
+    if (!reduced && panel && lenis && isDesktop()) {
         let touching = false;
         const onTouchStart = () => (touching = true);
         const onTouchEnd = () => (touching = false);
@@ -871,7 +891,7 @@ function bindScrollDriven(reduced: boolean): void {
     // live wobbles frame-by-frame while the mobile URL bar animates, which
     // makes every vh-derived position (hero scrub, deck cards) jitter
     // mid-pin. Refreshed only on a real remeasure.
-    let viewportH = window.innerHeight || 1;
+    let viewportH = layoutViewportH;
 
     const remeasure = () => {
         for (const s of stacks) s.section.style.height = "";
@@ -888,7 +908,8 @@ function bindScrollDriven(reduced: boolean): void {
                 sc.coverEl.style.opacity = "";
             }
         }
-        viewportH = window.innerHeight || 1;
+        layoutViewportH = measureViewportHeight();
+        viewportH = layoutViewportH;
         applyPins();
         stacks = measureCardStacks();
         showcases = measureShowcases();
@@ -896,6 +917,8 @@ function bindScrollDriven(reduced: boolean): void {
         holds = measureHolds();
         covers = measureCovers();
         walls = measureWalls();
+        lenis?.resize();
+        onScroll();
     };
 
     if (!reduced) {
@@ -1336,11 +1359,16 @@ export function destroySmoothScroll(): void {
 export function initSmoothScroll(): void {
     destroySmoothScroll();
     const reduced = prefersReducedMotion();
+    layoutViewportH = measureViewportHeight();
     document.documentElement.classList.toggle("reduced-motion", reduced);
 
     if (!reduced) {
         // Low lerp + slightly damped wheel = heavier, more deliberate glide.
-        lenis = new Lenis({ lerp: 0.065, smoothWheel: true, wheelMultiplier: 0.85 });
+        // Touch scrolling stays browser-owned. The animation RAF still runs,
+        // but no Lenis rest magnet can restart a completed mobile gesture.
+        if (isDesktop() && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+            lenis = new Lenis({ lerp: 0.065, smoothWheel: true, wheelMultiplier: 0.85 });
+        }
 
         const raf = (time: number) => {
             lenis?.raf(time);
