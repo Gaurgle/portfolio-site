@@ -916,8 +916,8 @@ html.lenis, html.lenis body { height: auto; }
         width: 100%;
         /* One stable deck size, capped by the room left below its heading.
            Every card uses the same resulting height. */
-        height: calc(28rem + var(--journey-edges, 3) * 10px);
-        flex-shrink: 1;
+        height: calc(var(--journey-card-height, 28rem) + var(--journey-edges, 4) * 10px);
+        flex-shrink: 0;
         min-height: 0;
     }
     .journey-stack [data-stack-card] {
@@ -925,7 +925,7 @@ html.lenis, html.lenis body { height: auto; }
         top: 0;
         left: 0;
         width: 100%;
-        height: calc(100% - var(--journey-edges, 3) * 10px);
+        height: var(--journey-card-height, 28rem);
         will-change: transform;
     }
     .journey-stack [data-stack-card] .edit-card {
@@ -1240,5 +1240,42 @@ html.short-mobile-viewport .hscroll-viewport {
     #journey .chapter-mark,
     #projects .chapter-mark {
         width: min(8.5rem, 40vw);
+    }
+}
+
+/* Mobile stage geometry is frozen in pixels until the layout width changes.
+   Journey card height is measured from its full content, not available vh. */
+@media (max-width: 1023px) {
+    .journey-stack .journey-viewport,
+    .hscroll-pin .hscroll-viewport {
+        height: var(--mobile-viewport-height, 100svh);
+    }
+    .journey-stack .edit-body {
+        overflow: visible;
+    }
+    .journey-stack.journey-flow {
+        height: auto;
+    }
+    .journey-stack.journey-flow .journey-viewport {
+        position: static;
+        height: auto;
+        overflow: visible;
+    }
+    .journey-stack.journey-flow .journey-viewport > div {
+        height: auto;
+    }
+    .journey-stack.journey-flow .stack-area {
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .journey-stack.journey-flow [data-stack-card] {
+        position: relative;
+        height: auto;
+        transform: none !important;
+    }
+    .journey-stack.journey-flow .edit-card {
+        height: auto;
     }
 }
