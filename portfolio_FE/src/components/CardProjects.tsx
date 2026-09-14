@@ -226,7 +226,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
             {project.wip && (
                 <span className="absolute top-2 left-2 z-20 px-2 py-0.5 text-[10px] font-mono
                                  bg-ctp-yellow/15 text-ctp-yellow border border-ctp-yellow/30">
-                    under construction
+                    in development
                 </span>
             )}
 
@@ -236,8 +236,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                     {project.projectTitle}
                 </h3>
                 <div
-                    className="flex-1 min-h-0 overflow-hidden text-xs text-zinc-400 leading-relaxed
-                               [mask-image:linear-gradient(to_bottom,black_85%,transparent)]"
+                    className="flex-1 min-h-0 overflow-y-auto text-sm text-zinc-400 leading-relaxed"
                 >
                     <p>{project.description}</p>
                 </div>

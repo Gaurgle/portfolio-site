@@ -21,92 +21,63 @@ type Milestone = {
 
 const milestones: Milestone[] = [
     {
-        n: "01",
-        cmd: "music",
-        color: "text-ctp-green",
-        title: "Studio & stage",
-        paras: [
-
-            "15+ years in music: drums and musical direction on stage, MIDI " +
-            "and tracks engineering, mixing in the studio.",
-            "Songwriter and producer, formerly signed to TEN Music Group. " +
-            "These days mastering at IMRSV Music.",
+        "n": "01",
+        "cmd": "music",
+        "color": "text-ctp-green",
+        "title": "Studio & stage",
+        "paras": [
+            "My work in music has included drumming, musical direction, MIDI and playback engineering, mixing, and production.",
+            "I was also a songwriter and producer signed to TEN Music Group."
         ],
-        credits: [
+        "credits": [
             {
-                label: "studio",
-                names: [
-                    "Liam Payne", "Astrid S", "Vault Boy", "Cherrie", "Matt Simons",
-                    "MishCatt", "Shy Martin", "Sarah Barrios", "Bonn", "Erik Hassle",
-                    "Felix Sandman", "Marcus & Martinus", "Sabina Ddumba",
-                ],
+                "label": "selected studio credits",
+                "names": [
+                    "Liam Payne",
+                    "Astrid S",
+                    "Vault Boy"
+                ]
             },
             {
-                label: "live",
-                names: [
-                    "Veronica Maggio", "Benjamin Ingrosso", "Loreen", "Zara Larsson",
-                    "Molly Sanden", "Eva Dahlgren", "Lova",
-                ],
-            },
-
-        ],
+                "label": "selected live credits",
+                "names": [
+                    "Benjamin Ingrosso",
+                    "Veronica Maggio",
+                    "Loreen"
+                ]
+            }
+        ]
     },
     {
-        n: "02",
-        cmd: "the pivot",
-        color: "text-ctp-blue",
-        title: "Then code happened",
-        paras: [
-            "Took the Java Developer program at Nackademin. Turns out running " +
-            "live shows and writing software use the same muscles: " +
-            "preparation, redundancy, staying calm when things break.",
-        ],
+        "n": "02",
+        "cmd": "studies",
+        "color": "text-ctp-blue",
+        "title": "Learning software",
+        "paras": [
+            "I studied Java development at Nackademin. That gave me a grounding in object-oriented programming, databases, networking, and testing.",
+            "Backend development was my starting point. I use Kotlin and Java with Spring Boot or Ktor in my projects."
+        ]
     },
     {
-        n: "03",
-        cmd: "backend",
-        color: "text-ctp-teal",
-        title: "The foundation",
-        paras: [
-            "Kotlin and Java, Spring Boot and Ktor. Backend is my foundation: " +
-                "APIs, data models, PostgreSQL. Solid systems that " +
-            "has to be correct.",
-        ],
+        "n": "03",
+        "cmd": "internship",
+        "color": "text-ctp-mauve",
+        "title": "Bluetooth at Sigma",
+        "paras": [
+            "During my internship at Sigma Connectivity, I worked on an Android app for Bluetooth testing, using Kotlin and Jetpack Compose.",
+            "The work included device scanning, GATT operations, and Lua test scripts, followed by work with LE Audio. I enjoyed investigating what happened when the devices didn't behave as expected."
+        ]
     },
     {
-        n: "04",
-        cmd: "android",
-        color: "text-ctp-mauve",
-        title: "Android development",
-        paras: [
-            "Kotlin, Jetpack Compose, Clean Architecture. My main focus: " +
-            "building apps end to end - UI, state, testing, and the tricky " +
-            "seams where software meets real hardware.",
-        ],
-    },
-    {
-        n: "05",
-        cmd: "ble · le audio",
-        color: "text-ctp-pink",
-        title: "BLE & LE Audio",
-        paras: [
-            "Close to the hardware, not all the way down: nRF dev " +
-            "kits, radio protocols, GATT, PAC records, Auracast. Wireless " +
-            "audio is where my two worlds meet, and it's the niche I'm " +
-            "digging into.",
-        ],
-    },
-    {
-        n: "06",
-        cmd: "how i build",
-        color: "text-ctp-peach",
-        title: "Products, not just code",
-        paras: [
-            "What I care about: software that feel smooth and reliable, look " +
-            "modern, and stay fast, safe and robust underneath." +
-            "I pick the tools the problem needs",
-        ],
-    },
+        "n": "04",
+        "cmd": "audio tools",
+        "color": "text-ctp-peach",
+        "title": "What I'm building",
+        "paras": [
+            "I'm developing a release-preparation tool for the studio and experimenting with audio watermarking in C++.",
+            "Both come from problems I know through music work: handling release files and exploring how information can travel inside audio. The projects below show where that work stands."
+        ]
+    }
 ];
 ---
 
@@ -114,7 +85,7 @@ const milestones: Milestone[] = [
          data-cmd="./journey --walk" data-cmd-color="#94e2d5"
          class="relative">
 
-    <div data-cardstack data-off-x="26" data-off-y="48" class="journey-stack relative z-10">
+    <div data-cardstack data-off-x="26" data-off-y="48" class="journey-stack relative z-10" style={`--journey-edges: ${milestones.length - 1}`}>
         <div class="journey-viewport">
             <!-- lg:items-start: the mark's numeral tops out level with the
                  first card's top edge instead of floating centered -->
