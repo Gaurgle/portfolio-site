@@ -23,82 +23,37 @@ import ChapterMark from "./ChapterMark.astro";
         <div data-hold="0.35" class="lg:w-[58%] relative z-10 pt-16 pb-8 lg:pt-[18vh] lg:pb-[30vh]">
             <!-- Big gaps on desktop (each card owns the frame); compact on
                  mobile where there is no focus effect to justify them -->
-            <div data-hold-content class="space-y-14 lg:space-y-[40vh]">
+            <div data-hold-content class="space-y-8 lg:space-y-[24vh]">
 
-            <!-- Who I Am -->
             <div data-reveal data-focus class="rounded-xl backdrop-blur-[3px]" data-rn-card>
-                <div class="p-6">
-                    <h3 class="text-base md:text-lg font-bold tracking-[0.2em] uppercase text-ctp-mauve mb-3">Who I Am</h3>
-                    <p data-word-reveal class="text-base md:text-lg text-zinc-100 leading-relaxed">
-                        Backend and Android developer based in
-                        <span class="text-white" data-rn="underline">Stockholm, Sweden</span>.
-                        Building APIs, services, and apps with
-                        <span class="text-white" data-rn="underline">Kotlin</span>,
-                        <span class="text-white" data-rn="underline">Java</span>, and
-                        <span class="text-white" data-rn="underline">Spring Boot</span>/<span class="text-white" data-rn="underline">Ktor</span>.
-                        Hands-on with <span class="text-white" data-rn="underline">Bluetooth LE</span>,
-                        <span class="text-white" data-rn="underline">Jetpack Compose</span>, and full-stack systems.
-                        Java Developer program at
-                        <span class="text-white" data-rn="underline">Nackademin</span> and a
-                        BLE/LE Audio internship at
-                        <span class="text-white" data-rn="underline">Sigma Connectivity</span> behind me;
-                        currently mastering records at
-                        <span class="text-white" data-rn="underline">IMRSV Music</span>.
-                    </p>
+                <div class="p-4 sm:p-6">
+                    <h3 class="text-base md:text-lg font-bold tracking-[0.2em] uppercase text-ctp-mauve mb-3">Hello</h3>
+                    <p data-word-reveal class="text-base md:text-lg text-zinc-100 leading-relaxed">I'm Andreas, a backend and Android developer in <span class="text-white" data-rn="underline">Stockholm</span>.
+                        I work with <span class="text-white" data-rn="underline">Kotlin</span> and <span class="text-white" data-rn="underline">Java</span>, with a particular interest in
+                        Bluetooth and audio. I came to software after a career in music,
+                        and I'm looking for a developer role where I can build on that experience.</p>
                 </div>
             </div>
 
-            <!-- Background -->
             <div data-reveal data-focus class="rounded-xl backdrop-blur-[3px]" data-rn-card>
-                <div class="p-6">
-                    <h3 class="text-base md:text-lg font-bold tracking-[0.2em] uppercase text-ctp-pink mb-3">Background</h3>
-                    <p data-word-reveal class="text-base md:text-lg text-zinc-100 leading-relaxed">
-                        18+ years in the music industry - and counting. Drums and musical
-                        direction with
-                        <span class="text-white" data-rn="underline">Benjamin Ingrosso</span> (incl. <span class="text-white" data-rn="underline">Eurovision</span>),
-                        MIDI and tracks engineering for
-                        <span class="text-white" data-rn="underline">Loreen</span>,
-                        <span class="text-white" data-rn="underline">Veronica Maggio</span> and
-                        <span class="text-white" data-rn="underline">Eva Dahlgren</span>,
-                        mixing credits for
-                        <span class="text-white" data-rn="underline">Vault Boy</span>,
-                        <span class="text-white" data-rn="underline">Liam Payne</span> and
-                        <span class="text-white" data-rn="underline">Astrid S</span>;
-                        songwriter and producer, formerly signed to
-                        <span class="text-white" data-rn="underline">TEN Music Group</span>.
-                        That's where the habit of solving problems under pressure comes from,
-                        now channeled into code.
-                    </p>
+                <div class="p-4 sm:p-6">
+                    <h3 class="text-base md:text-lg font-bold tracking-[0.2em] uppercase text-ctp-pink mb-3">At IMRSV</h3>
+                    <p data-word-reveal class="text-base md:text-lg text-zinc-100 leading-relaxed">At <span class="text-white" data-rn="underline">IMRSV Music</span>, I work on internal software, release pipelines,
+                        and the studio's technical setup, including storage and backups.
+                        I also <span class="text-white" data-rn="underline">master records</span>; that's still a substantial part of my work.
+                        Working with the files myself helps me see where a tool would save time
+                        or prevent a mistake.</p>
                 </div>
             </div>
 
-            <!-- As a Developer -->
             <div data-reveal data-focus class="rounded-xl backdrop-blur-[3px]" data-rn-card>
-                <div class="p-6">
-                    <h3 class="text-base md:text-lg font-bold tracking-[0.2em] uppercase text-ctp-blue mb-3">As a Developer</h3>
-                    <p data-word-reveal class="text-base md:text-lg text-zinc-100 leading-relaxed mb-3">
-                        My main focus is
-                        <span class="text-white" data-rn="underline">Android</span> development in
-                        <span class="text-white" data-rn="underline">Kotlin</span> with
-                        <span class="text-white" data-rn="underline">Jetpack Compose</span>, building apps end to end
-                        and often working close to the hardware. Right now that includes a
-                        <span class="text-white" data-rn="underline">Bluetooth LE</span> and
-                        <span class="text-white" data-rn="underline">LE Audio</span> testing tool: it connects to
-                        devices, digs into <span class="text-white" data-rn="underline">GATT</span> services and characteristics, and runs automated
-                        test scripts through an embedded
-                        <span class="text-white" data-rn="underline">Lua</span> engine. <span class="text-white" data-rn="underline">Coroutines</span>, thread-safe
-                        operation queuing, and getting predictable behavior out of real hardware
-                        is the kind of problem I enjoy most.
-                    </p>
-                    <p data-word-reveal class="text-base md:text-lg text-zinc-100 leading-relaxed">
-                        It sits on a solid backend foundation:
-                        <span class="text-white" data-rn="underline">Spring Boot</span> and
-                        <span class="text-white" data-rn="underline">Ktor</span> with Kotlin,
-                        <span class="text-white" data-rn="underline">Docker</span>, and
-                        <span class="text-white" data-rn="underline">PostgreSQL</span>. I like designing clean APIs
-                        and services with proper testing, and understanding the whole path from a
-                        device on the bench to data in the database, not just one end of it.
-                    </p>
+                <div class="p-4 sm:p-6">
+                    <h3 class="text-base md:text-lg font-bold tracking-[0.2em] uppercase text-ctp-blue mb-3">How I work</h3>
+                    <p data-word-reveal class="text-base md:text-lg text-zinc-100 leading-relaxed">I tend to notice when something doesn't quite add up, and I find it hard
+                        to leave it alone until I understand why. I like following a problem
+                        through the system: what triggered it, what state changed, and where
+                        an assumption stopped holding.
+                        Before changing it, I want to understand what the rest of the system relies on.</p>
                 </div>
             </div>
 

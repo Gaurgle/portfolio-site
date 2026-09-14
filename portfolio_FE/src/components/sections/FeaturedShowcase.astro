@@ -60,6 +60,7 @@ const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
                             <span style={`color: rgb(${accents[i % accents.length]})`}>
                                 featured/{String(i + 1).padStart(2, "0")}
                             </span>
+                            {p.wip && <span class="ml-auto text-zinc-400">in development</span>}
                         </div>
                         {firstImage(p) ? (
                             <div class="edit-media">

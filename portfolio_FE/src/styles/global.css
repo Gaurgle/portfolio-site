@@ -868,8 +868,8 @@ html.lenis, html.lenis body { height: auto; }
     .journey-stack .stack-area {
         position: relative;
         /* card size + 5 cascade offsets (6 cards); offsets mirror data-off-x/y */
-        width: calc(min(38rem, (100vw - 9.5rem) * 0.45) + 5 * 26px);
-        height: calc(min(28rem, 58vh) + 5 * 48px);
+        width: calc(min(38rem, (100vw - 9.5rem) * 0.45) + var(--journey-edges, 3) * 26px);
+        height: calc(min(28rem, 58vh) + var(--journey-edges, 3) * 48px);
     }
     .journey-stack [data-stack-card] {
         position: absolute;
@@ -906,10 +906,10 @@ html.lenis, html.lenis body { height: auto; }
     .journey-stack .stack-area {
         position: relative;
         width: 100%;
-        /* card + 5 deck edges (6 cards); offsets mirror measureCardStacks.
+        /* Card + one edge per covered card; offsets mirror measureCardStacks.
            100svh - 17rem: clear the chapter mark above the deck on
            short-but-wide viewports (same guard as the featured deck) */
-        height: calc(min(28rem, 57svh, 100svh - 17rem) + 5 * 10px);
+        height: calc(min(28rem, 57svh, 100svh - 17rem) + var(--journey-edges, 3) * 10px);
     }
     .journey-stack [data-stack-card] {
         position: absolute;
