@@ -946,7 +946,7 @@ html.lenis, html.lenis body { height: auto; }
         padding-top: 5rem;
         padding-bottom: 1rem;
     }
-    .hscroll-pin .hscroll-viewport > .lg\\:hidden {
+    .hscroll-pin .hscroll-viewport > [class~="lg:hidden"] {
         flex-shrink: 0;
     }
     .hscroll-pin [data-hscroll-track] {
