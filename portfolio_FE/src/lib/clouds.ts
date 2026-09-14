@@ -314,15 +314,6 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                 // Reuse the existing nearest cloud. Expand a soft spatial mask,
                 // not its global opacity: dense cores can actually cover text.
                 frontContext.drawImage(canvas,0,0);
-                // At full engulf a flat haze fills the gaps between lobes so
-                // no black sky shows through; it releases with the veil.
-                // Haze appears only once the mask exceeds the screen, so it
-                // never reads as a disc.
-                const haze=.7*smooth((engulf-.6)/.4)*smooth(veil/.3);
-                if(haze>.005) {
-                    frontContext.fillStyle=`rgba(196,200,208,${haze.toFixed(3)})`;
-                    frontContext.fillRect(0,0,foreground.width,foreground.height);
-                }
                 const radius=Math.max(1,cover.radius*Math.sqrt(Math.max(veil,.05)));
                 const mask=frontContext.createRadialGradient(cover.x,cover.y,radius*.6,
                     cover.x,cover.y,radius);
