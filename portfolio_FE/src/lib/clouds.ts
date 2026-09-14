@@ -89,8 +89,10 @@ void main() {
 type Cloud = { phase: number; size: number };
 type CloudPass = {
     c: Cloud; i: number; cycle: number; progress: number; hero: boolean;
-    distance: number;
+    finale: boolean; distance: number;
 };
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+const smooth = (v: number) => { const s = clamp01(v); return s * s * (3 - 2 * s); };
 
 /** Mount an optional atmosphere. Missing WebGL leaves the black starfield intact. */
 export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasElement | null = null): () => void {
@@ -140,17 +142,20 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const desktop = window.matchMedia("(min-width: 1024px) and (pointer: fine)");
+    // Two large ambient volumes read as weather; more, smaller ones read as debris.
     const clouds: Cloud[] = [
-        {phase:.18,size:2.3},
-        {phase:.42,size:3.3},
-        {phase:.66,size:3.7},
+        {phase:.18,size:3.6},
+        {phase:.58,size:4.4},
     ];
     const frontContext=foreground?.getContext("2d");
+    // The foreground cover eases toward its target each frame so a cloud
+    // never snaps over or off the content when the nearest volume changes.
+    const cover={x:0,y:0,radius:0,opacity:0};
     // The fixed contact panel is revealed beneath the page, not scrolled
     // through it; its constant screen position must not hold a curtain open.
     const sections=Array.from(document.querySelectorAll<HTMLElement>("[data-section]:not(#home)"))
         .filter(section=>getComputedStyle(section).position!=="fixed");
-    let entrance=0;
+    let entrance=0, pageEnd=Infinity;
     let width=0, height=0, frame=0, last=0, elapsed=0, disposed=false;
     const resize = () => {
         const w=canvas.clientWidth, h=canvas.clientHeight;
@@ -171,17 +176,26 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const scroll=reduced.matches ? 0 : window.scrollY/height;
         const animate=desktop.matches && !reduced.matches;
         if(!animate && scroll===previousScroll && last!==0) return;
-        if(animate) elapsed+=last ? Math.min((now-last)/1000,.1) : 0;
+        const step=last ? Math.min((now-last)/1000,.1) : 0;
+        if(animate) elapsed+=step;
         const life=animate ? elapsed : 0;
         if(scroll!==previousScroll || last===0) {
             entrance=animate ? Math.max(0,...sections.map(section=> {
                 const top=section.getBoundingClientRect().top/height;
                 return top>.15 && top<.9 ? Math.sin((top-.15)/.75*Math.PI)**2 : 0;
             })) : 0;
+            pageEnd=(document.documentElement.scrollHeight-window.innerHeight)/height;
         }
         const opening=animate ? Math.min(1,scroll/1.15) : 1;
-        const openingVeil=opening<1 ? .12*(1-opening)+.75*Math.sin(opening*Math.PI) : 0;
+        // A light cover at rest seats the logo inside the cloud; the exit
+        // grows it until the foreground engulfs the screen, then releases.
+        const openingVeil=opening<1 ? .2*(1-opening)+.75*Math.sin(opening*Math.PI) : 0;
+        // Only the hero exit engulfs; later covers keep their soft masks.
+        const engulf=opening<1 ? smooth((opening-.3)/.45) : 0;
         const veil=Math.max(entrance*.65,openingVeil);
+        // The closing volume forms over the last screens and settles along
+        // the top edge once the contact panel is revealed.
+        const closing=animate ? clamp01((scroll-(pageEnd-1.3))/1.3) : 0;
         last=now; previousScroll=scroll;
         gl.uniform2f(uniforms.resolution,canvas.width,canvas.height);
         gl.uniform1i(uniforms.steps,desktop.matches?64:40);
@@ -190,33 +204,41 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const ordered: CloudPass[]=active.map((c,i)=> {
             const travel=scroll/(9+i*2)+c.phase;
             const progress=(travel%1)/.72;
-            return {c,i,cycle:Math.floor(travel),progress,hero:false,
-                distance:[16,22,29][i]-[12,15,15][i]*progress};
+            return {c,i,cycle:Math.floor(travel),progress,hero:false,finale:false,
+                distance:[17,26][i]-[13,17][i]*progress};
         }).filter(c=>c.progress<1);
         if(animate && opening<1) {
-            ordered.push({c:{phase:0,size:3.1},i:3,cycle:0,progress:opening,
-                hero:true,distance:10.-8.*opening**1.35});
+            // Rests large behind the logo, then rushes the camera and passes
+            // through it before dispersing to expose the page.
+            ordered.push({c:{phase:0,size:3.6},i:3,cycle:0,progress:opening,
+                hero:true,finale:false,distance:9.5-8.5*opening**1.3});
+        }
+        if(closing>0) {
+            ordered.push({c:{phase:0,size:3.4},i:4,cycle:0,progress:closing,
+                hero:false,finale:true,distance:19.-11.5*closing**1.2});
         }
         ordered.sort((a,b)=>b.distance-a.distance);
         let nearBlur=0;
         let nearest: { x: number; y: number; radius: number; depth: number } | null=null;
+        const diagonal=Math.hypot(canvas.width,canvas.height);
         gl.disable(gl.SCISSOR_TEST);
         gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
         gl.enable(gl.SCISSOR_TEST);
-        for(const {c,i,cycle,progress,hero,distance} of ordered) {
-            // Keep a distant cloud behind the opening volume. Bring the next
-            // near cloud in through condensation, without adding a curtain pass.
-            const ambientFormation=animate && i===0 ? Math.max(0,Math.min(1,(scroll-.85)/.5)) : 1;
-            if(!hero && ambientFormation===0) continue;
+        for(const {c,i,cycle,progress,hero,finale,distance} of ordered) {
+            // Ambient weather stays out of the opening and dissolves while the
+            // closing volume forms, so the logo and the contact form stay clear.
+            const ambientFormation=animate ? smooth((scroll-.85)/.5)*(1-smooth(closing)) : 1;
+            if(!hero && !finale && ambientFormation===0) continue;
             // New paths and proportions on later passes, deterministic in both
             // scroll directions. The long invisible interval leaves black space.
             const variation=(Math.sin((cycle*7+i+1)*12.9898)*43758.5453)%1;
-            const size=c.size*(1+Math.abs(variation)*.18)*(desktop.matches?1.12:.4);
+            const size=c.size*(1+Math.abs(variation)*.18)*(desktop.matches?1.12:.32);
             const phase=i*1.7;
             const depth=distance+.22*Math.sin(life*.055+phase);
             const edge=desktop.matches ? 2.6+width/height*.75 : .95;
             const paths=[[-edge,-1.7],[edge,2.1],[-1.3,3.6],[1.6,-3.5]];
-            const path=hero ? [-1.8-progress*progress*1.4,-.5-progress*.7]
+            const path=hero ? [-.1-progress*.25,.95-progress*.8]
+                : finale ? [.8+progress*.4,4.6-progress*.9]
                 : desktop.matches ? paths[(cycle+i)%paths.length] : paths[0];
             const worldX=path[0]+.25*variation+.14*Math.sin(life*.045+phase);
             const worldY=path[1]+.4*Math.sin(progress*Math.PI+phase)+.12*Math.sin(life*.06+phase);
@@ -254,31 +276,56 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             gl.uniform3f(uniforms.center,worldX,worldY,6-depth);
             gl.uniform3f(uniforms.scale,size,size*.8,size*.8);
             gl.uniform1f(uniforms.seed,i*.193+cycle*.137);
-            const growth=hero ? Math.min(1,(1-progress)/.22)
-                : Math.max(0,Math.min(1,progress/.2,(1-progress)/.18))*ambientFormation;
+            const growth=hero ? smooth((1-progress)/.18)
+                : finale ? smooth(progress/.35)
+                : smooth(Math.min(progress/.2,(1-progress)/.18))*ambientFormation;
             gl.uniform1f(uniforms.formation,growth*growth*(3-2*growth));
-            gl.uniform1f(uniforms.strength,desktop.matches ? .98 : .6);
+            const strength=hero ? .72+.26*smooth(progress/.35)
+                : finale ? .85 : desktop.matches ? .98 : .6;
+            gl.uniform1f(uniforms.strength,strength);
             gl.drawArrays(gl.TRIANGLES,0,6);
             nearBlur=Math.max(nearBlur,Math.max(0,7.-depth)*.6);
-            if(growth>.25 && (!nearest || depth<nearest.depth)) {
+            if(growth>.1 && (!nearest || depth<nearest.depth)) {
+                const radius=size*1.8/depth*canvas.height*.75;
                 nearest={x:(worldX*1.8/depth/(width/height)+1)*canvas.width/2,
                     y:(1-worldY*1.8/depth)*canvas.height/2,
-                    radius:size*1.8/depth*canvas.height*.75,depth};
+                    radius:hero ? Math.max(radius,diagonal*engulf) : radius,depth};
             }
         }
         canvas.style.filter=nearBlur>.05 ? `blur(${nearBlur.toFixed(2)}px)` : "none";
         if(foreground && frontContext) {
-            const cover=nearest && nearest.depth<10 && veil>.01;
-            foreground.style.opacity=cover ? "1" : "0";
+            // Proximity and veil both ramp, so the cover fades in and out
+            // instead of switching at a depth threshold.
+            const proximity=nearest ? clamp01((11-nearest.depth)/2.5) : 0;
+            const target=proximity*smooth(veil/.3);
+            const ease=animate ? 1-Math.exp(-step*7) : 1;
+            cover.opacity+=(target-cover.opacity)*ease;
+            if(nearest) {
+                const follow=cover.opacity<.02 ? 1 : ease;
+                cover.x+=(nearest.x-cover.x)*follow;
+                cover.y+=(nearest.y-cover.y)*follow;
+                cover.radius+=(nearest.radius-cover.radius)*follow;
+            }
+            const visible=cover.opacity>.01;
+            foreground.style.opacity=visible ? cover.opacity.toFixed(3) : "0";
             foreground.style.filter=canvas.style.filter;
             frontContext.clearRect(0,0,foreground.width,foreground.height);
-            if(cover && nearest) {
+            if(visible) {
                 // Reuse the existing nearest cloud. Expand a soft spatial mask,
                 // not its global opacity: dense cores can actually cover text.
                 frontContext.drawImage(canvas,0,0);
-                const radius=Math.max(1,nearest.radius*Math.sqrt(veil));
-                const mask=frontContext.createRadialGradient(nearest.x,nearest.y,radius*.6,
-                    nearest.x,nearest.y,radius);
+                // At full engulf a flat haze fills the gaps between lobes so
+                // no black sky shows through; it releases with the veil.
+                // Haze appears only once the mask exceeds the screen, so it
+                // never reads as a disc.
+                const haze=.7*smooth((engulf-.6)/.4)*smooth(veil/.3);
+                if(haze>.005) {
+                    frontContext.fillStyle=`rgba(196,200,208,${haze.toFixed(3)})`;
+                    frontContext.fillRect(0,0,foreground.width,foreground.height);
+                }
+                const radius=Math.max(1,cover.radius*Math.sqrt(Math.max(veil,.05)));
+                const mask=frontContext.createRadialGradient(cover.x,cover.y,radius*.6,
+                    cover.x,cover.y,radius);
                 mask.addColorStop(0,"rgba(0,0,0,1)");
                 mask.addColorStop(1,"rgba(0,0,0,0)");
                 frontContext.globalCompositeOperation="destination-in";

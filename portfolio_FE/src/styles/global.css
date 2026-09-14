@@ -195,6 +195,33 @@ html, body {
     transform: translateY(0);
 }
 
+/* About story cards: a flat, near-opaque panel in the same language as
+   the journey and terminal cards, so prose stays legible while clouds
+   pass cleanly behind a crisp edge (no backdrop blur, no gradient). */
+.story-card {
+    background: rgb(8 8 11 / 0.9);
+    border: 1px solid rgb(63 63 70); /* zinc-700 */
+}
+
+/* Desktop sidebar: the blur that keeps nav text legible over clouds fades
+   out past the column instead of ending in a vertical line. */
+@media (min-width: 1024px) {
+    #sidebar {
+        isolation: isolate;
+    }
+    #sidebar::before {
+        content: "";
+        position: absolute;
+        inset: 0 -4rem 0 0;
+        z-index: -1;
+        pointer-events: none;
+        -webkit-backdrop-filter: blur(6px);
+        backdrop-filter: blur(6px);
+        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 6rem), transparent);
+        mask-image: linear-gradient(to right, #000 calc(100% - 6rem), transparent);
+    }
+}
+
 /* Terminal card chrome (compose window, mini terminal): sharp, flat */
 .terminal-card {
     @apply border border-zinc-700 rounded-md overflow-hidden bg-black/70;
@@ -524,6 +551,12 @@ html.lenis, html.lenis body { height: auto; }
 }
 [data-hero-scrub] .hero-path {
     opacity: calc(1 - min(1, var(--scrub, 0) * 1.8));
+}
+/* A dark halo keeps the grey lines legible when a cloud drifts behind
+   them; black text would vanish wherever no cloud is rendered. */
+.hero-tagline,
+.hero-path {
+    text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 14px rgb(0 0 0 / 0.8);
 }
 /* Tagline exit: each tag carries --dx (-1.5 .. 1.5), so the outer words
    fly furthest; the row sinks as it scatters (away from the zooming glyph) and is gone by mid-scrub.
