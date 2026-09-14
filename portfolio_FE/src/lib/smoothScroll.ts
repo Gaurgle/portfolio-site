@@ -36,7 +36,7 @@ const isDesktop = (): boolean =>
     window.matchMedia("(min-width: 1024px)").matches;
 
 /** Match the CSS pin height, even when the URL bar is already collapsed. */
-function measureViewportHeight(): number {
+export function measureViewportHeight(): number {
     if (isDesktop()) return window.innerHeight || 1;
     const probe = document.createElement("div");
     probe.style.cssText =
@@ -48,6 +48,15 @@ function measureViewportHeight(): number {
 }
 
 let layoutViewportH = 1;
+
+function updateViewport(): void {
+    layoutViewportH = measureViewportHeight();
+    // Short landscape screens cannot hold a chapter heading and a deck.
+    // Use a flowing card list there; toolbar animation cannot toggle this.
+    document.documentElement.classList.toggle(
+        "short-mobile-viewport", !isDesktop() && layoutViewportH < 500,
+    );
+}
 
 function nativeProgress(): number {
     const el = document.documentElement;
@@ -371,6 +380,7 @@ type CardStack = {
 
 function measureCardStacks(): CardStack[] {
     const result: CardStack[] = [];
+    if (document.documentElement.classList.contains("short-mobile-viewport")) return result;
     const desktop = isDesktop();
 
     for (const section of document.querySelectorAll<HTMLElement>("[data-cardstack]")) {
@@ -812,7 +822,10 @@ function bindScrollDriven(reduced: boolean): void {
                 // Fold the vertical mouse shift into the wrap phase so the
                 // translate stays within the tiled range (no seams).
                 const phase = scroll * layer.speed + mouse.y * layer.speed * 140;
-                const y = ((phase % viewportH) + viewportH) % viewportH;
+                // The canvas owns its exact repeat interval. It may repaint after
+                // the layout resize, so never wrap it at an unrelated height.
+                const tileH = Number(layer.el.dataset.parallaxHeight) || viewportH;
+                const y = ((phase % tileH) + tileH) % tileH;
                 const mx = mouse.x * layer.speed * -220;
                 layer.el.style.transform = `translate3d(${mx}px, ${-y}px, 0)`;
             }
@@ -908,7 +921,7 @@ function bindScrollDriven(reduced: boolean): void {
                 sc.coverEl.style.opacity = "";
             }
         }
-        layoutViewportH = measureViewportHeight();
+        updateViewport();
         viewportH = layoutViewportH;
         applyPins();
         stacks = measureCardStacks();
@@ -1273,7 +1286,7 @@ function adoptMarqueeTrack(track: HTMLElement): void {
     cleanups.push(() => ro.disconnect());
 }
 
-function tickMarquee(): void {
+function tickMarquee(frameScale: number): void {
     // The marquee is a hydrated React island; it may appear after init.
     if (!marquee.track || !marquee.track.isConnected) {
         marquee.track = null;
@@ -1289,11 +1302,11 @@ function tickMarquee(): void {
     if (!marquee.visible || half <= 0) return;
 
     const velocity = lenis?.velocity ?? 0;
-    marquee.offset += 1.4 + Math.min(Math.abs(velocity) * 0.25, 10);
+    marquee.offset += (1.4 + Math.min(Math.abs(velocity) * 0.25, 10)) * frameScale;
 
     // Skew with scroll velocity, ease back to rest.
     const targetSkew = Math.max(-10, Math.min(10, velocity * 0.35));
-    marquee.skew += (targetSkew - marquee.skew) * 0.12;
+    marquee.skew += (targetSkew - marquee.skew) * (1 - Math.pow(0.88, frameScale));
 
     marquee.track.style.transform =
         `translate3d(${-(marquee.offset % half)}px, 0, 0) skewX(${marquee.skew.toFixed(2)}deg)`;
@@ -1359,7 +1372,7 @@ export function destroySmoothScroll(): void {
 export function initSmoothScroll(): void {
     destroySmoothScroll();
     const reduced = prefersReducedMotion();
-    layoutViewportH = measureViewportHeight();
+    updateViewport();
     document.documentElement.classList.toggle("reduced-motion", reduced);
 
     if (!reduced) {
@@ -1370,9 +1383,14 @@ export function initSmoothScroll(): void {
             lenis = new Lenis({ lerp: 0.065, smoothWheel: true, wheelMultiplier: 0.85 });
         }
 
+        let previousTime = 0;
         const raf = (time: number) => {
+            // Equal speed on 60/120Hz displays; no catch-up jump after a
+            // background tab resumes.
+            const frameScale = previousTime ? Math.min((time - previousTime) / (1000 / 60), 2) : 1;
+            previousTime = time;
             lenis?.raf(time);
-            tickMarquee();
+            tickMarquee(frameScale);
             magnetTick?.();
             parallaxTick?.();
             rafId = requestAnimationFrame(raf);

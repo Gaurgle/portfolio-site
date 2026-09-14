@@ -63,7 +63,7 @@ export default function ContactForm() {
         }
     };
 
-    const inputClass = `w-full px-3 py-2.5 bg-zinc-900/80 border border-zinc-800 rounded-lg text-white text-sm
+    const inputClass = `w-full px-3 py-2.5 bg-zinc-900/80 border border-zinc-800 rounded-lg text-white text-base lg:text-sm
         placeholder-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600
         transition-colors duration-200`;
 
