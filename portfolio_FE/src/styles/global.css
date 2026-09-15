@@ -594,6 +594,31 @@ html.lenis, html.lenis body { height: auto; }
     font-family: "Inter", system-ui, sans-serif;
     font-weight: 800;
 }
+/* Hover: a chromatic split, the clouds' effect in miniature. Red and blue
+   copies part along the pointer's direction from the mark's centre
+   (--cm-x/--cm-y, set in ChapterMark.astro). Filter, not transform: the
+   scroll drift owns the mark's inline transform. The long ease lets the
+   fringe trail the pointer and fade out instead of switching. The numeral
+   splits much wider than the hook lines, scaled to the mark's width (cqw)
+   so the slim pinned marks and the full-width covers read alike. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .chapter-mark {
+        container-type: inline-size;
+    }
+    .chapter-mark .cm-split {
+        transition: filter 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .chapter-mark:hover .cm-split {
+        filter:
+            drop-shadow(calc(var(--cm-x, 0.7) * 1.5px) calc(var(--cm-y, 0.7) * 1.5px) 0 rgb(255 70 90 / 0.45))
+            drop-shadow(calc(var(--cm-x, 0.7) * -1.5px) calc(var(--cm-y, 0.7) * -1.5px) 0 rgb(70 190 255 / 0.45));
+    }
+    .chapter-mark:hover .cm-split.cm-num-box {
+        filter:
+            drop-shadow(calc(var(--cm-x, 0.7) * 1.1cqw) calc(var(--cm-y, 0.7) * 1.1cqw) 0 rgb(255 60 90 / 0.7))
+            drop-shadow(calc(var(--cm-x, 0.7) * -1.1cqw) calc(var(--cm-y, 0.7) * -1.1cqw) 0 rgb(60 190 255 / 0.7));
+    }
+}
 /* The single special word's font comes per-section via the accentStyle prop */
 
 /* Docked section prompt caret (the dock itself lives in BaseLayout, fixed

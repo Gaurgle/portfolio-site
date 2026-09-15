@@ -51,14 +51,14 @@ const hookPad = "15.98%";
      aria-label={`${n} ${label}: ${line1 ?? ""} ${pre}${accent}${post}`}>
     <!-- Numeral: slightly WIDER than the hook lines (optical alignment reads
          better with a small overhang than with exact equal widths) -->
-    <div class="relative w-[106%] -ml-[3%]" style="padding-top: 44.17%">
+    <div class="cm-split cm-num-box relative w-[106%] -ml-[3%]" style="padding-top: 44.17%">
         <svg class="absolute inset-0 h-full w-full" viewBox="0 0 720 300" preserveAspectRatio="none" aria-hidden="true">
             <text class="cm-num" x="-8" y="290" font-size="400" textLength="736" lengthAdjust="spacingAndGlyphs" fill="#ffffff">{n}</text>
         </svg>
     </div>
 
     <!-- Hook: one or two rows, tight letters, flush to the rectangle edges -->
-    <div class="mt-[4%] space-y-[3%]">
+    <div class="cm-split mt-[4%] space-y-[3%]">
         {l1 && line1 && (
             <div class="relative w-full" style={`padding-top: ${hookPad}`}>
                 <svg class="absolute inset-0 h-full w-full" viewBox={`0 0 720 ${l1.vb}`} preserveAspectRatio="none" aria-hidden="true">
@@ -75,5 +75,22 @@ const hookPad = "15.98%";
         </div>
     </div>
 
-    <div class="font-mono tracking-[0.35em] text-lg md:text-xl text-white/45 mt-4">{label}</div>
+    <div class="cm-split font-mono tracking-[0.35em] text-lg md:text-xl text-white/45 mt-4">{label}</div>
 </div>
+
+<script>
+    // Point the hover split away from the mark's centre, toward the pointer.
+    // One document listener survives page swaps; near the centre the
+    // direction keeps a floor so the split never collapses to nothing.
+    document.addEventListener("pointermove", (event) => {
+        if (event.pointerType === "touch") return;
+        const mark = (event.target as Element | null)?.closest?.<HTMLElement>(".chapter-mark");
+        if (!mark) return;
+        const r = mark.getBoundingClientRect();
+        const x = (event.clientX - r.left) / r.width * 2 - 1;
+        const y = (event.clientY - r.top) / r.height * 2 - 1;
+        const length = Math.max(Math.hypot(x, y), 0.35);
+        mark.style.setProperty("--cm-x", (x / length).toFixed(3));
+        mark.style.setProperty("--cm-y", (y / length).toFixed(3));
+    }, { passive: true });
+</script>

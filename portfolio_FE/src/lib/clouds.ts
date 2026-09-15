@@ -85,6 +85,33 @@ void main() {
     color=vec4(radiance*strength,alpha);
 }
 `;
+// Chromatic pass, adapted from Aceternity's Chromatic Image: the rendered sky
+// is resampled per channel along the pointer direction, with a banded warp and
+// a slight zoom. Channels are premultiplied, so alpha takes the widest sample
+// and the red/blue fringes survive past the cloud edge over the starfield.
+const chromaticFragment = `#version 300 es
+precision highp float;
+uniform sampler2D scene;
+uniform vec2 resolution;
+uniform vec2 pointer;
+uniform float progress;
+out vec4 color;
+const float zoom=.2, displacement=.05, chromatic=.01;
+void main() {
+    vec2 uv=gl_FragCoord.xy/resolution;
+    vec2 movement=(pointer-.5)*vec2(resolution.x/resolution.y,1.);
+    vec2 direction=movement/max(length(movement),.2);
+    vec2 base=mix(uv,vec2(.5),zoom*progress*.28);
+    float band=sin(uv.y*24.+pointer.x*5.);
+    float fineBand=sin(uv.y*71.-pointer.y*4.);
+    base.x+=(band*.72+fineBand*.28)*displacement*progress*.16;
+    base.y+=direction.y*displacement*progress*.12;
+    vec2 split=direction*chromatic*progress;
+    split.x+=band*chromatic*progress*.35;
+    vec4 red=texture(scene,base+split), green=texture(scene,base), blue=texture(scene,base-split);
+    color=vec4(red.r,green.g,blue.b,max(green.a,max(red.a,blue.a)));
+}
+`;
 
 type Cloud = { phase: number; size: number };
 type CloudPass = {
@@ -99,24 +126,30 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, powerPreference: "low-power" });
     if (!gl) return () => {};
     const shaders: WebGLShader[] = [];
-    const program = gl.createProgram()!;
-    for (const [type, source] of [[gl.VERTEX_SHADER, vertex], [gl.FRAGMENT_SHADER, fragment]] as const) {
-        const shader = gl.createShader(type)!;
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            console.warn("Cloud shader unavailable:", gl.getShaderInfoLog(shader));
-            gl.deleteShader(shader);
-            shaders.forEach(s => gl.deleteShader(s));
-            gl.deleteProgram(program);
-            return () => {};
+    const programs: WebGLProgram[] = [];
+    const link = (source: string) => {
+        const program = gl.createProgram()!;
+        programs.push(program);
+        // Both passes share one quad buffer, so pin the attribute slot.
+        gl.bindAttribLocation(program, 0, "position");
+        for (const [type, text] of [[gl.VERTEX_SHADER, vertex], [gl.FRAGMENT_SHADER, source]] as const) {
+            const shader = gl.createShader(type)!;
+            shaders.push(shader);
+            gl.shaderSource(shader, text);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.warn("Cloud shader unavailable:", gl.getShaderInfoLog(shader));
+                return null;
+            }
+            gl.attachShader(program, shader);
         }
-        shaders.push(shader);
-        gl.attachShader(program, shader);
-    }
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        shaders.forEach(s => gl.deleteShader(s)); gl.deleteProgram(program);
+        gl.linkProgram(program);
+        return gl.getProgramParameter(program, gl.LINK_STATUS) ? program : null;
+    };
+    const program = link(fragment);
+    const chromaticProgram = program && link(chromaticFragment);
+    if (!program || !chromaticProgram) {
+        shaders.forEach(s => gl.deleteShader(s)); programs.forEach(p => gl.deleteProgram(p));
         return () => {};
     }
     gl.useProgram(program);
@@ -139,6 +172,33 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     for(const axis of [gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T,gl.TEXTURE_WRAP_R]) gl.texParameteri(gl.TEXTURE_3D,axis,gl.REPEAT);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+    // Clouds render into an offscreen texture (unit 1); the chromatic pass
+    // resamples it onto the canvas. Sized in resize().
+    const sceneTexture = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D,sceneTexture);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.activeTexture(gl.TEXTURE0);
+    const sceneBuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER,sceneBuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,sceneTexture,0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress"].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
+    gl.useProgram(chromaticProgram);
+    gl.uniform1i(chromaticUniforms.scene,1);
+    gl.useProgram(program);
+    // A faint split always drifts around the sky; mouse movement and scroll
+    // speed each add a little more, and both ease back to the ambient level.
+    const chroma={x:.5,y:.5,targetX:.5,targetY:.5,progress:0,mouse:0,scroll:0,time:0,moved:-Infinity};
+    const pointerMove = (event: PointerEvent) => {
+        if(event.pointerType==="touch") return;
+        chroma.targetX=event.clientX/window.innerWidth;
+        chroma.targetY=1-event.clientY/window.innerHeight;
+        chroma.moved=performance.now();
+    };
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const desktop = window.matchMedia("(min-width: 1024px) and (pointer: fine)");
@@ -166,6 +226,9 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const ratio=Math.min(devicePixelRatio,desktop.matches ? .7 : .45,1280/w,900/h);
         canvas.width=Math.round(width*ratio); canvas.height=Math.round(height*ratio);
         gl.viewport(0,0,canvas.width,canvas.height);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,canvas.width,canvas.height,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+        gl.activeTexture(gl.TEXTURE0);
         if(foreground) { foreground.width=canvas.width; foreground.height=canvas.height; }
         last=0;
     };
@@ -182,8 +245,30 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const scroll=reduced.matches ? 0 : Math.max(0,window.scrollY/height);
         const motion=!reduced.matches;
         const idleAnimate=desktop.matches && motion;
-        if(!idleAnimate && scroll===previousScroll && last!==0) return;
         const step=last ? Math.min((now-last)/1000,.1) : 0;
+        // Quick to rise, slow to settle, so the split never snaps on or off.
+        const approach=(value: number, target: number)=>
+            value+(target-value)*(1-Math.exp(-step*(target>value ? 6 : 1.8)));
+        const mouseActive=desktop.matches && now-chroma.moved<140;
+        const scrollSpeed=last!==0 && previousScroll>=0
+            ? Math.abs(scroll-previousScroll)/Math.max(step,1/60) : 0;
+        chroma.mouse=approach(chroma.mouse,mouseActive ? 1 : 0);
+        chroma.scroll=approach(chroma.scroll,clamp01(scrollSpeed/1.5));
+        if(motion) chroma.time+=step;
+        if(!mouseActive) {
+            // At rest the split direction wanders on a slow orbit.
+            chroma.targetX=.5+.38*Math.cos(chroma.time*.11);
+            chroma.targetY=.5+.38*Math.sin(chroma.time*.083);
+        }
+        const follow=1-Math.exp(-step*(mouseActive ? 8 : 1.5));
+        chroma.x+=(chroma.targetX-chroma.x)*follow;
+        chroma.y+=(chroma.targetY-chroma.y)*follow;
+        chroma.progress=motion
+            ? .09+.04*Math.sin(chroma.time*.37)+chroma.mouse*.1+chroma.scroll*.1 : 0;
+        if(!motion && scroll===previousScroll && last!==0) return;
+        // The ambient shimmer keeps mobile drawing, but between scroll changes
+        // it only resamples the cached clouds instead of ray-marching again.
+        const sceneDirty=idleAnimate || scroll!==previousScroll || last===0;
         if(idleAnimate) elapsed+=step;
         const life=idleAnimate ? elapsed : 0;
         if(scroll!==previousScroll || last===0) {
@@ -204,6 +289,9 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // the top edge once the contact panel is revealed.
         const closing=motion ? clamp01((scroll-(pageEnd-1.3))/1.3) : 0;
         last=now; previousScroll=scroll;
+        gl.bindFramebuffer(gl.FRAMEBUFFER,sceneBuffer);
+        gl.useProgram(program);
+        gl.enable(gl.BLEND);
         gl.uniform2f(uniforms.resolution,canvas.width,canvas.height);
         gl.uniform1i(uniforms.steps,desktop.matches?64:32);
         const active=desktop.matches?clouds:[clouds[0]];
@@ -228,8 +316,10 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         let nearBlur=0;
         let nearest: { x: number; y: number; radius: number; depth: number } | null=null;
         const diagonal=Math.hypot(canvas.width,canvas.height);
-        gl.disable(gl.SCISSOR_TEST);
-        gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+        if(sceneDirty) {
+            gl.disable(gl.SCISSOR_TEST);
+            gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+        }
         gl.enable(gl.SCISSOR_TEST);
         for(const {c,i,cycle,progress,hero,finale,distance} of ordered) {
             // Ambient weather stays out of the opening and dissolves while the
@@ -306,7 +396,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             const strength=hero ? .72+.26*smooth(progress/.35)
                 : finale ? .85 : desktop.matches ? .98 : .6;
             gl.uniform1f(uniforms.strength,strength);
-            gl.drawArrays(gl.TRIANGLES,0,6);
+            if(sceneDirty) gl.drawArrays(gl.TRIANGLES,0,6);
             nearBlur=Math.max(nearBlur,Math.max(0,7.-depth)*.6);
             if(growth>.1 && (!nearest || depth<nearest.depth)) {
                 const radius=size*1.8/depth*canvas.height*.75;
@@ -315,6 +405,14 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                     radius:hero ? Math.max(radius,diagonal*engulf) : radius,depth};
             }
         }
+        gl.disable(gl.SCISSOR_TEST);
+        gl.disable(gl.BLEND);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+        gl.useProgram(chromaticProgram);
+        gl.uniform2f(chromaticUniforms.resolution,canvas.width,canvas.height);
+        gl.uniform2f(chromaticUniforms.pointer,chroma.x,chroma.y);
+        gl.uniform1f(chromaticUniforms.progress,chroma.progress);
+        gl.drawArrays(gl.TRIANGLES,0,6);
         // Upscaling the low-resolution mobile buffer already softens it.
         // Avoid filtering a full-screen canvas on every scroll frame there.
         canvas.style.filter=desktop.matches && nearBlur>.05
@@ -362,18 +460,21 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     };
     resize();render(performance.now());
     window.addEventListener("resize",resize);
+    window.addEventListener("pointermove",pointerMove,{passive:true});
     document.addEventListener("visibilitychange",reset);
     reduced.addEventListener("change",reset);
     canvas.addEventListener("webglcontextlost",lost);
     return () => {
         disposed=true;cancelAnimationFrame(frame);
         window.removeEventListener("resize",resize);
+        window.removeEventListener("pointermove",pointerMove);
         document.removeEventListener("visibilitychange",reset);
         reduced.removeEventListener("change",reset);canvas.removeEventListener("webglcontextlost",lost);
         // Lost-context resources are already invalid, including after restoration.
         if (!contextLost) {
             gl.deleteTexture(texture);gl.deleteBuffer(buffer);
-            shaders.forEach(s=>gl.deleteShader(s));gl.deleteProgram(program);
+            gl.deleteTexture(sceneTexture);gl.deleteFramebuffer(sceneBuffer);
+            shaders.forEach(s=>gl.deleteShader(s));programs.forEach(p=>gl.deleteProgram(p));
         }
     };
 }
