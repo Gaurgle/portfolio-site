@@ -174,8 +174,12 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         if(disposed) return;
         frame=requestAnimationFrame(render);
         const frameInterval=1000/(desktop.matches ? 30 : 24);
-        if(document.hidden || now-last<frameInterval) return;
-        const scroll=reduced.matches ? 0 : window.scrollY/height;
+        if(document.hidden || (last!==0 && now-last<frameInterval)) return;
+        // iOS rubber-band scrolling can report a negative scrollY above the
+        // document. Keep that region pinned to the hero's initial state;
+        // fractional powers of a negative progress otherwise become NaN and
+        // make the cloud disappear during a downward pull at the top.
+        const scroll=reduced.matches ? 0 : Math.max(0,window.scrollY/height);
         const motion=!reduced.matches;
         const idleAnimate=desktop.matches && motion;
         if(!idleAnimate && scroll===previousScroll && last!==0) return;
@@ -356,7 +360,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         contextLost = true;
         cancelAnimationFrame(frame);
     };
-    resize();frame=requestAnimationFrame(render);
+    resize();render(performance.now());
     window.addEventListener("resize",resize);
     document.addEventListener("visibilitychange",reset);
     reduced.addEventListener("change",reset);

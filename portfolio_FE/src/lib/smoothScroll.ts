@@ -732,9 +732,11 @@ type MarkDrift = {
  *   converging to zero moments after entering. Marks rigidly paired with
  *   content skip this - the journey mark's top must equal the first
  *   card's top from the very first visible pixel.
- * - SETTLED SINK: a while after seating in the aligned position, every
- *   mark starts gliding downward very slowly as the scroll continues.
- * The contact panel's mark is fixed-positioned and stays put.
+ * - SETTLED SINK: a while after seating in the aligned position, marks in
+ *   normal-flow sections glide downward very slowly as scroll continues.
+ * Pinned Journey and Projects marks stay rigid. Tiny fractional transforms
+ * rerasterize their stretched SVG lettering and read as jitter against a
+ * stationary viewport. The contact panel's fixed mark also stays put.
  */
 function measureMarkDrifts(): MarkDrift[] {
     // Desktop only: JS transforms lag behind native touch scrolling.
@@ -746,21 +748,19 @@ function measureMarkDrifts(): MarkDrift[] {
     // residual drift transform from an earlier measure.
     all.forEach((el) => (el.style.transform = ""));
     return all
-        .filter((el) => !el.closest(".contact-panel"))
+        .filter((el) => !el.closest(".contact-panel, .journey-stack, .hscroll-pin"))
         .map((el) => {
             const r = el.getBoundingClientRect();
-            const journey = Boolean(el.closest(".journey-stack"));
             // "Settled" once the mark's top passes ~72% of the viewport -
-            // i.e. moments after it enters. The journey mark sinks slower
-            // and farther: its pin is long, so the glide gets to stretch.
+            // i.e. moments after it enters.
             return {
                 el,
                 settleAt: Math.round(
                     r.top + window.scrollY - window.innerHeight * 0.72,
                 ),
-                entryLag: !journey,
-                sinkSpeed: journey ? 0.025 : 0.04,
-                sinkCap: journey ? 130 : 80,
+                entryLag: true,
+                sinkSpeed: 0.04,
+                sinkCap: 80,
             };
         });
 }
