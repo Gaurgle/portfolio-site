@@ -238,6 +238,13 @@ html, body {
     border: 1px solid rgb(63 63 70); /* zinc-700 */
     border-radius: 0.75rem;
 }
+/* Incoming cards retain the atmospheric translucency above. Once a card has
+   landed, the scroll engine adds this class in a single state change. That
+   gives the active copy a solid reading surface without animating paint on
+   every scroll frame. The first card deliberately keeps its original look. */
+[data-stack-card].is-settled > .edit-card {
+    background: rgb(8 8 11);
+}
 /* Media band: whole screenshot visible (contain), on a quiet dark field */
 .edit-media {
     flex: none;

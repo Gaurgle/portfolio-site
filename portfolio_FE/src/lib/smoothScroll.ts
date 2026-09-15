@@ -1088,6 +1088,10 @@ function bindScrollDriven(reduced: boolean): void {
                 const slide = (1 - eased) * (window.innerWidth * 1.05);
                 card.style.transform =
                     `translate3d(${i * sc.offX + slide}px, ${i * sc.offY}px, 0)`;
+                // The first card keeps the atmospheric surface. Later cards
+                // turn fully opaque only once seated, so copy beneath cannot
+                // show through while the visitor reads the active card.
+                card.classList.toggle("is-settled", i > 0 && t >= 0.995);
             });
 
             // The first card's arrival pushes the chapter mark out left;
@@ -1218,6 +1222,7 @@ function bindScrollDriven(reduced: boolean): void {
                 const ry = i * s.offY;
                 if (i === 0) {
                     card.style.transform = `translate3d(0, 0, 0)`;
+                    card.classList.remove("is-settled");
                     return;
                 }
                 const t = Math.max(0, Math.min(1, (local - (i - 1) * s.per) / s.per));
@@ -1229,6 +1234,7 @@ function bindScrollDriven(reduced: boolean): void {
                 card.style.transform = s.vertical
                     ? `translate3d(${rx}px, ${ry + slide}px, 0)`
                     : `translate3d(${rx + slide}px, ${ry}px, 0)`;
+                card.classList.toggle("is-settled", t >= 0.995);
             });
         }
     };
