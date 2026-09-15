@@ -163,7 +163,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         width=w; height=h;
         // Cap fill-rate. Mobile uses one volume at a time and only redraws
         // while scroll changes, so the large hero pass stays affordable.
-        const ratio=Math.min(devicePixelRatio,desktop.matches ? .7 : .4,1280/w,900/h);
+        const ratio=Math.min(devicePixelRatio,desktop.matches ? .7 : .45,1280/w,900/h);
         canvas.width=Math.round(width*ratio); canvas.height=Math.round(height*ratio);
         gl.viewport(0,0,canvas.width,canvas.height);
         if(foreground) { foreground.width=canvas.width; foreground.height=canvas.height; }
@@ -201,7 +201,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const closing=motion ? clamp01((scroll-(pageEnd-1.3))/1.3) : 0;
         last=now; previousScroll=scroll;
         gl.uniform2f(uniforms.resolution,canvas.width,canvas.height);
-        gl.uniform1i(uniforms.steps,desktop.matches?64:30);
+        gl.uniform1i(uniforms.steps,desktop.matches?64:32);
         const active=desktop.matches?clouds:[clouds[0]];
         // Back-to-front ordering changes as volumes pass and recycle.
         const ordered: CloudPass[]=active.map((c,i)=> {
@@ -248,9 +248,15 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             const depth=distance+.22*Math.sin(life*.055+phase);
             const edge=desktop.matches ? 2.6+width/height*.75 : .95;
             const paths=[[-edge,-1.7],[edge,2.1],[-1.3,3.6],[1.6,-3.5]];
-            const path=hero ? [-.1-progress*.25,.95-progress*.8]
+            // On mobile the hero and ambient clouds keep their density and
+            // leave the frame spatially. Previously their formation collapsed
+            // near the cycle boundary, which looked like the volume blinked
+            // out when the visitor scrubbed back and forth.
+            const mobileHeroExit=!desktop.matches ? smooth((progress-.78)/.22)*3.4 : 0;
+            const path=hero ? [-.1-progress*.25,.95-progress*.8-mobileHeroExit]
                 : finale ? [.8+progress*.4,4.6-progress*.9]
-                : desktop.matches ? paths[(cycle+i)%paths.length] : paths[0];
+                : desktop.matches ? paths[(cycle+i)%paths.length]
+                : [-1.35+progress*3.6,-1.35];
             const worldX=path[0]+.25*variation+.14*Math.sin(life*.045+phase);
             const worldY=path[1]+.4*Math.sin(progress*Math.PI+phase)+.12*Math.sin(life*.06+phase);
             // Keep turns barely perceptible so density evolution and drift
@@ -287,9 +293,11 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             gl.uniform3f(uniforms.center,worldX,worldY,6-depth);
             gl.uniform3f(uniforms.scale,size,size*.8,size*.8);
             gl.uniform1f(uniforms.seed,i*.193+cycle*.137);
-            const growth=hero ? smooth((1-progress)/.18)
+            const growth=hero ? (desktop.matches ? smooth((1-progress)/.18) : 1)
                 : finale ? smooth(progress/.35)
-                : smooth(Math.min(progress/.2,(1-progress)/.18))*ambientFormation;
+                : desktop.matches
+                    ? smooth(Math.min(progress/.2,(1-progress)/.18))*ambientFormation
+                    : smooth(progress/.18)*ambientFormation;
             gl.uniform1f(uniforms.formation,growth*growth*(3-2*growth));
             const strength=hero ? .72+.26*smooth(progress/.35)
                 : finale ? .85 : desktop.matches ? .98 : .6;
