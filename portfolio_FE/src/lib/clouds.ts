@@ -161,8 +161,9 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const w=canvas.clientWidth, h=canvas.clientHeight;
         if(w===width && (!desktop.matches || h===height)) return;
         width=w; height=h;
-        // Cap fill-rate; phone clouds are a single still volume, redrawn on scroll.
-        const ratio=Math.min(devicePixelRatio,desktop.matches ? .7 : .5,1280/w,900/h);
+        // Cap fill-rate. Mobile uses one volume at a time and only redraws
+        // while scroll changes, so the large hero pass stays affordable.
+        const ratio=Math.min(devicePixelRatio,desktop.matches ? .7 : .4,1280/w,900/h);
         canvas.width=Math.round(width*ratio); canvas.height=Math.round(height*ratio);
         gl.viewport(0,0,canvas.width,canvas.height);
         if(foreground) { foreground.width=canvas.width; foreground.height=canvas.height; }
@@ -172,21 +173,23 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const render = (now: number) => {
         if(disposed) return;
         frame=requestAnimationFrame(render);
-        if(document.hidden || now-last<1000/30) return;
+        const frameInterval=1000/(desktop.matches ? 30 : 24);
+        if(document.hidden || now-last<frameInterval) return;
         const scroll=reduced.matches ? 0 : window.scrollY/height;
-        const animate=desktop.matches && !reduced.matches;
-        if(!animate && scroll===previousScroll && last!==0) return;
+        const motion=!reduced.matches;
+        const idleAnimate=desktop.matches && motion;
+        if(!idleAnimate && scroll===previousScroll && last!==0) return;
         const step=last ? Math.min((now-last)/1000,.1) : 0;
-        if(animate) elapsed+=step;
-        const life=animate ? elapsed : 0;
+        if(idleAnimate) elapsed+=step;
+        const life=idleAnimate ? elapsed : 0;
         if(scroll!==previousScroll || last===0) {
-            entrance=animate ? Math.max(0,...sections.map(section=> {
+            entrance=idleAnimate ? Math.max(0,...sections.map(section=> {
                 const top=section.getBoundingClientRect().top/height;
                 return top>.15 && top<.9 ? Math.sin((top-.15)/.75*Math.PI)**2 : 0;
             })) : 0;
             pageEnd=(document.documentElement.scrollHeight-window.innerHeight)/height;
         }
-        const opening=animate ? Math.min(1,scroll/1.15) : 1;
+        const opening=motion ? Math.min(1,scroll/1.15) : 1;
         // A light cover at rest seats the logo inside the cloud; the exit
         // grows it until the foreground engulfs the screen, then releases.
         const openingVeil=opening<1 ? .2*(1-opening)+.75*Math.sin(opening*Math.PI) : 0;
@@ -195,10 +198,10 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const veil=Math.max(entrance*.65,openingVeil);
         // The closing volume forms over the last screens and settles along
         // the top edge once the contact panel is revealed.
-        const closing=animate ? clamp01((scroll-(pageEnd-1.3))/1.3) : 0;
+        const closing=motion ? clamp01((scroll-(pageEnd-1.3))/1.3) : 0;
         last=now; previousScroll=scroll;
         gl.uniform2f(uniforms.resolution,canvas.width,canvas.height);
-        gl.uniform1i(uniforms.steps,desktop.matches?64:40);
+        gl.uniform1i(uniforms.steps,desktop.matches?64:30);
         const active=desktop.matches?clouds:[clouds[0]];
         // Back-to-front ordering changes as volumes pass and recycle.
         const ordered: CloudPass[]=active.map((c,i)=> {
@@ -207,7 +210,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             return {c,i,cycle:Math.floor(travel),progress,hero:false,finale:false,
                 distance:[17,26][i]-[13,17][i]*progress};
         }).filter(c=>c.progress<1);
-        if(animate && opening<1) {
+        if(motion && opening<1) {
             // Rests large behind the logo, then rushes the camera and passes
             // through it before dispersing to expose the page.
             ordered.push({c:{phase:0,size:3.6},i:3,cycle:0,progress:opening,
@@ -227,12 +230,20 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         for(const {c,i,cycle,progress,hero,finale,distance} of ordered) {
             // Ambient weather stays out of the opening and dissolves while the
             // closing volume forms, so the logo and the contact form stay clear.
-            const ambientFormation=animate ? smooth((scroll-.85)/.5)*(1-smooth(closing)) : 1;
+            // Mobile is deliberately sequential: hero, one ambient pass,
+            // then the closing cloud. No two ray-marched volumes overlap.
+            const ambientFormation=motion
+                ? smooth((scroll-(desktop.matches?.85:1.1))/.5)*(1-smooth(closing))
+                : 1;
+            if(!desktop.matches && (opening<1 || closing>0)) {
+                if(!hero && !finale) continue;
+            }
             if(!hero && !finale && ambientFormation===0) continue;
             // New paths and proportions on later passes, deterministic in both
             // scroll directions. The long invisible interval leaves black space.
             const variation=(Math.sin((cycle*7+i+1)*12.9898)*43758.5453)%1;
-            const size=c.size*(1+Math.abs(variation)*.18)*(desktop.matches?1.12:.32);
+            const mobileScale=hero ? .78 : finale ? .58 : .38;
+            const size=c.size*(1+Math.abs(variation)*.18)*(desktop.matches?1.12:mobileScale);
             const phase=i*1.7;
             const depth=distance+.22*Math.sin(life*.055+phase);
             const edge=desktop.matches ? 2.6+width/height*.75 : .95;
@@ -292,13 +303,16 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                     radius:hero ? Math.max(radius,diagonal*engulf) : radius,depth};
             }
         }
-        canvas.style.filter=nearBlur>.05 ? `blur(${nearBlur.toFixed(2)}px)` : "none";
+        // Upscaling the low-resolution mobile buffer already softens it.
+        // Avoid filtering a full-screen canvas on every scroll frame there.
+        canvas.style.filter=desktop.matches && nearBlur>.05
+            ? `blur(${nearBlur.toFixed(2)}px)` : "none";
         if(foreground && frontContext) {
             // Proximity and veil both ramp, so the cover fades in and out
             // instead of switching at a depth threshold.
             const proximity=nearest ? clamp01((11-nearest.depth)/2.5) : 0;
             const target=proximity*smooth(veil/.3);
-            const ease=animate ? 1-Math.exp(-step*7) : 1;
+            const ease=idleAnimate ? 1-Math.exp(-step*7) : 1;
             cover.opacity+=(target-cover.opacity)*ease;
             if(nearest) {
                 const follow=cover.opacity<.02 ? 1 : ease;
