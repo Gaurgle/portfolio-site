@@ -56,12 +56,6 @@ const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
                 <div class="featured-card" data-spotlight data-stack-card
                      style={`--fc: ${accents[i % accents.length]}; z-index: ${i + 1}`}>
                     <div class="edit-card h-full">
-                        <div class="edit-head">
-                            <span style={`color: rgb(${accents[i % accents.length]})`}>
-                                featured/{String(i + 1).padStart(2, "0")}
-                            </span>
-                            {p.wip && <span class="ml-auto text-zinc-400">in development</span>}
-                        </div>
                         {firstImage(p) ? (
                             <div class="edit-media">
                                 <button type="button"
@@ -94,10 +88,13 @@ const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
                                             </li>
                                         ))}
                                     </ul>
-                                    <p class="text-zinc-500">{p.tags?.join(" · ").toLowerCase()}</p>
+                                    <p class="project-stack text-zinc-500">
+                                        {p.wip && <span class="text-ctp-yellow">in development · </span>}
+                                        {p.tags?.join(" · ").toLowerCase()}
+                                    </p>
                                     {p.link && p.link !== "#" && (
                                         <a href={p.link} target="_blank" rel="noopener noreferrer"
-                                           class="inline-block text-zinc-400 hover:text-white transition-colors duration-200">
+                                           class="inline-block text-sm text-zinc-400 hover:text-white transition-colors duration-200">
                                             github &rarr;
                                         </a>
                                     )}

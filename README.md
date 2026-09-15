@@ -9,7 +9,7 @@
 # DevOps Portfolio
 This is a showcase portfolio application built as a part of the DevOps course at Nackademin.
 
-A full-stack developer portfolio with an **Astro** frontend (live on **Vercel**) and a containerized **Spring Boot + PostgreSQL** backend kept as a DevOps showcase (Docker, Flyway, GitHub Actions CI). The live site's contact form is handled by **Web3Forms** — no server or database required to run.
+A personal developer portfolio built with an **Astro** frontend and deployed on **Vercel**. A containerized **Spring Boot + PostgreSQL** backend remains in the repository as a DevOps showcase using Docker, Flyway, and GitHub Actions. The live site's contact form is handled by **Web3Forms**, so no server or database is required to run it.
 
 ---
 ## 📖 Documentation
@@ -38,7 +38,7 @@ DevOps_Portfolio/
 
 ## ⚙️ Tech Stack
 **Frontend:** Astro, Tailwind CSS, TypeScript  
-**Contact:** Web3Forms (client-side form handling — no backend)  
+**Contact:** Web3Forms (client-side form handling, no backend)
 **Backend (showcase):** Spring Boot (Kotlin), JPA, Flyway, PostgreSQL, Resend API  
 **Infrastructure:** Vercel (frontend), Docker, GitHub Actions (CI)  
 
@@ -49,7 +49,7 @@ DevOps_Portfolio/
 - Dynamic projects list
 - Contact form powered by Web3Forms (sends email, no backend or database)
 - CI/CD: Vercel auto-deploys the frontend; GitHub Actions builds and tests the backend on every push
-- **Backend showcase** (`portfolio_BE/`): REST contact API, message persistence in PostgreSQL via JPA/Flyway, and email via the Resend API — containerized with Docker and runnable locally
+- **Backend showcase** (`portfolio_BE/`): REST contact API, message persistence in PostgreSQL via JPA/Flyway, and email via the Resend API. It is containerized with Docker and runnable locally.
 
 ---
 

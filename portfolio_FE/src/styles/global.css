@@ -227,41 +227,16 @@ html, body {
     @apply border border-zinc-700 rounded-md overflow-hidden bg-black/70;
 }
 
-/* ============================================================
-   Editorial cards - sharp, flat, index-tagged (featured pile,
-   journey coasters). --fc (rgb triplet) is the card's accent.
-   ============================================================ */
+/* Journey and project cards share the About panels' dark, nearly opaque
+   surface. Color is reserved for content accents rather than window chrome. */
 .edit-card {
     position: relative;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: rgb(8, 8, 11);
+    background: rgb(8 8 11 / 0.9);
     border: 1px solid rgb(63 63 70); /* zinc-700 */
-    border-radius: 6px; /* sharp, not razor */
-}
-.featured-card .edit-card {
-    border-color: rgba(var(--fc), 0.7);
-}
-/* Index band: its own dark strip above the media, not sitting on it */
-.edit-head {
-    flex: none;
-    display: flex;
-    align-items: center;
-    font-family: theme("fontFamily.mono");
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    padding: 8px 14px;
-    background: rgb(5, 5, 8);
-    border-bottom: 1px solid rgb(63 63 70);
-}
-.featured-card .edit-head {
-    border-color: rgba(var(--fc), 0.4);
-}
-/* Journey coasters: quiet borders (the original's understated chrome) */
-.journey-stack .edit-card,
-.journey-stack .edit-head {
-    border-color: rgb(39 39 42); /* zinc-800 */
+    border-radius: 0.75rem;
 }
 /* Media band: whole screenshot visible (contain), on a quiet dark field */
 .edit-media {
@@ -294,12 +269,16 @@ html, body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: rgb(161 161 170); /* zinc-400 */
+}
+.project-stack {
     font-family: theme("fontFamily.mono");
-    font-size: 11px;
-    line-height: 1.7;
+    font-size: 0.75rem;
+    line-height: 1.6;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: rgb(161 161 170); /* zinc-400 */
 }
 
 .terminal-bar {
@@ -770,16 +749,17 @@ html.lenis, html.lenis body { height: auto; }
     .hscroll-pin [data-hscroll-track] {
         position: relative;
         width: 100%;
-        /* card + one 10px deck edge per covered card (--deck-n from markup). */
-        height: calc(var(--mobile-card-height, 28rem) + var(--deck-n, 3) * 10px);
+        /* Stable small-viewport geometry: no content measurement or toolbar-
+           driven resize work while the deck is moving. */
+        height: calc(clamp(22rem, calc(100svh - 16.5rem), 28rem) + var(--deck-n, 3) * 10px);
     }
-    /* Use a shared measured height so browser controls cannot resize cards. */
+    /* Cards fill the stable track; browser toolbar changes cannot resize it. */
     .hscroll-pin .featured-card {
         position: absolute;
         top: 0;
         left: 1rem;
         right: 1rem;
-        height: 28rem;
+        height: calc(100% - var(--deck-n, 3) * 10px);
         will-change: transform;
     }
     /* Media band is a fixed rem too (not % of the card) so the screenshot
@@ -943,8 +923,7 @@ html.lenis, html.lenis body { height: auto; }
     .journey-stack .stack-area {
         position: relative;
         width: 100%;
-        /* Every card keeps the same content-sized height while scrolling. */
-        height: calc(var(--mobile-card-height, 28rem) + var(--journey-edges, 3) * 10px);
+        height: calc(clamp(21rem, calc(100svh - 16rem), 24rem) + var(--journey-edges, 3) * 10px);
         flex-shrink: 0;
         min-height: 0;
     }
@@ -963,13 +942,12 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
-/* Mobile cards keep a shared content-sized height. Short screens use
-   page flow instead of shrinking cards or introducing nested scrolling. */
+/* Mobile decks stay fixed while the page scrolls. Only transforms change;
+   on unusually short screens the card body itself remains reachable. */
 @media (max-width: 1023px) {
     .journey-stack .edit-body,
     .hscroll-pin .featured-card .edit-body {
-        overflow: visible;
-        flex: none;
+        overflow-y: auto;
     }
     .hscroll-pin .featured-card .edit-body > * {
         flex-shrink: 0;
@@ -987,14 +965,14 @@ html.lenis, html.lenis body { height: auto; }
         flex-shrink: 0;
     }
     .hscroll-pin [data-hscroll-track] {
-        flex-shrink: 0;
+        flex-shrink: 1;
         min-height: 0;
     }
     .hscroll-pin .featured-card {
         height: calc(100% - var(--deck-n, 3) * 10px);
     }
     .hscroll-pin .featured-card .edit-media {
-        max-height: none;
+        max-height: 40%;
         flex-shrink: 0;
     }
 }
@@ -1228,49 +1206,12 @@ svg.rough-annotation.rn-primed {
     }
 }
 
-/* A complete card must fit alongside its heading to use a pinned deck. */
 @media (max-width: 1023px) {
-    .journey-stack [data-stack-card],
-    .hscroll-pin .featured-card {
-        height: var(--mobile-card-height, 28rem);
-    }
-    .measuring-cards [data-stack-card] .edit-card {
-        height: auto;
-    }
     html.reduced-motion .stack-area {
         width: 100% !important;
     }
     html.reduced-motion [data-stack-card] {
-        height: var(--mobile-card-height, 28rem) !important;
-    }
-    .hscroll-pin .featured-card .edit-desc {
-        display: block;
-        -webkit-line-clamp: unset;
-        overflow: visible;
-    }
-    .flowing-cards .journey-viewport,
-    .flowing-cards .hscroll-viewport {
-        position: static;
         height: auto;
-        overflow: visible;
-    }
-    .flowing-cards .stack-area,
-    .flowing-cards [data-hscroll-track] {
-        height: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    .flowing-cards [data-stack-card] {
-        position: relative;
-        top: auto;
-        left: auto;
-        right: auto;
-        flex-shrink: 0;
-        transform: none !important;
-    }
-    .flowing-cards .hscroll-viewport {
-        padding-top: 2rem;
     }
 }
 

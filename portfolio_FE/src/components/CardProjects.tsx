@@ -1,6 +1,5 @@
 import React, {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
-import BorderBeam from "./HibubbaIO/BorderBeam.tsx";
 import {projects} from "../data/projects.ts";
 import {imageSize} from "../data/imageSizes.ts";
 
@@ -161,7 +160,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
 
     return (
         <div
-            className="relative group w-full h-full bg-zinc-950 border border-zinc-700/70 rounded-md overflow-hidden
+            className="relative group w-full h-full bg-[rgb(8_8_11_/_0.9)] border border-zinc-700 rounded-xl overflow-hidden
                        transition-colors duration-500
                        opacity-0 animate-fade-up flex flex-col"
             style={{animationDelay: `${idx * 100 + 100}ms`}}
@@ -224,7 +223,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
             )}
 
             {project.wip && (
-                <span className="absolute top-2 left-2 z-20 px-2 py-0.5 text-[10px] font-mono
+                <span className="absolute top-2 left-2 z-20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider
                                  bg-ctp-yellow/15 text-ctp-yellow border border-ctp-yellow/30">
                     in development
                 </span>
@@ -256,13 +255,13 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                 )}
 
                 {/* Links */}
-                <div className="flex gap-3 pt-3 border-t border-zinc-800/50 min-h-[2.5rem]">
+                <div className="flex gap-3 pt-2 min-h-[2.5rem]">
                     {project.demoUrl && (
                         <a
                             href={project.demoUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-mono text-xs text-zinc-400 hover:text-white transition-colors duration-200"
+                            className="text-sm text-zinc-400 hover:text-white transition-colors duration-200"
                         >
                             live &rarr;
                         </a>
@@ -272,16 +271,13 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                             href={project.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-mono text-xs text-zinc-400 hover:text-white transition-colors duration-200"
+                            className="text-sm text-zinc-400 hover:text-white transition-colors duration-200"
                         >
                             github &rarr;
                         </a>
                     )}
                 </div>
             </div>
-
-            <BorderBeam className="rounded-xl z-10"/>
         </div>
     );
 }
-
