@@ -769,6 +769,18 @@ function measureMarkDrifts(): MarkDrift[] {
 /* Scroll-driven frame update                                          */
 /* ------------------------------------------------------------------ */
 
+/** A card under the pile's top blurs slightly as the next card lands on it
+ *  (CSS reads --covered). `landed` is that next card's landing scrub, so the
+ *  blur builds with scroll instead of switching. The class keeps uncovered
+ *  cards free of any filter. */
+function setCovered(card: HTMLElement, landed: number): void {
+    const eased = landed * landed * (3 - 2 * landed);
+    const value = eased.toFixed(3);
+    if (card.style.getPropertyValue("--covered") === value) return;
+    card.style.setProperty("--covered", value);
+    card.classList.toggle("is-covered", eased > 0);
+}
+
 function bindScrollDriven(reduced: boolean): void {
     const bar = document.getElementById("scroll-progress");
     const hue = document.getElementById("bottom-hue");
@@ -1092,6 +1104,9 @@ function bindScrollDriven(reduced: boolean): void {
                 // turn fully opaque only once seated, so copy beneath cannot
                 // show through while the visitor reads the active card.
                 card.classList.toggle("is-settled", i > 0 && t >= 0.68);
+                setCovered(card, i + 1 < sc.cards.length
+                    ? Math.max(0, Math.min(1, (local - (i + 1) * sc.per) / sc.per))
+                    : 0);
             });
 
             // The first card's arrival pushes the chapter mark out left;
@@ -1220,6 +1235,11 @@ function bindScrollDriven(reduced: boolean): void {
             s.cards.forEach((card, i) => {
                 const rx = i * s.offX;
                 const ry = i * s.offY;
+                // Card i+1 lands over segment i. Phone decks leave only a
+                // 10px edge showing, so they skip the blur.
+                setCovered(card, !s.vertical && i + 1 < s.cards.length
+                    ? Math.max(0, Math.min(1, (local - i * s.per) / s.per))
+                    : 0);
                 if (i === 0) {
                     card.style.transform = `translate3d(0, 0, 0)`;
                     card.classList.remove("is-settled");
@@ -1354,6 +1374,28 @@ function setupAnchors(): void {
 /* Lifecycle                                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * A reload restarts at the top. The browser and the ClientRouter otherwise
+ * restore the old position, and a hash left behind by a nav click jumps
+ * straight to that section, dropping the visitor into the middle of the
+ * choreography. Fresh visits and shared #links still open where they point;
+ * only the first page-load of a reloaded document is affected.
+ */
+let firstPageLoad = true;
+function restartOnReload(): void {
+    if (!firstPageLoad) return;
+    firstPageLoad = false;
+    const nav = performance.getEntriesByType("navigation")[0] as
+        | PerformanceNavigationTiming
+        | undefined;
+    if (nav?.type !== "reload") return;
+    history.scrollRestoration = "manual";
+    if (location.hash) {
+        history.replaceState(history.state, "", location.pathname + location.search);
+    }
+    window.scrollTo(0, 0);
+}
+
 export function destroySmoothScroll(): void {
     if (rafId) cancelAnimationFrame(rafId);
     rafId = 0;
@@ -1371,6 +1413,8 @@ export function destroySmoothScroll(): void {
 
 export function initSmoothScroll(): void {
     destroySmoothScroll();
+    // Before Lenis is created, so it starts from the top as well.
+    restartOnReload();
     const reduced = prefersReducedMotion();
     updateViewport();
     document.documentElement.classList.toggle("reduced-motion", reduced);

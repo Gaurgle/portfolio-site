@@ -259,6 +259,16 @@ html, body {
 [data-stack-card].is-settled > .edit-card::before {
     opacity: 1;
 }
+/* Cards beneath the top of a pile blur slightly as the next card lands on
+   them, so their exposed edges read as depth instead of competing copy.
+   --covered (0..1) follows the landing scrub in smoothScroll.ts. The frame
+   and border stay crisp; overflow: hidden clips the blur at the card edge.
+   Desktop only: phone decks leave a 10px edge, not worth the repaint. */
+@media (min-width: 1024px) {
+    html:not(.reduced-motion) [data-stack-card].is-covered > .edit-card > * {
+        filter: blur(calc(var(--covered, 0) * 2px));
+    }
+}
 /* Media band: whole screenshot visible (contain), on a quiet dark field */
 .edit-media {
     flex: none;
@@ -600,15 +610,35 @@ html.lenis, html.lenis body { height: auto; }
    scroll drift owns the mark's inline transform. The long ease lets the
    fringe trail the pointer and fade out instead of switching. The numeral
    splits much wider than the hook lines, scaled to the mark's width (cqw)
-   so the slim pinned marks and the full-width covers read alike. */
+   so the slim pinned marks and the full-width covers read alike.
+   Grain: a noise mask unioned with a flat layer whose alpha is 1 - grain.
+   At rest the flat layer hides the noise entirely; the registered
+   --cm-grain eases up on hover, so the speckle fades in with the split. */
+@property --cm-grain {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+}
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
     .chapter-mark {
         container-type: inline-size;
     }
     .chapter-mark .cm-split {
-        transition: filter 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        --cm-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.2 0 0 0 -.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        --cm-flat: linear-gradient(rgb(0 0 0 / calc(1 - var(--cm-grain))), rgb(0 0 0 / calc(1 - var(--cm-grain))));
+        -webkit-mask-image: var(--cm-noise), var(--cm-flat);
+        mask-image: var(--cm-noise), var(--cm-flat);
+        -webkit-mask-size: 180px 180px, 100% 100%;
+        mask-size: 180px 180px, 100% 100%;
+        -webkit-mask-composite: source-over;
+        mask-composite: add;
+        transition:
+            filter 1.1s cubic-bezier(0.37, 0, 0.2, 1),
+            --cm-grain 1.1s cubic-bezier(0.37, 0, 0.2, 1);
     }
     .chapter-mark:hover .cm-split {
+        /* Caps how far the speckle can thin the glyphs: a light texture. */
+        --cm-grain: 0.3;
         filter:
             drop-shadow(calc(var(--cm-x, 0.7) * 1.5px) calc(var(--cm-y, 0.7) * 1.5px) 0 rgb(255 70 90 / 0.45))
             drop-shadow(calc(var(--cm-x, 0.7) * -1.5px) calc(var(--cm-y, 0.7) * -1.5px) 0 rgb(70 190 255 / 0.45));
@@ -938,6 +968,13 @@ html.lenis, html.lenis body { height: auto; }
         height: 100%;
         /* Offset shadow with a touch of blur: sharp but not cut-out */
         box-shadow: -10px 10px 18px rgba(0, 0, 0, 0.4);
+    }
+    /* Keep a card's copy clear of the strips the pile leaves exposed (the
+       26px/48px cascade, data-off-x/y): with the default 1.5rem padding the
+       title and paragraphs started 1px inside them and peeked out from under
+       the card above. Only the small label is meant to show in the top strip. */
+    .journey-stack .edit-body {
+        padding: 1.75rem calc(26px + 0.5rem) 1.5rem;
     }
 }
 /* Mobile: same pinned pile, but as a vertical deck - cards rise from below

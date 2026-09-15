@@ -95,6 +95,9 @@ uniform sampler2D scene;
 uniform vec2 resolution;
 uniform vec2 pointer;
 uniform float progress;
+uniform vec3 cover;
+uniform float coverAmount;
+uniform int layer;
 out vec4 color;
 const float zoom=.2, displacement=.05, chromatic=.01;
 void main() {
@@ -109,7 +112,17 @@ void main() {
     vec2 split=direction*chromatic*progress;
     split.x+=band*chromatic*progress*.35;
     vec4 red=texture(scene,base+split), green=texture(scene,base), blue=texture(scene,base-split);
-    color=vec4(red.r,green.g,blue.b,max(green.a,max(red.a,blue.a)));
+    vec4 raw=vec4(red.r,green.g,blue.b,max(green.a,max(red.a,blue.a)));
+    // The sky's overall opacity lives here, not in CSS, so the front copy
+    // and the sky behind it always share one look.
+    vec4 sky=raw*.85;
+    // Layer 1 is the copy passed in front of the page, at full strength like
+    // the original cover. It follows the cloud's own density (thin haze is
+    // never lifted) under a wide, soft reach, so the thickened cloud has no
+    // geometric edge - an even copy inside a firm round mask read as a disc.
+    float reach=1.-smoothstep(cover.z*.3,cover.z*1.4,distance(gl_FragCoord.xy,cover.xy));
+    float lift=coverAmount*reach*smoothstep(.15,.7,raw.a);
+    color=layer==1 ? raw*lift : sky;
 }
 `;
 
@@ -186,7 +199,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     gl.bindFramebuffer(gl.FRAMEBUFFER,sceneBuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,sceneTexture,0);
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress"].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
+    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer"].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
     gl.useProgram(chromaticProgram);
     gl.uniform1i(chromaticUniforms.scene,1);
     gl.useProgram(program);
@@ -208,9 +221,10 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         {phase:.58,size:4.4},
     ];
     const frontContext=foreground?.getContext("2d");
-    // The foreground cover eases toward its target each frame so a cloud
-    // never snaps over or off the content when the nearest volume changes.
-    const cover={x:0,y:0,radius:0,opacity:0};
+    // The cover eases toward its target each frame so a cloud never snaps
+    // over or off the content when the nearest volume changes.
+    const cover={x:0,y:0,radius:0,amount:0};
+    let frontVisible=false;
     // The fixed contact panel is revealed beneath the page, not scrolled
     // through it; its constant screen position must not hold a curtain open.
     const sections=Array.from(document.querySelectorAll<HTMLElement>("[data-section]:not(#home)"))
@@ -264,7 +278,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         chroma.x+=(chroma.targetX-chroma.x)*follow;
         chroma.y+=(chroma.targetY-chroma.y)*follow;
         chroma.progress=motion
-            ? .09+.04*Math.sin(chroma.time*.37)+chroma.mouse*.1+chroma.scroll*.1 : 0;
+            ? .12+.05*Math.sin(chroma.time*.37)+chroma.mouse*.15+chroma.scroll*.1 : 0;
         if(!motion && scroll===previousScroll && last!==0) return;
         // The ambient shimmer keeps mobile drawing, but between scroll changes
         // it only resamples the cached clouds instead of ray-marching again.
@@ -279,12 +293,9 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             pageEnd=(document.documentElement.scrollHeight-window.innerHeight)/height;
         }
         const opening=motion ? Math.min(1,scroll/1.15) : 1;
-        // A light cover at rest seats the logo inside the cloud; the exit
-        // grows it until the foreground engulfs the screen, then releases.
-        const openingVeil=opening<1 ? .2*(1-opening)+.75*Math.sin(opening*Math.PI) : 0;
-        // Only the hero exit engulfs; later covers keep their soft masks.
-        const engulf=opening<1 ? smooth((opening-.3)/.45) : 0;
-        const veil=Math.max(entrance*.65,openingVeil);
+        // Only section entrances lift a cloud in front of the content; the
+        // hero exit leaves ROOS inflating through the cloud on its own.
+        const veil=entrance*.65;
         // The closing volume forms over the last screens and settles along
         // the top edge once the contact panel is revealed.
         const closing=motion ? clamp01((scroll-(pageEnd-1.3))/1.3) : 0;
@@ -315,7 +326,6 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         ordered.sort((a,b)=>b.distance-a.distance);
         let nearBlur=0;
         let nearest: { x: number; y: number; radius: number; depth: number } | null=null;
-        const diagonal=Math.hypot(canvas.width,canvas.height);
         if(sceneDirty) {
             gl.disable(gl.SCISSOR_TEST);
             gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
@@ -399,11 +409,21 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             if(sceneDirty) gl.drawArrays(gl.TRIANGLES,0,6);
             nearBlur=Math.max(nearBlur,Math.max(0,7.-depth)*.6);
             if(growth>.1 && (!nearest || depth<nearest.depth)) {
-                const radius=size*1.8/depth*canvas.height*.75;
                 nearest={x:(worldX*1.8/depth/(width/height)+1)*canvas.width/2,
                     y:(1-worldY*1.8/depth)*canvas.height/2,
-                    radius:hero ? Math.max(radius,diagonal*engulf) : radius,depth};
+                    radius:size*1.8/depth*canvas.height*.75,depth};
             }
+        }
+        // Proximity and veil both ramp, so the cover fades in and out
+        // instead of switching at a depth threshold.
+        const proximity=nearest ? clamp01((11-nearest.depth)/2.5) : 0;
+        const ease=idleAnimate ? 1-Math.exp(-step*7) : 1;
+        cover.amount+=(proximity*smooth(veil/.3)-cover.amount)*ease;
+        if(nearest) {
+            const follow=cover.amount<.02 ? 1 : ease;
+            cover.x+=(nearest.x-cover.x)*follow;
+            cover.y+=(nearest.y-cover.y)*follow;
+            cover.radius+=(nearest.radius-cover.radius)*follow;
         }
         gl.disable(gl.SCISSOR_TEST);
         gl.disable(gl.BLEND);
@@ -412,44 +432,34 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         gl.uniform2f(chromaticUniforms.resolution,canvas.width,canvas.height);
         gl.uniform2f(chromaticUniforms.pointer,chroma.x,chroma.y);
         gl.uniform1f(chromaticUniforms.progress,chroma.progress);
+        // cover.y runs down from the top; gl_FragCoord runs up from the bottom.
+        gl.uniform3f(chromaticUniforms.cover,cover.x,canvas.height-cover.y,
+            Math.max(1,cover.radius*Math.sqrt(Math.max(veil,.05))));
+        gl.uniform1f(chromaticUniforms.coverAmount,cover.amount);
+        const covering=cover.amount>.01;
+        if(covering && foreground && frontContext) {
+            // Draw the lifted copy, hand it to the front canvas, then draw
+            // the whole sky behind the page. The copy over the sky thickens
+            // the nearest cloud as it rolls over the content.
+            gl.uniform1i(chromaticUniforms.layer,1);
+            gl.drawArrays(gl.TRIANGLES,0,6);
+            frontContext.clearRect(0,0,foreground.width,foreground.height);
+            frontContext.drawImage(canvas,0,0);
+            gl.uniform1i(chromaticUniforms.layer,0);
+            frontVisible=true;
+        } else {
+            gl.uniform1i(chromaticUniforms.layer,0);
+            if(frontVisible && foreground && frontContext) {
+                frontContext.clearRect(0,0,foreground.width,foreground.height);
+            }
+            frontVisible=false;
+        }
         gl.drawArrays(gl.TRIANGLES,0,6);
         // Upscaling the low-resolution mobile buffer already softens it.
         // Avoid filtering a full-screen canvas on every scroll frame there.
         canvas.style.filter=desktop.matches && nearBlur>.05
             ? `blur(${nearBlur.toFixed(2)}px)` : "none";
-        if(foreground && frontContext) {
-            // Proximity and veil both ramp, so the cover fades in and out
-            // instead of switching at a depth threshold.
-            const proximity=nearest ? clamp01((11-nearest.depth)/2.5) : 0;
-            const target=proximity*smooth(veil/.3);
-            const ease=idleAnimate ? 1-Math.exp(-step*7) : 1;
-            cover.opacity+=(target-cover.opacity)*ease;
-            if(nearest) {
-                const follow=cover.opacity<.02 ? 1 : ease;
-                cover.x+=(nearest.x-cover.x)*follow;
-                cover.y+=(nearest.y-cover.y)*follow;
-                cover.radius+=(nearest.radius-cover.radius)*follow;
-            }
-            const visible=cover.opacity>.01;
-            foreground.style.opacity=visible ? cover.opacity.toFixed(3) : "0";
-            foreground.style.filter=canvas.style.filter;
-            frontContext.clearRect(0,0,foreground.width,foreground.height);
-            if(visible) {
-                // Reuse the existing nearest cloud. Expand a soft spatial mask,
-                // not its global opacity: dense cores can actually cover text.
-                frontContext.drawImage(canvas,0,0);
-                const radius=Math.max(1,cover.radius*Math.sqrt(Math.max(veil,.05)));
-                const mask=frontContext.createRadialGradient(cover.x,cover.y,radius*.6,
-                    cover.x,cover.y,radius);
-                mask.addColorStop(0,"rgba(0,0,0,1)");
-                mask.addColorStop(1,"rgba(0,0,0,0)");
-                frontContext.globalCompositeOperation="destination-in";
-                frontContext.fillStyle=mask;
-                frontContext.fillRect(0,0,foreground.width,foreground.height);
-                frontContext.globalCompositeOperation="source-over";
-            }
-        }
-
+        if(foreground) foreground.style.filter=canvas.style.filter;
     };
     const reset = () => {last=0;previousScroll=-1;};
     let contextLost = false;
