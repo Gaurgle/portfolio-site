@@ -59,12 +59,11 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
 
         </div>
 
-        <!-- Tags sit outside the explosion so they get their own exit: the
-             four words scatter sideways and lift off while ROOS zooms -->
-        <p class="hero-tagline font-mono text-xs sm:text-sm md:text-base text-zinc-400 tracking-wide whitespace-nowrap opacity-0 animate-fade-up -mt-2" style="animation-delay: 350ms"><span class="hero-tag" style="--dx: -1.5">Backend</span> <span class="hero-sep text-zinc-600">-</span> <span class="hero-tag" style="--dx: -0.5">Android</span> <span class="hero-sep text-zinc-600">-</span> <span class="hero-tag" style="--dx: 0.5">Bluetooth LE</span> <span class="hero-sep text-zinc-600">-</span> <span class="hero-tag" style="--dx: 1.5">Stockholm</span></p>
+        <!-- Separate words let the glitch shift them independently. -->
+        <p class="hero-tagline font-mono text-sm sm:text-base md:text-lg text-zinc-400 tracking-wide whitespace-nowrap -mt-2"><span class="hero-tag" style="--glitch-direction: -1">Backend</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: 0.7">Android</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: -0.6">Bluetooth LE</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: 1">Stockholm</span></p>
 
-        <!-- Terminal path: outside the explosion - it only fades, early -->
-        <p class="hero-path font-mono text-sm text-zinc-400 mt-4">
+        <!-- The path shares the glitch dissolve without the ROOS zoom. -->
+        <p class="hero-path font-mono text-base text-zinc-400 mt-4">
             ~/portfolio <span class="animate-pulse text-ctp-green">_</span>
         </p>
 

@@ -545,10 +545,16 @@ html.lenis, html.lenis body { height: auto; }
 }
 
 /* Hero dissolve: [data-hero-scrub] (the pinned viewport) carries --scrub;
-   .hero-boom inflates to swallow the screen as it fades, .hero-path (the
-   ~/portfolio line) just fades out early without scaling. Scale + fade run
-   everywhere (compositor-only); blur is desktop-only - heavy on phone GPUs. */
+   .hero-boom inflates to swallow the screen as it fades; the tagline and
+   ~/portfolio line dissolve with small glitch shifts. Scale + fade run
+   everywhere; the large ROOS blur is desktop-only to spare phone GPUs. */
+/* Keep the expanding name in front of both glitching text lines. */
+[data-hero-scrub] {
+    isolation: isolate;
+}
 [data-hero-scrub] .hero-boom {
+    position: relative;
+    z-index: 1;
     opacity: calc(1 - var(--scrub, 0));
     transform: scale(calc(1 + var(--scrub, 0) * 4)) translateY(calc(var(--scrub, 0) * -30px));
     will-change: opacity, transform;
@@ -559,29 +565,86 @@ html.lenis, html.lenis body { height: auto; }
         will-change: opacity, transform, filter;
     }
 }
-[data-hero-scrub] .hero-path {
-    opacity: calc(1 - min(1, var(--scrub, 0) * 1.8));
-}
 /* A dark halo keeps the grey lines legible when a cloud drifts behind
    them; black text would vanish wherever no cloud is rendered. */
 .hero-tagline,
 .hero-path {
+    position: relative;
+    z-index: 0;
     text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 14px rgb(0 0 0 / 0.8);
 }
-/* Tagline exit: each tag carries --dx (-1.5 .. 1.5), so the outer words
-   fly furthest; the row sinks as it scatters (away from the zooming glyph) and is gone by mid-scrub.
-   Separators just fade, so the line reads as breaking apart, not sliding. */
+/* Scroll controls both effects so they reverse cleanly. Diffuse and recede
+   first, then glitch. Independent scale preserves the jitter translations. */
+[data-hero-scrub] .hero-tagline,
+[data-hero-scrub] .hero-path {
+    animation: hero-tagline-dissolve 1s linear both paused;
+    animation-delay: calc(var(--scrub, 0) * -1s);
+}
 [data-hero-scrub] .hero-tag {
     display: inline-block;
-    transform: translate(
-        calc(var(--scrub, 0) * var(--dx, 0) * 26vw),
-        calc(var(--scrub, 0) * 14vh)
-    );
-    opacity: calc(1 - min(1, var(--scrub, 0) * 1.6));
-    will-change: transform, opacity;
+    animation: hero-text-jitter 1s steps(1, end) both paused;
+    animation-delay: calc(var(--scrub, 0) * -1s);
 }
-[data-hero-scrub] .hero-sep {
-    opacity: calc(1 - min(1, var(--scrub, 0) * 3));
+[data-hero-scrub] .hero-path {
+    --glitch-direction: -0.8;
+    animation-name: hero-tagline-dissolve, hero-text-jitter;
+    animation-timing-function: linear, steps(1, end);
+}
+@keyframes hero-text-jitter {
+    0%, 16%, 20%, 26%, 40%, 100% { transform: translate(0, 0); }
+    18%, 28% { transform: translate(calc(var(--glitch-direction, 1) * 3px), -1px); }
+    23%, 34% { transform: translate(calc(var(--glitch-direction, 1) * -4px), 1px); }
+    31%, 37% { transform: translate(calc(var(--glitch-direction, 1) * 5px), -2px); }
+}
+@keyframes hero-tagline-dissolve {
+    0% {
+        opacity: 1;
+        filter: blur(0);
+        scale: 1;
+        text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 14px rgb(0 0 0 / 0.8);
+    }
+    4% {
+        opacity: 0.95;
+        filter: blur(1px);
+        scale: 0.98;
+    }
+    8% {
+        opacity: 0.9;
+        filter: blur(2px);
+        scale: 0.96;
+    }
+    16% {
+        opacity: 0.8;
+        filter: blur(2px);
+        scale: 0.96;
+        text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 14px rgb(0 0 0 / 0.8);
+    }
+    18% {
+        opacity: 0.75;
+        filter: blur(2px);
+        scale: 0.96;
+        text-shadow: -4px 0 1px rgb(137 180 250 / 0.8), 4px 0 1px rgb(243 139 168 / 0.7);
+    }
+    21% { opacity: 0.3; }
+    24% {
+        opacity: 0.7;
+        filter: blur(2.5px);
+        scale: 0.95;
+        text-shadow: 5px 0 2px rgb(137 180 250 / 0.8), -5px 0 2px rgb(243 139 168 / 0.7);
+    }
+    28% { opacity: 0.25; }
+    31% {
+        opacity: 0.5;
+        filter: blur(3.5px);
+        scale: 0.93;
+        text-shadow: -6px 0 2px rgb(137 180 250 / 0.7), 6px 0 2px rgb(243 139 168 / 0.6);
+    }
+    40%, 100% {
+        opacity: 0;
+        filter: blur(9px);
+        scale: 0.88;
+        text-shadow: -10px 0 8px rgb(137 180 250 / 0), 10px 0 8px rgb(243 139 168 / 0);
+    }
 }
 /* Mobile: smaller inflation (smaller composited textures) and no heavy
    text-shadow glow on the scaling layer - keeps the explosion at 60fps */
@@ -1245,18 +1308,19 @@ html.lenis, html.lenis body { height: auto; }
 @media (prefers-reduced-motion: reduce) {
     [data-reveal],
     [data-hero-scrub] .hero-boom,
+    [data-hero-scrub] .hero-tagline,
     [data-hero-scrub] .hero-tag,
-    [data-hero-scrub] .hero-sep,
     [data-hero-scrub] .hero-path {
         opacity: 1 !important;
         transform: none !important;
+        scale: none !important;
         filter: none !important;
         animation: none !important;
     }
     [data-marquee-track] { transform: none !important; }
 }
 /* The engine stamps this class when the visitor prefers reduced motion:
-   the CSS-only entrances (hero fade-up, tagline, project cards, carets)
+   the CSS-only entrances (hero fade-up, project cards, carets)
    sit outside the scroll engine's reach, so they are silenced here. */
 html.reduced-motion .animate-fade-up,
 html.reduced-motion .animate-fade-in,
