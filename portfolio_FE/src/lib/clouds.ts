@@ -142,9 +142,33 @@ uniform vec2 pointer;
 uniform float progress;
 uniform vec3 cover;
 uniform float coverAmount;
+uniform vec4 continuationRays[7];
+uniform float continuationProgress;
+uniform float continuationStrength;
 uniform int layer;
 out vec4 color;
 const float zoom=.2, displacement=.05, chromatic=.01;
+vec3 continuedLight(vec2 uv) {
+    vec3 bands[7] = vec3[7](vec3(.24,.06,1.), vec3(.03,.32,1.),
+        vec3(.02,.78,.65), vec3(.3,1.,.07), vec3(1.,.74,.02),
+        vec3(1.,.27,.01), vec3(.85,.06,.01));
+    float aspect=resolution.x/resolution.y;
+    float reach=mix(-.08,1.25,smoothstep(0.,1.,continuationProgress));
+    vec3 sum=vec3(0.);
+    for(int k=0;k<7;k++) {
+        vec4 ray=continuationRays[k];
+        if(dot(ray.zw,ray.zw)<.5) continue;
+        vec2 q=(uv-ray.xy)*vec2(aspect,1.);
+        float along=dot(q,ray.zw);
+        float across=q.x*ray.w-q.y*ray.z;
+        float core=exp(-.5*across*across/.000012);
+        float bloom=.12*exp(-.5*across*across/.00022);
+        float gate=smoothstep(-.025,.035,along)
+            *(1.-smoothstep(reach,reach+.07,along));
+        sum+=bands[k]*(core+bloom)*gate;
+    }
+    return sum/vec3(3.44,3.23,2.76);
+}
 void main() {
     vec2 uv=gl_FragCoord.xy/resolution;
     vec2 movement=(pointer-.5)*vec2(resolution.x/resolution.y,1.);
@@ -167,6 +191,12 @@ void main() {
     // geometric edge - an even copy inside a firm round mask read as a disc.
     float reach=1.-smoothstep(cover.z*.3,cover.z*1.4,distance(gl_FragCoord.xy,cover.xy));
     float lift=coverAmount*reach*smoothstep(.15,.7,raw.a);
+    if(layer==0 && continuationStrength>0.) {
+        // The cloud ends here; only the already-refracted light continues.
+        vec3 beam=continuedLight(uv)*continuationStrength;
+        sky.rgb+=beam;
+        sky.a=max(sky.a,max(beam.r,max(beam.g,beam.b))*.82);
+    }
     color=layer==1 ? raw*lift : sky;
 }
 `;
@@ -244,7 +274,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     gl.bindFramebuffer(gl.FRAMEBUFFER,sceneBuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,sceneTexture,0);
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer"].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
+    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","continuationRays[0]","continuationProgress","continuationStrength","layer"].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
     gl.useProgram(chromaticProgram);
     gl.uniform1i(chromaticUniforms.scene,1);
     gl.useProgram(program);
@@ -294,6 +324,8 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     let previousScroll=-1;
     const journey=document.querySelector<HTMLElement>("#journey");
     let opticalProgress=0;
+    const continuationRays=new Float32Array(7*4);
+    let continuationReady=false;
     const render = (now: number) => {
         if(disposed) return;
         frame=requestAnimationFrame(render);
@@ -339,6 +371,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // entirely geometric and controlled by opticalGrowth above.
         const opticalStrength=1-smooth((opticalProgress-.76)/.24);
         const opticalActive=opticalProgress>.02 && opticalStrength>.001;
+        if(opticalProgress<=.02) continuationReady=false;
         const sceneDirty=idleAnimate || opticalMoving || scroll!==previousScroll || last===0;
         if(idleAnimate) elapsed+=step;
         const life=idleAnimate ? elapsed : 0;
@@ -437,9 +470,36 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             gl.uniform1f(uniforms.time,scroll*7.+life*(.9+i*.14));
             gl.uniform1f(uniforms.gleam,optical ? opticalStrength : 0);
             gl.uniform1f(uniforms.gleamProgress,optical ? opticalGrowth : 0);
-            if(optical) gl.uniform4fv(uniforms["spectralRays[0]"],spectralPaths(progress));
             const cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch);
             const rotation=new Float32Array([cy,0,-sy, sy*sx,cx,cy*sx, sy*cx,-sx,cy*cx]);
+            if(optical) {
+                const paths=spectralPaths(progress);
+                gl.uniform4fv(uniforms["spectralRays[0]"],paths);
+                // Project the rays' final in-cloud segment to screen space.
+                // The continuation begins with a small overlap, so no seam is
+                // exposed where volumetric scattering gives way to open air.
+                const aspect=width/height;
+                const project=(lx: number,ly: number,lz: number) => {
+                    const x=lx*size,y=ly*size*.8,z=lz*size*.8;
+                    const rx=rotation[0]*x+rotation[3]*y+rotation[6]*z;
+                    const ry=rotation[1]*x+rotation[4]*y+rotation[7]*z;
+                    const rz=rotation[2]*x+rotation[5]*y+rotation[8]*z;
+                    const cameraDistance=Math.max(.1,depth-rz);
+                    return [((worldX+rx)*1.8/cameraDistance/aspect+1)/2,
+                        ((worldY+ry)*1.8/cameraDistance+1)/2];
+                };
+                for(let ray=0;ray<7;ray++) {
+                    const offset=ray*4;
+                    const ox=paths[offset],oy=paths[offset+1];
+                    const dx=paths[offset+2],dy=paths[offset+3];
+                    const a=project(ox+dx*1.18,oy+dy*1.18,.27);
+                    const b=project(ox+dx*1.38,oy+dy*1.38,.27);
+                    const sx=(b[0]-a[0])*aspect,sy=b[1]-a[1];
+                    const length=Math.hypot(sx,sy)||1;
+                    continuationRays.set([a[0],a[1],sx/length,sy/length],offset);
+                }
+                continuationReady=true;
+            }
             const cr=Math.cos(roll),sr=Math.sin(roll);
             for(let column=0;column<3;column++) {
                 const x=rotation[column*3],y=rotation[column*3+1];
@@ -505,6 +565,11 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         gl.uniform3f(chromaticUniforms.cover,cover.x,canvas.height-cover.y,
             Math.max(1,cover.radius*Math.sqrt(Math.max(veil,.05))));
         gl.uniform1f(chromaticUniforms.coverAmount,cover.amount);
+        gl.uniform4fv(chromaticUniforms["continuationRays[0]"],continuationRays);
+        gl.uniform1f(chromaticUniforms.continuationProgress,
+            continuationReady ? smooth((opticalProgress-.5)/.42) : 0);
+        gl.uniform1f(chromaticUniforms.continuationStrength,
+            continuationReady ? 1-smooth((opticalProgress-.94)/.06) : 0);
         const covering=cover.amount>.01;
         if(covering && foreground && frontContext) {
             // Draw the lifted copy, hand it to the front canvas, then draw
