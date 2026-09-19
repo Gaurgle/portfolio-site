@@ -379,9 +379,16 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             ordered.push({c:{phase:0,size:3.4},i:4,cycle:0,progress:closing,
                 hero:false,finale:true,distance:19.-11.5*closing**1.2});
         }
+        // Put the optical event inside the nearest cloud that is already in
+        // the weather cycle. At the Journey entrance this same volume is
+        // lifted to the foreground canvas, so no separate cloud fades in.
         if(opticalEnvelope>.001) {
-            ordered.push({c:{phase:0,size:3.6},i:5,cycle:0,progress:opticalProgress,
-                hero:false,finale:false,optical:true,distance:8.6});
+            const candidate=ordered
+                .filter(pass=>!pass.hero && !pass.finale
+                    && pass.progress>.1
+                    && (desktop.matches ? pass.progress<.82 : pass.progress<.96))
+                .sort((a,b)=>a.distance-b.distance)[0];
+            if(candidate) candidate.optical=true;
         }
         ordered.sort((a,b)=>b.distance-a.distance);
         let nearBlur=0;
@@ -400,15 +407,14 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                 ? smooth((scroll-(desktop.matches?.85:1.1))/.5)*(1-smooth(closing))
                 : 1;
             if(!desktop.matches && (opening<1 || closing>0)) {
-                if(!hero && !finale && !optical) continue;
+                if(!hero && !finale) continue;
             }
-            if(!hero && !finale && !optical && ambientFormation===0) continue;
+            if(!hero && !finale && ambientFormation===0) continue;
             // New paths and proportions on later passes, deterministic in both
             // scroll directions. The long invisible interval leaves black space.
             const variation=(Math.sin((cycle*7+i+1)*12.9898)*43758.5453)%1;
             const mobileScale=hero ? .78 : finale ? .58 : .38;
-            const size=optical ? (desktop.matches ? 3.8 : 2.1)
-                : c.size*(1+Math.abs(variation)*.18)*(desktop.matches?1.12:mobileScale);
+            const size=c.size*(1+Math.abs(variation)*.18)*(desktop.matches?1.12:mobileScale);
             const phase=i*1.7;
             const depth=distance+.22*Math.sin(life*.055+phase);
             const edge=desktop.matches ? 2.6+width/height*.75 : .95;
@@ -418,8 +424,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             // near the cycle boundary, which looked like the volume blinked
             // out when the visitor scrubbed back and forth.
             const mobileHeroExit=!desktop.matches ? smooth((progress-.78)/.22)*3.4 : 0;
-            const path=optical ? [desktop.matches ? 1.0 : .15,.6-progress*.65]
-                : hero ? [-.1-progress*.25,.95-progress*.8-mobileHeroExit]
+            const path=hero ? [-.1-progress*.25,.95-progress*.8-mobileHeroExit]
                 : finale ? [.8+progress*.4,4.6-progress*.9]
                 : desktop.matches ? paths[(cycle+i)%paths.length]
                 : [-1.35+progress*3.6,-1.35];
@@ -427,10 +432,10 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             const worldY=path[1]+.4*Math.sin(progress*Math.PI+phase)+.12*Math.sin(life*.06+phase);
             // Keep turns barely perceptible so density evolution and drift
             // carry the movement without making clouds look like rigid objects.
-            const yaw=optical ? .08 : progress*.26+i*.8+.056*Math.sin(life*.06+phase);
+            const yaw=progress*.26+i*.8+.056*Math.sin(life*.06+phase);
             const pitch=Math.sin(progress*Math.PI)*.076+.036*Math.sin(life*.047+phase);
             const roll=.02*Math.sin(life*.039+phase);
-            gl.uniform1f(uniforms.time,optical ? 12.+progress*2.+life*.12 : scroll*7.+life*(.9+i*.14));
+            gl.uniform1f(uniforms.time,scroll*7.+life*(.9+i*.14));
             gl.uniform1f(uniforms.gleam,optical ? opticalEnvelope : 0);
             if(optical) gl.uniform4fv(uniforms["spectralRays[0]"],spectralPaths(progress));
             const cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch);
@@ -460,19 +465,19 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             gl.scissor(left,bottom,right-left,top-bottom);
             gl.uniform3f(uniforms.center,worldX,worldY,6-depth);
             gl.uniform3f(uniforms.scale,size,size*.8,size*.8);
-            gl.uniform1f(uniforms.seed,optical ? .386 : i*.193+cycle*.137);
-            const growth=optical ? .92 : hero ? (desktop.matches ? smooth((1-progress)/.18) : 1)
+            gl.uniform1f(uniforms.seed,i*.193+cycle*.137);
+            const growth=hero ? (desktop.matches ? smooth((1-progress)/.18) : 1)
                 : finale ? smooth(progress/.35)
                 : desktop.matches
                     ? smooth(Math.min(progress/.2,(1-progress)/.18))*ambientFormation
                     : smooth(progress/.18)*ambientFormation;
             gl.uniform1f(uniforms.formation,growth*growth*(3-2*growth));
-            const strength=optical ? opticalEnvelope*.88 : hero ? .72+.26*smooth(progress/.35)
+            const strength=hero ? .72+.26*smooth(progress/.35)
                 : finale ? .85 : desktop.matches ? .98 : .6;
             gl.uniform1f(uniforms.strength,strength);
             if(sceneDirty) gl.drawArrays(gl.TRIANGLES,0,6);
             nearBlur=Math.max(nearBlur,Math.max(0,7.-depth)*.6);
-            if(!optical && growth>.1 && (!nearest || depth<nearest.depth)) {
+            if(growth>.1 && (!nearest || depth<nearest.depth)) {
                 nearest={x:(worldX*1.8/depth/(width/height)+1)*canvas.width/2,
                     y:(1-worldY*1.8/depth)*canvas.height/2,
                     radius:size*1.8/depth*canvas.height*.75,depth};
