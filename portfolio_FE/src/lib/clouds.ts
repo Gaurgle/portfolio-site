@@ -23,6 +23,7 @@ uniform float strength;
 uniform float formation;
 uniform int steps;
 uniform float gleam;
+uniform float gleamProgress;
 uniform vec4 spectralRays[7];
 out vec4 color;
 float noise(vec3 p) { return texture(noiseVolume, p).r; }
@@ -62,11 +63,16 @@ vec3 opticalLight(vec3 p) {
         vec2 q=p.xy-ray.xy;
         float along=dot(q,ray.zw);
         float across=q.x*ray.w-q.y*ray.z;
-        float width=.012+max(along,0.)*.018;
+        float grown=smoothstep(0.,1.,gleamProgress);
+        float width=(.012+max(along,0.)*.018)*mix(.35,1.,grown);
         float profile=exp(-.5*across*across/(width*width));
         // A low-energy scattering skirt softens the light in surrounding mist.
-        profile+=.11*exp(-.5*across*across/.012);
-        float gate=smoothstep(-.02,.08,along)*(1.-smoothstep(.45,1.35,along));
+        profile+=.11*grown*exp(-.5*across*across/.012);
+        // Light is born spatially: a point catches first, then the path grows
+        // through the medium. Its opacity never fades up over a finished ray.
+        float reach=mix(-.12,1.35,grown);
+        float gate=smoothstep(-.02,.055,along)
+            *(1.-smoothstep(reach,reach+.09,along));
         float depth=exp(-pow((p.z-.27)/.19,2.));
         sum+=bands[k]*profile*gate*depth;
     }
@@ -93,12 +99,6 @@ void main() {
         if(i>=steps || transmittance<.015) break;
         vec3 p=ro+rd*t;
         float d=field(p);
-        if(gleam>0. && d<.35) {
-            // A trace of aerosol makes light visible between the dense wisps.
-            // Compact support avoids a visible box at the march boundary.
-            float haze=exp(-dot(p*vec3(.9,1.6,1.6),p*vec3(.9,1.6,1.6))*2.);
-            d+=haze*.10;
-        }
         if(d>.015) {
             float shadow=0.;
             for(int j=1;j<=4;j++) {
@@ -117,8 +117,8 @@ void main() {
                 float blocked=field(p+towardSource*.16)*.16
                     +field(p+towardSource*.34)*.18;
                 vec3 beam=opticalLight(p)*exp(-blocked*1.7);
-                lighting=mix(lighting,lighting*.26,gleam)
-                    +beam*gleam*18.;
+                beam=1.-exp(-beam*1.6);
+                lighting+=beam*gleam*3.;
             }
             radiance+=transmittance*alpha*lighting;
             transmittance*=1.-alpha;
@@ -127,9 +127,6 @@ void main() {
     }
     // Premultiplied alpha preserves wisps over the existing star layers.
     float alpha=(1.-transmittance)*strength;
-    // Highlight shoulder only on the optical volume; existing clouds retain
-    // their look. A small white bloom is supplied by scattering, not a sprite.
-    if(gleam>0.) radiance=mix(radiance,1.-exp(-radiance*1.5),gleam);
     color=vec4(radiance*strength,alpha);
 }
 `;
@@ -220,7 +217,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const attribute = gl.getAttribLocation(program, "position");
     gl.enableVertexAttribArray(attribute);
     gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
-    const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps","gleam","spectralRays[0]"].map(n => [n,gl.getUniformLocation(program,n)]));
+    const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps","gleam","gleamProgress","spectralRays[0]"].map(n => [n,gl.getUniformLocation(program,n)]));
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_3D, texture);
     // Seeded noise makes visual checks repeatable and avoids a new sky per visit.
@@ -337,7 +334,11 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const opticalMoving=Math.abs(opticalTarget-opticalProgress)>.0005;
         opticalProgress=last===0 || !motion ? opticalTarget
             : opticalProgress+(opticalTarget-opticalProgress)*(1-Math.exp(-step*10));
-        const opticalEnvelope=smooth(opticalProgress/.22)*(1-smooth((opticalProgress-.65)/.35));
+        const opticalGrowth=smooth((opticalProgress-.04)/.66);
+        // Departure may soften as the carrier cloud moves on. Arrival is
+        // entirely geometric and controlled by opticalGrowth above.
+        const opticalStrength=1-smooth((opticalProgress-.76)/.24);
+        const opticalActive=opticalProgress>.02 && opticalStrength>.001;
         const sceneDirty=idleAnimate || opticalMoving || scroll!==previousScroll || last===0;
         if(idleAnimate) elapsed+=step;
         const life=idleAnimate ? elapsed : 0;
@@ -382,11 +383,9 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // Put the optical event inside the nearest cloud that is already in
         // the weather cycle. At the Journey entrance this same volume is
         // lifted to the foreground canvas, so no separate cloud fades in.
-        if(opticalEnvelope>.001) {
+        if(opticalActive) {
             const candidate=ordered
-                .filter(pass=>!pass.hero && !pass.finale
-                    && pass.progress>.1
-                    && (desktop.matches ? pass.progress<.82 : pass.progress<.96))
+                .filter(pass=>!pass.hero && !pass.finale)
                 .sort((a,b)=>a.distance-b.distance)[0];
             if(candidate) candidate.optical=true;
         }
@@ -436,7 +435,8 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             const pitch=Math.sin(progress*Math.PI)*.076+.036*Math.sin(life*.047+phase);
             const roll=.02*Math.sin(life*.039+phase);
             gl.uniform1f(uniforms.time,scroll*7.+life*(.9+i*.14));
-            gl.uniform1f(uniforms.gleam,optical ? opticalEnvelope : 0);
+            gl.uniform1f(uniforms.gleam,optical ? opticalStrength : 0);
+            gl.uniform1f(uniforms.gleamProgress,optical ? opticalGrowth : 0);
             if(optical) gl.uniform4fv(uniforms["spectralRays[0]"],spectralPaths(progress));
             const cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch);
             const rotation=new Float32Array([cy,0,-sy, sy*sx,cx,cy*sx, sy*cx,-sx,cy*cx]);
