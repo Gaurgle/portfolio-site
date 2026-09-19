@@ -3,6 +3,8 @@
  * Scroll drives approach; slow independent drift, rotation and density changes
  * keep desktop clouds alive at rest. World-space positions preserve perspective.
  */
+import { spectralPaths } from "./prismOptics";
+
 const vertex = `#version 300 es
 in vec2 position;
 void main() { gl_Position = vec4(position, 0., 1.); }
@@ -20,6 +22,8 @@ uniform float seed;
 uniform float strength;
 uniform float formation;
 uniform int steps;
+uniform float gleam;
+uniform vec4 spectralRays[7];
 out vec4 color;
 float noise(vec3 p) { return texture(noiseVolume, p).r; }
 float field(vec3 p) {
@@ -44,6 +48,31 @@ vec2 intersectBox(vec3 ro, vec3 rd) {
     vec3 lo = min(a,b), hi = max(a,b);
     return vec2(max(max(lo.x,lo.y),lo.z), min(min(hi.x,hi.y),hi.z));
 }
+// Radiance in a thin sheet of mist. Overlapping wavelengths make a white
+// core, while true angular dispersion leaves colour at its outer edges.
+// This is sampled in the SAME volume as cloud absorption, not drawn on top.
+vec3 opticalLight(vec3 p) {
+    vec3 bands[7] = vec3[7](vec3(.24,.06,1.), vec3(.03,.32,1.),
+        vec3(.02,.78,.65), vec3(.3,1.,.07), vec3(1.,.74,.02),
+        vec3(1.,.27,.01), vec3(.85,.06,.01));
+    vec3 sum=vec3(0.);
+    for(int k=0;k<7;k++) {
+        vec4 ray=spectralRays[k];
+        if(dot(ray.zw,ray.zw)<.5) continue;
+        vec2 q=p.xy-ray.xy;
+        float along=dot(q,ray.zw);
+        float across=q.x*ray.w-q.y*ray.z;
+        float width=.012+max(along,0.)*.018;
+        float profile=exp(-.5*across*across/(width*width));
+        // A low-energy scattering skirt softens the light in surrounding mist.
+        profile+=.11*exp(-.5*across*across/.012);
+        float gate=smoothstep(-.02,.08,along)*(1.-smoothstep(.45,1.35,along));
+        float depth=exp(-pow((p.z-.27)/.19,2.));
+        sum+=bands[k]*profile*gate*depth;
+    }
+    // Normalise summed RGB to keep overlapped light neutral, not pink/green.
+    return sum/vec3(3.44,3.23,2.76);
+}
 void main() {
     vec2 uv = (gl_FragCoord.xy / resolution)*2.-1.;
     uv.x *= resolution.x / resolution.y;
@@ -64,6 +93,12 @@ void main() {
         if(i>=steps || transmittance<.015) break;
         vec3 p=ro+rd*t;
         float d=field(p);
+        if(gleam>0. && d<.35) {
+            // A trace of aerosol makes light visible between the dense wisps.
+            // Compact support avoids a visible box at the march boundary.
+            float haze=exp(-dot(p*vec3(.9,1.6,1.6),p*vec3(.9,1.6,1.6))*2.);
+            d+=haze*.10;
+        }
         if(d>.015) {
             float shadow=0.;
             for(int j=1;j<=4;j++) {
@@ -75,6 +110,16 @@ void main() {
             float fill=exp(-field(p+vec3(.15,.3,.45))*.65);
             vec3 lighting=vec3(.06,.069,.08)+vec3(.19,.205,.23)*fill
                 +vec3(.94,.96,1.)*illumination*.72;
+            if(gleam>0.) {
+                // Dense cloud both receives and blocks light. Approximate
+                // source-path extinction along the central traced ray.
+                vec3 towardSource=vec3(-spectralRays[3].zw,0.);
+                float blocked=field(p+towardSource*.16)*.16
+                    +field(p+towardSource*.34)*.18;
+                vec3 beam=opticalLight(p)*exp(-blocked*1.7);
+                lighting=mix(lighting,lighting*.26,gleam)
+                    +beam*gleam*18.;
+            }
             radiance+=transmittance*alpha*lighting;
             transmittance*=1.-alpha;
         }
@@ -82,6 +127,9 @@ void main() {
     }
     // Premultiplied alpha preserves wisps over the existing star layers.
     float alpha=(1.-transmittance)*strength;
+    // Highlight shoulder only on the optical volume; existing clouds retain
+    // their look. A small white bloom is supplied by scattering, not a sprite.
+    if(gleam>0.) radiance=mix(radiance,1.-exp(-radiance*1.5),gleam);
     color=vec4(radiance*strength,alpha);
 }
 `;
@@ -129,7 +177,7 @@ void main() {
 type Cloud = { phase: number; size: number };
 type CloudPass = {
     c: Cloud; i: number; cycle: number; progress: number; hero: boolean;
-    finale: boolean; distance: number;
+    finale: boolean; distance: number; optical?: boolean;
 };
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const smooth = (v: number) => { const s = clamp01(v); return s * s * (3 - 2 * s); };
@@ -172,7 +220,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const attribute = gl.getAttribLocation(program, "position");
     gl.enableVertexAttribArray(attribute);
     gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
-    const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps"].map(n => [n,gl.getUniformLocation(program,n)]));
+    const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps","gleam","spectralRays[0]"].map(n => [n,gl.getUniformLocation(program,n)]));
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_3D, texture);
     // Seeded noise makes visual checks repeatable and avoids a new sky per visit.
@@ -247,6 +295,8 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         last=0;
     };
     let previousScroll=-1;
+    const journey=document.querySelector<HTMLElement>("#journey");
+    let opticalProgress=0;
     const render = (now: number) => {
         if(disposed) return;
         frame=requestAnimationFrame(render);
@@ -282,7 +332,13 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         if(!motion && scroll===previousScroll && last!==0) return;
         // The ambient shimmer keeps mobile drawing, but between scroll changes
         // it only resamples the cached clouds instead of ray-marching again.
-        const sceneDirty=idleAnimate || scroll!==previousScroll || last===0;
+        const journeyTop=journey ? journey.getBoundingClientRect().top/height : Infinity;
+        const opticalTarget=motion ? clamp01((1.4-journeyTop)/2.) : 0;
+        const opticalMoving=Math.abs(opticalTarget-opticalProgress)>.0005;
+        opticalProgress=last===0 || !motion ? opticalTarget
+            : opticalProgress+(opticalTarget-opticalProgress)*(1-Math.exp(-step*10));
+        const opticalEnvelope=smooth(opticalProgress/.22)*(1-smooth((opticalProgress-.65)/.35));
+        const sceneDirty=idleAnimate || opticalMoving || scroll!==previousScroll || last===0;
         if(idleAnimate) elapsed+=step;
         const life=idleAnimate ? elapsed : 0;
         if(scroll!==previousScroll || last===0) {
@@ -323,6 +379,10 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             ordered.push({c:{phase:0,size:3.4},i:4,cycle:0,progress:closing,
                 hero:false,finale:true,distance:19.-11.5*closing**1.2});
         }
+        if(opticalEnvelope>.001) {
+            ordered.push({c:{phase:0,size:3.6},i:5,cycle:0,progress:opticalProgress,
+                hero:false,finale:false,optical:true,distance:8.6});
+        }
         ordered.sort((a,b)=>b.distance-a.distance);
         let nearBlur=0;
         let nearest: { x: number; y: number; radius: number; depth: number } | null=null;
@@ -331,7 +391,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
         }
         gl.enable(gl.SCISSOR_TEST);
-        for(const {c,i,cycle,progress,hero,finale,distance} of ordered) {
+        for(const {c,i,cycle,progress,hero,finale,optical=false,distance} of ordered) {
             // Ambient weather stays out of the opening and dissolves while the
             // closing volume forms, so the logo and the contact form stay clear.
             // Mobile is deliberately sequential: hero, one ambient pass,
@@ -340,14 +400,15 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                 ? smooth((scroll-(desktop.matches?.85:1.1))/.5)*(1-smooth(closing))
                 : 1;
             if(!desktop.matches && (opening<1 || closing>0)) {
-                if(!hero && !finale) continue;
+                if(!hero && !finale && !optical) continue;
             }
-            if(!hero && !finale && ambientFormation===0) continue;
+            if(!hero && !finale && !optical && ambientFormation===0) continue;
             // New paths and proportions on later passes, deterministic in both
             // scroll directions. The long invisible interval leaves black space.
             const variation=(Math.sin((cycle*7+i+1)*12.9898)*43758.5453)%1;
             const mobileScale=hero ? .78 : finale ? .58 : .38;
-            const size=c.size*(1+Math.abs(variation)*.18)*(desktop.matches?1.12:mobileScale);
+            const size=optical ? (desktop.matches ? 3.8 : 2.1)
+                : c.size*(1+Math.abs(variation)*.18)*(desktop.matches?1.12:mobileScale);
             const phase=i*1.7;
             const depth=distance+.22*Math.sin(life*.055+phase);
             const edge=desktop.matches ? 2.6+width/height*.75 : .95;
@@ -357,7 +418,8 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             // near the cycle boundary, which looked like the volume blinked
             // out when the visitor scrubbed back and forth.
             const mobileHeroExit=!desktop.matches ? smooth((progress-.78)/.22)*3.4 : 0;
-            const path=hero ? [-.1-progress*.25,.95-progress*.8-mobileHeroExit]
+            const path=optical ? [desktop.matches ? 1.0 : .15,.6-progress*.65]
+                : hero ? [-.1-progress*.25,.95-progress*.8-mobileHeroExit]
                 : finale ? [.8+progress*.4,4.6-progress*.9]
                 : desktop.matches ? paths[(cycle+i)%paths.length]
                 : [-1.35+progress*3.6,-1.35];
@@ -365,10 +427,12 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             const worldY=path[1]+.4*Math.sin(progress*Math.PI+phase)+.12*Math.sin(life*.06+phase);
             // Keep turns barely perceptible so density evolution and drift
             // carry the movement without making clouds look like rigid objects.
-            const yaw=progress*.26+i*.8+.056*Math.sin(life*.06+phase);
+            const yaw=optical ? .08 : progress*.26+i*.8+.056*Math.sin(life*.06+phase);
             const pitch=Math.sin(progress*Math.PI)*.076+.036*Math.sin(life*.047+phase);
             const roll=.02*Math.sin(life*.039+phase);
-            gl.uniform1f(uniforms.time,scroll*7.+life*(.9+i*.14));
+            gl.uniform1f(uniforms.time,optical ? 12.+progress*2.+life*.12 : scroll*7.+life*(.9+i*.14));
+            gl.uniform1f(uniforms.gleam,optical ? opticalEnvelope : 0);
+            if(optical) gl.uniform4fv(uniforms["spectralRays[0]"],spectralPaths(progress));
             const cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch);
             const rotation=new Float32Array([cy,0,-sy, sy*sx,cx,cy*sx, sy*cx,-sx,cy*cx]);
             const cr=Math.cos(roll),sr=Math.sin(roll);
@@ -396,19 +460,19 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             gl.scissor(left,bottom,right-left,top-bottom);
             gl.uniform3f(uniforms.center,worldX,worldY,6-depth);
             gl.uniform3f(uniforms.scale,size,size*.8,size*.8);
-            gl.uniform1f(uniforms.seed,i*.193+cycle*.137);
-            const growth=hero ? (desktop.matches ? smooth((1-progress)/.18) : 1)
+            gl.uniform1f(uniforms.seed,optical ? .386 : i*.193+cycle*.137);
+            const growth=optical ? .92 : hero ? (desktop.matches ? smooth((1-progress)/.18) : 1)
                 : finale ? smooth(progress/.35)
                 : desktop.matches
                     ? smooth(Math.min(progress/.2,(1-progress)/.18))*ambientFormation
                     : smooth(progress/.18)*ambientFormation;
             gl.uniform1f(uniforms.formation,growth*growth*(3-2*growth));
-            const strength=hero ? .72+.26*smooth(progress/.35)
+            const strength=optical ? opticalEnvelope*.88 : hero ? .72+.26*smooth(progress/.35)
                 : finale ? .85 : desktop.matches ? .98 : .6;
             gl.uniform1f(uniforms.strength,strength);
             if(sceneDirty) gl.drawArrays(gl.TRIANGLES,0,6);
             nearBlur=Math.max(nearBlur,Math.max(0,7.-depth)*.6);
-            if(growth>.1 && (!nearest || depth<nearest.depth)) {
+            if(!optical && growth>.1 && (!nearest || depth<nearest.depth)) {
                 nearest={x:(worldX*1.8/depth/(width/height)+1)*canvas.width/2,
                     y:(1-worldY*1.8/depth)*canvas.height/2,
                     radius:size*1.8/depth*canvas.height*.75,depth};
