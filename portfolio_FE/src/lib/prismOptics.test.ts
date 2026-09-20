@@ -1,6 +1,45 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { refractRay, spectralPaths, tracePrism } from "./prismOptics.ts";
+import { readFileSync } from "node:fs";
+import { gleamFlight, refractRay, spectralPaths, tracePrism } from "./prismOptics.ts";
+
+test("one head travels at the same speed before, across and after cloud exit", () => {
+    const position=(p: number)=> { const f=gleamFlight(p); return f.head+f.offset; };
+    const expected=1.47/.66;
+    for(const p of [.08,.3,.69999,.7,.9,1.2,2,5,12]) {
+        const speed=(position(p+.0001)-position(p))/.0001;
+        assert.ok(Math.abs(speed-expected)<1e-8, `velocity changed at ${p}`);
+    }
+});
+
+test("the formed prism packet translates intact, without a new growth or fade phase", () => {
+    for(const p of [.7,.8,1,2,4,10]) {
+        const f=gleamFlight(p);
+        assert.ok(Math.abs(f.head-1.35)<1e-10);
+        assert.ok(Math.abs(f.growth-1)<1e-10);
+        assert.ok(f.offset>=0);
+    }
+    assert.ok(gleamFlight(2).offset>gleamFlight(1).offset);
+});
+
+test("flight is reversible, reload-safe and independent of captured exit state", () => {
+    const expected=gleamFlight(.5);
+    for(const p of [8,1,.1,3,0]) gleamFlight(p);
+    assert.deepEqual(gleamFlight(.5),expected);
+    assert.deepEqual(gleamFlight(-1),gleamFlight(0));
+    for(const p of [0,.01,.5,.7,1,4,12]) {
+        assert.ok(Object.values(gleamFlight(p)).every(Number.isFinite));
+    }
+});
+
+test("cloud and clear-space materials share the exact optical field and uniforms", () => {
+    const shader=readFileSync(new URL("./clouds.ts",import.meta.url),"utf8");
+    assert.equal(shader.match(/vec3 opticalLight\(/g)?.length,1);
+    assert.equal(shader.match(/\$\{opticalField\}/g)?.length,2);
+    assert.match(shader,/uploadLight\(uniforms\)/);
+    assert.match(shader,/uploadLight\(chromaticUniforms\)/);
+    assert.doesNotMatch(shader,/continuedLight|continuationProgress|continuationRays|whiteCore/);
+});
 
 test("every visible wavelength exits across the full scroll range", () => {
     for(let p=0;p<=100;p++) for(let k=0;k<7;k++) {

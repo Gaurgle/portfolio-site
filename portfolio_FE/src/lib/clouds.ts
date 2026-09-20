@@ -3,7 +3,49 @@
  * Scroll drives approach; slow independent drift, rotation and density changes
  * keep desktop clouds alive at rest. World-space positions preserve perspective.
  */
-import { spectralPaths } from "./prismOptics";
+import { gleamFlight, spectralPaths } from "./prismOptics";
+
+// Shared verbatim by the cloud and clear-space material. There is only one
+// spectral footprint, transform, head and displacement for the entire flight.
+const opticalField = `
+uniform vec3 beamCenter;
+uniform vec3 beamScale;
+uniform mat3 beamRotation;
+uniform vec4 spectralRays[7];
+uniform float gleam;
+uniform float gleamProgress;
+uniform float gleamHead;
+uniform float gleamOffset;
+vec3 beamLocal(vec3 world) {
+    return (transpose(beamRotation)*(world-beamCenter))/beamScale;
+}
+vec3 opticalLight(vec3 p) {
+    vec3 bands[7] = vec3[7](vec3(.24,.06,1.), vec3(.03,.32,1.),
+        vec3(.02,.78,.65), vec3(.3,1.,.07), vec3(1.,.74,.02),
+        vec3(1.,.27,.01), vec3(.85,.06,.01));
+    // Translate the complete prism-shaped packet, not seven diverging rays.
+    p.xy-=normalize(spectralRays[3].zw)*gleamOffset;
+    if(abs(p.z-.27)>.8 || length(p.xy-spectralRays[3].xy)>1.85) return vec3(0.);
+    vec3 sum=vec3(0.);
+    for(int k=0;k<7;k++) {
+        vec4 ray=spectralRays[k];
+        if(dot(ray.zw,ray.zw)<.5) continue;
+        vec2 q=p.xy-ray.xy;
+        float along=dot(q,ray.zw);
+        float across=q.x*ray.w-q.y*ray.z;
+        float grown=smoothstep(0.,1.,gleamProgress);
+        float width=(.012+max(along,0.)*.018)*mix(.35,1.,grown);
+        float profile=exp(-.5*across*across/(width*width));
+        profile+=.11*grown*exp(-.5*across*across/.012);
+        float gate=smoothstep(-.02,.055,along)
+            *(1.-smoothstep(gleamHead,gleamHead+.09,along));
+        float depth=exp(-pow((p.z-.27)/.19,2.));
+        sum+=bands[k]*profile*gate*depth;
+    }
+    return sum/vec3(3.44,3.23,2.76);
+}
+vec3 lightResponse(vec3 energy) { return 1.-exp(-energy*1.6); }
+`;
 
 const vertex = `#version 300 es
 in vec2 position;
@@ -22,10 +64,7 @@ uniform float seed;
 uniform float strength;
 uniform float formation;
 uniform int steps;
-uniform float gleam;
-uniform float gleamProgress;
-uniform float gleamTravel;
-uniform vec4 spectralRays[7];
+${opticalField}
 out vec4 color;
 float noise(vec3 p) { return texture(noiseVolume, p).r; }
 float field(vec3 p) {
@@ -49,38 +88,6 @@ vec2 intersectBox(vec3 ro, vec3 rd) {
     vec3 b = ( vec3(1.5,1.15,1.15)-ro)/rd;
     vec3 lo = min(a,b), hi = max(a,b);
     return vec2(max(max(lo.x,lo.y),lo.z), min(min(hi.x,hi.y),hi.z));
-}
-// Radiance in a thin sheet of mist. Overlapping wavelengths make a white
-// core, while true angular dispersion leaves colour at its outer edges.
-// This is sampled in the SAME volume as cloud absorption, not drawn on top.
-vec3 opticalLight(vec3 p) {
-    vec3 bands[7] = vec3[7](vec3(.24,.06,1.), vec3(.03,.32,1.),
-        vec3(.02,.78,.65), vec3(.3,1.,.07), vec3(1.,.74,.02),
-        vec3(1.,.27,.01), vec3(.85,.06,.01));
-    vec3 sum=vec3(0.);
-    for(int k=0;k<7;k++) {
-        vec4 ray=spectralRays[k];
-        if(dot(ray.zw,ray.zw)<.5) continue;
-        vec2 q=p.xy-ray.xy;
-        float along=dot(q,ray.zw);
-        float across=q.x*ray.w-q.y*ray.z;
-        float grown=smoothstep(0.,1.,gleamProgress);
-        float width=(.012+max(along,0.)*.018)*mix(.35,1.,grown);
-        float profile=exp(-.5*across*across/(width*width));
-        // A low-energy scattering skirt softens the light in surrounding mist.
-        profile+=.11*grown*exp(-.5*across*across/.012);
-        // Light is born spatially: a point catches first, then the path grows
-        // through the medium. Later its tail follows the leading edge, so the
-        // light passes through the cloud instead of fading off in place.
-        float reach=mix(-.12,1.35,grown);
-        float tail=mix(-.08,1.55,smoothstep(.68,1.,gleamTravel));
-        float gate=smoothstep(tail-.055,tail+.035,along)
-            *(1.-smoothstep(reach,reach+.09,along));
-        float depth=exp(-pow((p.z-.27)/.19,2.));
-        sum+=bands[k]*profile*gate*depth;
-    }
-    // Normalise summed RGB to keep overlapped light neutral, not pink/green.
-    return sum/vec3(3.44,3.23,2.76);
 }
 void main() {
     vec2 uv = (gl_FragCoord.xy / resolution)*2.-1.;
@@ -116,11 +123,12 @@ void main() {
             if(gleam>0.) {
                 // Dense cloud both receives and blocks light. Approximate
                 // source-path extinction along the central traced ray.
-                vec3 towardSource=vec3(-spectralRays[3].zw,0.);
+                vec3 towardSource=normalize((transpose(rotation)*beamRotation
+                    *(vec3(-spectralRays[3].zw,0.)*beamScale))/scale);
                 float blocked=field(p+towardSource*.16)*.16
                     +field(p+towardSource*.34)*.18;
-                vec3 beam=opticalLight(p)*exp(-blocked*1.7);
-                beam=1.-exp(-beam*1.6);
+                vec3 world=center+rotation*(p*scale);
+                vec3 beam=lightResponse(opticalLight(beamLocal(world))*exp(-blocked*1.7));
                 lighting+=beam*gleam*3.;
             }
             radiance+=transmittance*alpha*lighting;
@@ -145,44 +153,22 @@ uniform vec2 pointer;
 uniform float progress;
 uniform vec3 cover;
 uniform float coverAmount;
-uniform vec4 continuationRays[7];
-uniform float continuationProgress;
+${opticalField}
 uniform int layer;
 out vec4 color;
 const float zoom=.2, displacement=.05, chromatic=.01;
-vec3 continuedLight(vec2 uv) {
-    vec3 bands[7] = vec3[7](vec3(.24,.06,1.), vec3(.03,.32,1.),
-        vec3(.02,.78,.65), vec3(.3,1.,.07), vec3(1.,.74,.02),
-        vec3(1.,.27,.01), vec3(.85,.06,.01));
-    float aspect=resolution.x/resolution.y;
-    // Use the mean exit path as one beam. The spectral samples only tint its
-    // soft cross-section; they do not diverge into seven separate lines.
-    vec2 origin=vec2(0.),direction=vec2(0.);
-    for(int k=0;k<7;k++) {
-        origin+=continuationRays[k].xy;
-        direction+=continuationRays[k].zw;
-    }
-    origin/=7.;
-    direction=normalize(direction);
-    vec2 q=(uv-origin)*vec2(aspect,1.);
-    float along=dot(q,direction);
-    float across=q.x*direction.y-q.y*direction.x;
-    float travel=clamp(continuationProgress,0.,1.);
-    float head=mix(-.08,2.2,smoothstep(0.,.72,travel));
-    float tail=mix(-.14,2.2,smoothstep(.72,1.,travel));
-    float gate=smoothstep(tail-.045,tail+.045,along)
-        *(1.-smoothstep(head,head+.08,along));
-    vec3 sum=vec3(0.);
-    for(int k=0;k<7;k++) {
-        float offset=(float(k)-3.)*.0016;
-        float profile=exp(-.5*(across-offset)*(across-offset)/.000075);
-        sum+=bands[k]*profile;
-    }
-    vec3 spectral=sum/vec3(3.44,3.23,2.76);
-    float whiteCore=exp(-.5*across*across/.000045);
-    float bloom=exp(-.5*across*across/.00055);
-    return (spectral*.62+vec3(.92,.97,1.)*whiteCore*.52
-        +vec3(.16,.2,.28)*bloom*.12)*gate;
+vec3 clearSpaceLight(vec2 uv) {
+    if(gleam<=0.) return vec3(0.);
+    vec2 screen=uv*2.-1.;
+    screen.x*=resolution.x/resolution.y;
+    vec3 ro=beamLocal(vec3(0.,0.,6.));
+    vec3 rd=(transpose(beamRotation)*normalize(vec3(screen,-1.8)))/beamScale;
+    if(abs(rd.z)<.00001) return vec3(0.);
+    float t=(.27-ro.z)/rd.z;
+    if(t<=0.) return vec3(0.);
+    // Same plane, same spectral footprint, same exposure curve as in the
+    // cloud. This is its unobscured radiance, not a second outgoing beam.
+    return lightResponse(opticalLight(ro+rd*t))*gleam;
 }
 void main() {
     vec2 uv=gl_FragCoord.xy/resolution;
@@ -206,11 +192,15 @@ void main() {
     // geometric edge - an even copy inside a firm round mask read as a disc.
     float reach=1.-smoothstep(cover.z*.3,cover.z*1.4,distance(gl_FragCoord.xy,cover.xy));
     float lift=coverAmount*reach*smoothstep(.15,.7,raw.a);
-    if(layer==0 && continuationProgress>0.) {
-        // The cloud ends here; only the already-refracted light continues.
-        vec3 beam=continuedLight(uv);
-        sky.rgb+=beam;
-        sky.a=max(sky.a,max(beam.r,max(beam.g,beam.b))*.82);
+    if(layer==0 && gleam>0.) {
+        // Resample at exactly the same coordinates as the cloud, including
+        // its chromatic warp. Cloud opacity occludes the clear-space view;
+        // its volume already supplies the scattered view of this light.
+        vec3 beam=vec3(clearSpaceLight(base+split).r*(1.-red.a),
+            clearSpaceLight(base).g*(1.-green.a),
+            clearSpaceLight(base-split).b*(1.-blue.a));
+        sky.rgb+=beam*.85;
+        sky.a=max(sky.a,max(beam.r,max(beam.g,beam.b))*.85);
     }
     color=layer==1 ? raw*lift : sky;
 }
@@ -219,10 +209,43 @@ void main() {
 type Cloud = { phase: number; size: number };
 type CloudPass = {
     c: Cloud; i: number; cycle: number; progress: number; hero: boolean;
-    finale: boolean; distance: number; optical?: boolean;
+    finale: boolean; distance: number;
 };
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const smooth = (v: number) => { const s = clamp01(v); return s * s * (3 - 2 * s); };
+
+// One transform implementation for both the weather and the launch frame.
+// The launch frame is evaluated at a fixed scroll position, so reloads,
+// fast scrolling, reversing and resizing cannot capture a different beam.
+function cloudPose(pass: CloudPass, desktop: boolean, aspect: number, life: number) {
+    const {c,i,cycle,progress,hero,finale,distance}=pass;
+    const variation=(Math.sin((cycle*7+i+1)*12.9898)*43758.5453)%1;
+    const mobileScale=hero ? .78 : finale ? .58 : .38;
+    const size=c.size*(1+Math.abs(variation)*.18)*(desktop?1.12:mobileScale);
+    const phase=i*1.7;
+    const depth=distance+.22*Math.sin(life*.055+phase);
+    const edge=desktop ? 2.6+aspect*.75 : .95;
+    const paths=[[-edge,-1.7],[edge,2.1],[-1.3,3.6],[1.6,-3.5]];
+    const mobileHeroExit=!desktop ? smooth((progress-.78)/.22)*3.4 : 0;
+    const path=hero ? [-.1-progress*.25,.95-progress*.8-mobileHeroExit]
+        : finale ? [.8+progress*.4,4.6-progress*.9]
+        : desktop ? paths[(cycle+i)%paths.length]
+        : [-1.35+progress*3.6,-1.35];
+    const worldX=path[0]+.25*variation+.14*Math.sin(life*.045+phase);
+    const worldY=path[1]+.4*Math.sin(progress*Math.PI+phase)+.12*Math.sin(life*.06+phase);
+    const yaw=progress*.26+i*.8+.056*Math.sin(life*.06+phase);
+    const pitch=Math.sin(progress*Math.PI)*.076+.036*Math.sin(life*.047+phase);
+    const roll=.02*Math.sin(life*.039+phase);
+    const cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch);
+    const rotation=new Float32Array([cy,0,-sy, sy*sx,cx,cy*sx, sy*cx,-sx,cy*cx]);
+    const cr=Math.cos(roll),sr=Math.sin(roll);
+    for(let column=0;column<3;column++) {
+        const x=rotation[column*3],y=rotation[column*3+1];
+        rotation[column*3]=cr*x-sr*y;
+        rotation[column*3+1]=sr*x+cr*y;
+    }
+    return {size,depth,worldX,worldY,rotation};
+}
 
 /** Mount an optional atmosphere. Missing WebGL leaves the black starfield intact. */
 export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasElement | null = null): () => void {
@@ -262,7 +285,8 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const attribute = gl.getAttribLocation(program, "position");
     gl.enableVertexAttribArray(attribute);
     gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
-    const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps","gleam","gleamProgress","gleamTravel","spectralRays[0]"].map(n => [n,gl.getUniformLocation(program,n)]));
+    const opticalUniformNames=["gleam","gleamProgress","gleamHead","gleamOffset","beamCenter","beamScale","beamRotation","spectralRays[0]"];
+    const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps",...opticalUniformNames].map(n => [n,gl.getUniformLocation(program,n)]));
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_3D, texture);
     // Seeded noise makes visual checks repeatable and avoids a new sky per visit.
@@ -289,7 +313,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     gl.bindFramebuffer(gl.FRAMEBUFFER,sceneBuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,sceneTexture,0);
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","continuationRays[0]","continuationProgress","layer"].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
+    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer",...opticalUniformNames].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
     gl.useProgram(chromaticProgram);
     gl.uniform1i(chromaticUniforms.scene,1);
     gl.useProgram(program);
@@ -339,9 +363,6 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     let previousScroll=-1;
     const journey=document.querySelector<HTMLElement>("#journey");
     let opticalProgress=0;
-    const continuationRays=new Float32Array(7*4);
-    let continuationReady=false;
-    let continuationStartScroll=0;
     const render = (now: number) => {
         if(disposed) return;
         frame=requestAnimationFrame(render);
@@ -378,15 +399,12 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // The ambient shimmer keeps mobile drawing, but between scroll changes
         // it only resamples the cached clouds instead of ray-marching again.
         const journeyTop=journey ? journey.getBoundingClientRect().top/height : Infinity;
-        const opticalTarget=motion ? clamp01((1.4-journeyTop)/2.) : 0;
+        const opticalTarget=motion ? Math.max(0,(1.4-journeyTop)/2.) : 0;
         const opticalMoving=Math.abs(opticalTarget-opticalProgress)>.0005;
         opticalProgress=last===0 || !motion ? opticalTarget
             : opticalProgress+(opticalTarget-opticalProgress)*(1-Math.exp(-step*10));
-        const opticalGrowth=smooth((opticalProgress-.04)/.66);
-        // Both arrival and departure are geometric: the leading edge grows
-        // through the cloud, then the tail follows it out into open space.
-        const opticalActive=opticalProgress>.02 && opticalProgress<.999;
-        if(opticalProgress<=.02) continuationReady=false;
+        const flight=gleamFlight(opticalProgress);
+        const opticalActive=motion && opticalProgress>.02;
         const sceneDirty=idleAnimate || opticalMoving || scroll!==previousScroll || last===0;
         if(idleAnimate) elapsed+=step;
         const life=idleAnimate ? elapsed : 0;
@@ -412,12 +430,32 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         gl.uniform1i(uniforms.steps,desktop.matches?64:32);
         const active=desktop.matches?clouds:[clouds[0]];
         // Back-to-front ordering changes as volumes pass and recycle.
-        const ordered: CloudPass[]=active.map((c,i)=> {
-            const travel=scroll/(9+i*2)+c.phase;
+        const ambientPasses=(atScroll: number): CloudPass[]=>active.map((c,i)=> {
+            const travel=atScroll/(9+i*2)+c.phase;
             const progress=(travel%1)/.72;
             return {c,i,cycle:Math.floor(travel),progress,hero:false,finale:false,
                 distance:[17,26][i]-[13,17][i]*progress};
         }).filter(c=>c.progress<1);
+        const ordered=ambientPasses(scroll);
+        // Pick the existing front cloud halfway through the original birth
+        // interval. The light owns this world frame for its entire flight;
+        // crossing the cloud edge never changes its position or velocity.
+        const launchScroll=Math.max(0,scroll+journeyTop-.6);
+        const carrier=ambientPasses(launchScroll).sort((a,b)=>a.distance-b.distance)[0];
+        const launch=carrier && cloudPose(carrier,desktop.matches,width/height,0);
+        const beamPaths=carrier ? spectralPaths(carrier.progress) : new Float32Array(28);
+        const uploadLight=(locations: Record<string,WebGLUniformLocation|null>)=> {
+            gl.uniform1f(locations.gleam,opticalActive && launch ? 1 : 0);
+            if(!launch) return;
+            gl.uniform1f(locations.gleamProgress,flight.growth);
+            gl.uniform1f(locations.gleamHead,flight.head);
+            gl.uniform1f(locations.gleamOffset,flight.offset);
+            gl.uniform3f(locations.beamCenter,launch.worldX,launch.worldY,6-launch.depth);
+            gl.uniform3f(locations.beamScale,launch.size,launch.size*.8,launch.size*.8);
+            gl.uniformMatrix3fv(locations.beamRotation,false,launch.rotation);
+            gl.uniform4fv(locations["spectralRays[0]"],beamPaths);
+        };
+        uploadLight(uniforms);
         if(motion && opening<1) {
             // Rests large behind the logo, then rushes the camera and passes
             // through it before dispersing to expose the page.
@@ -428,15 +466,6 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             ordered.push({c:{phase:0,size:3.4},i:4,cycle:0,progress:closing,
                 hero:false,finale:true,distance:19.-11.5*closing**1.2});
         }
-        // Put the optical event inside the nearest cloud that is already in
-        // the weather cycle. At the Journey entrance this same volume is
-        // lifted to the foreground canvas, so no separate cloud fades in.
-        if(opticalActive) {
-            const candidate=ordered
-                .filter(pass=>!pass.hero && !pass.finale)
-                .sort((a,b)=>a.distance-b.distance)[0];
-            if(candidate) candidate.optical=true;
-        }
         ordered.sort((a,b)=>b.distance-a.distance);
         let nearBlur=0;
         let nearest: { x: number; y: number; radius: number; depth: number } | null=null;
@@ -445,7 +474,8 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
         }
         gl.enable(gl.SCISSOR_TEST);
-        for(const {c,i,cycle,progress,hero,finale,optical=false,distance} of ordered) {
+        for(const pass of ordered) {
+            const {i,cycle,progress,hero,finale}=pass;
             // Ambient weather stays out of the opening and dissolves while the
             // closing volume forms, so the logo and the contact form stay clear.
             // Mobile is deliberately sequential: hero, one ambient pass,
@@ -457,74 +487,8 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                 if(!hero && !finale) continue;
             }
             if(!hero && !finale && ambientFormation===0) continue;
-            // New paths and proportions on later passes, deterministic in both
-            // scroll directions. The long invisible interval leaves black space.
-            const variation=(Math.sin((cycle*7+i+1)*12.9898)*43758.5453)%1;
-            const mobileScale=hero ? .78 : finale ? .58 : .38;
-            const size=c.size*(1+Math.abs(variation)*.18)*(desktop.matches?1.12:mobileScale);
-            const phase=i*1.7;
-            const depth=distance+.22*Math.sin(life*.055+phase);
-            const edge=desktop.matches ? 2.6+width/height*.75 : .95;
-            const paths=[[-edge,-1.7],[edge,2.1],[-1.3,3.6],[1.6,-3.5]];
-            // On mobile the hero and ambient clouds keep their density and
-            // leave the frame spatially. Previously their formation collapsed
-            // near the cycle boundary, which looked like the volume blinked
-            // out when the visitor scrubbed back and forth.
-            const mobileHeroExit=!desktop.matches ? smooth((progress-.78)/.22)*3.4 : 0;
-            const path=hero ? [-.1-progress*.25,.95-progress*.8-mobileHeroExit]
-                : finale ? [.8+progress*.4,4.6-progress*.9]
-                : desktop.matches ? paths[(cycle+i)%paths.length]
-                : [-1.35+progress*3.6,-1.35];
-            const worldX=path[0]+.25*variation+.14*Math.sin(life*.045+phase);
-            const worldY=path[1]+.4*Math.sin(progress*Math.PI+phase)+.12*Math.sin(life*.06+phase);
-            // Keep turns barely perceptible so density evolution and drift
-            // carry the movement without making clouds look like rigid objects.
-            const yaw=progress*.26+i*.8+.056*Math.sin(life*.06+phase);
-            const pitch=Math.sin(progress*Math.PI)*.076+.036*Math.sin(life*.047+phase);
-            const roll=.02*Math.sin(life*.039+phase);
+            const {size,depth,worldX,worldY,rotation}=cloudPose(pass,desktop.matches,width/height,life);
             gl.uniform1f(uniforms.time,scroll*7.+life*(.9+i*.14));
-            gl.uniform1f(uniforms.gleam,optical ? 1 : 0);
-            gl.uniform1f(uniforms.gleamProgress,optical ? opticalGrowth : 0);
-            gl.uniform1f(uniforms.gleamTravel,optical ? opticalProgress : 0);
-            const cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch);
-            const rotation=new Float32Array([cy,0,-sy, sy*sx,cx,cy*sx, sy*cx,-sx,cy*cx]);
-            if(optical) {
-                const paths=spectralPaths(progress);
-                gl.uniform4fv(uniforms["spectralRays[0]"],paths);
-                // Project the rays' final in-cloud segment to screen space.
-                // The continuation begins with a small overlap, so no seam is
-                // exposed where volumetric scattering gives way to open air.
-                const aspect=width/height;
-                const project=(lx: number,ly: number,lz: number) => {
-                    const x=lx*size,y=ly*size*.8,z=lz*size*.8;
-                    const rx=rotation[0]*x+rotation[3]*y+rotation[6]*z;
-                    const ry=rotation[1]*x+rotation[4]*y+rotation[7]*z;
-                    const rz=rotation[2]*x+rotation[5]*y+rotation[8]*z;
-                    const cameraDistance=Math.max(.1,depth-rz);
-                    return [((worldX+rx)*1.8/cameraDistance/aspect+1)/2,
-                        ((worldY+ry)*1.8/cameraDistance+1)/2];
-                };
-                for(let ray=0;ray<7;ray++) {
-                    const offset=ray*4;
-                    const ox=paths[offset],oy=paths[offset+1];
-                    const dx=paths[offset+2],dy=paths[offset+3];
-                    const a=project(ox+dx*1.18,oy+dy*1.18,.27);
-                    const b=project(ox+dx*1.38,oy+dy*1.38,.27);
-                    const sx=(b[0]-a[0])*aspect,sy=b[1]-a[1];
-                    const length=Math.hypot(sx,sy)||1;
-                    continuationRays.set([a[0],a[1],sx/length,sy/length],offset);
-                }
-                if(opticalProgress>=.4) {
-                    if(!continuationReady) continuationStartScroll=scroll;
-                    continuationReady=true;
-                }
-            }
-            const cr=Math.cos(roll),sr=Math.sin(roll);
-            for(let column=0;column<3;column++) {
-                const x=rotation[column*3],y=rotation[column*3+1];
-                rotation[column*3]=cr*x-sr*y;
-                rotation[column*3+1]=sr*x+cr*y;
-            }
             gl.uniformMatrix3fv(uniforms.rotation,false,rotation);
             const bounds=[Infinity,Infinity,-Infinity,-Infinity];
             for(const bx of [-1,1]) for(const by of [-1,1]) for(const bz of [-1,1]) {
@@ -584,14 +548,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         gl.uniform3f(chromaticUniforms.cover,cover.x,canvas.height-cover.y,
             Math.max(1,cover.radius*Math.sqrt(Math.max(veil,.05))));
         gl.uniform1f(chromaticUniforms.coverAmount,cover.amount);
-        gl.uniform4fv(chromaticUniforms["continuationRays[0]"],continuationRays);
-        // Once the beam clears the cloud, its passage spans the rest of the
-        // document: it grows into view, crosses it, then its tail exits at the
-        // page end. Opacity remains constant throughout.
-        const continuationDistance=Math.max(.5,pageEnd-continuationStartScroll);
-        gl.uniform1f(chromaticUniforms.continuationProgress,
-            continuationReady
-                ? smooth((scroll-continuationStartScroll)/continuationDistance) : 0);
+        uploadLight(chromaticUniforms);
         const covering=cover.amount>.01;
         if(covering && foreground && frontContext) {
             // Draw the lifted copy, hand it to the front canvas, then draw

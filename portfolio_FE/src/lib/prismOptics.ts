@@ -3,6 +3,19 @@
  * actually changes. Seven wavelength paths are uploaded once per cloud frame.
  * This is geometric optics, not a wave-optics or full caustic simulation. */
 type V = [number, number];
+
+/** One unbounded clock for the whole flight, in cloud-local units. The head
+ * advances 1.47 units over the original .66 scroll-progress interval. Once
+ * formed, the complete spectral footprint translates at that same speed. */
+export function gleamFlight(progress: number) {
+    const distance = Math.max(0, progress - .04) * (1.47 / .66);
+    const head = -.12 + distance;
+    return {
+        head: Math.min(head, 1.35),
+        offset: Math.max(0, head - 1.35),
+        growth: Math.min(1, distance / 1.47),
+    };
+}
 const add = (a: V, b: V): V => [a[0] + b[0], a[1] + b[1]];
 const mul = (a: V, s: number): V => [a[0] * s, a[1] * s];
 const sub = (a: V, b: V): V => add(a, mul(b, -1));
