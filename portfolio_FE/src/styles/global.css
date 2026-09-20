@@ -712,6 +712,25 @@ html.lenis, html.lenis body { height: auto; }
             drop-shadow(calc(var(--cm-x, 0.7) * -1.1cqw) calc(var(--cm-y, 0.7) * -1.1cqw) 0 rgb(60 190 255 / 0.7));
     }
 }
+/* The MORE PROJECTS arrow wears the clouds' own split, not a lookalike:
+   clouds.ts hands it the direction and strength its chromatic pass is using
+   that frame (--sky-split-x/y), so the fringe follows the pointer, swells
+   with mouse movement and scroll speed, eases back, and wanders at rest,
+   exactly as the sky does. The fallback is the sky's resting level. The glow is restated because
+   this filter replaces the svg's utility-class one. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    [data-hscroll-arrow] svg {
+        filter:
+            drop-shadow(0 0 40px rgb(137 180 250 / 0.5))
+            drop-shadow(calc(var(--sky-split-x, 0.1) * 16px) calc(var(--sky-split-y, 0.1) * 16px) 0 rgb(255 70 90 / 0.55))
+            drop-shadow(calc(var(--sky-split-x, 0.1) * -16px) calc(var(--sky-split-y, 0.1) * -16px) 0 rgb(70 190 255 / 0.55));
+    }
+    /* The silhouette alone goes a touch soft (#arrow-soft, FeaturedShowcase),
+       so the fringe has an edge to bleed into. The label is not filtered. */
+    [data-hscroll-arrow] svg path {
+        filter: url(#arrow-soft);
+    }
+}
 /* The single special word's font comes per-section via the accentStyle prop */
 
 /* Docked section prompt caret (the dock itself lives in BaseLayout, fixed

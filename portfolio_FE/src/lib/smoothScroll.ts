@@ -1210,6 +1210,11 @@ function bindScrollDriven(reduced: boolean): void {
                 sc.arrowEl.style.transform =
                     `translate3d(${sc.arrowShift}px, ${(eased2 * vh * 0.35).toFixed(1)}px, 0)`;
                 sc.arrowEl.style.opacity = (1 - eased2).toFixed(3);
+                // One number for the arrow's time on stage: 0 as its fill
+                // floods in, 1 once it has left. clouds.ts uses it to know
+                // when the arrow is there to wear the sky's split.
+                const arrival = Math.max(0, Math.min(1, (easedE - 0.62) / 0.38));
+                sc.arrowEl.style.setProperty("--arrow-life", (arrival * 0.55 + e2 * 0.45).toFixed(4));
             }
 
             if (

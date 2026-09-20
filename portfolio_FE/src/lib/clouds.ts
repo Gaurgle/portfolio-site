@@ -105,6 +105,8 @@ uniform float seed;
 uniform float strength;
 uniform float formation;
 uniform int steps;
+uniform float flash;
+uniform vec3 flashAt;
 ${opticalField}
 out vec4 color;
 float noise(vec3 p) { return texture(noiseVolume, p).r; }
@@ -161,6 +163,13 @@ void main() {
             float fill=exp(-field(p+vec3(.15,.3,.45))*.65);
             vec3 lighting=vec3(.06,.069,.08)+vec3(.19,.205,.23)*fill
                 +vec3(.94,.96,1.)*illumination*.72;
+            if(flash>0.) {
+                // Lightning inside the volume: brightest around the strike
+                // and carried further through thin cloud than dense, so
+                // the cores between it and the eye stay dark.
+                vec3 away=p-flashAt;
+                lighting+=vec3(.7,.82,1.)*flash*exp(-dot(away,away)/.4)*(.35+.65*fill)*1.9;
+            }
             if(gleam>0.) {
                 // Dense cloud both receives and blocks light. Approximate
                 // source-path extinction along the central traced ray.
@@ -324,6 +333,9 @@ function cloudPose(pass: CloudPass, desktop: boolean, aspect: number, life: numb
     return {size,depth,worldX,worldY,rotation};
 }
 
+/** A scattering-angle cosine no ray can have: the glare lobe never lights. */
+const NO_GLARE = 9;
+
 /** Screen x, in CSS pixels, midway between the card stack's resting right edge
  * and the viewport's. Without a usable margin (no stack, or cards spanning the
  * width) it falls back to four fifths across. */
@@ -398,7 +410,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     gl.enableVertexAttribArray(attribute);
     gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
     const opticalUniformNames=["gleam","gleamProgress","gleamHead","gleamOffset","gleamTail","gleamStretch","gleamFree","gleamTime","gleamPixel","gleamGlint","beamCenter","beamScale","beamRotation","spectralRays[0]"];
-    const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps",...opticalUniformNames].map(n => [n,gl.getUniformLocation(program,n)]));
+    const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps","flash","flashAt",...opticalUniformNames].map(n => [n,gl.getUniformLocation(program,n)]));
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_3D, texture);
     // Seeded noise makes visual checks repeatable and avoids a new sky per visit.
@@ -475,7 +487,15 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         last=0;
     };
     let previousScroll=-1;
+    const projects=document.querySelector<HTMLElement>("#projects");
+    // Lightning inside the cloud over the projects chapter. Seeded, like the
+    // noise, so the storm repeats from visit to visit.
+    const storm={next:0,start:-Infinity,lag:0,pulses:[] as {at: number; power: number}[],
+        spots:[[0,0,0],[0,0,0]],seed:9157};
+    const stormRandom=()=> { storm.seed=(Math.imul(storm.seed,1664525)+1013904223)|0; return (storm.seed>>>8)/16777216; };
     const journey=document.querySelector<HTMLElement>("#journey");
+    // The MORE PROJECTS arrow wears the sky's chromatic split (global.css).
+    const splitWearer=document.querySelector<HTMLElement>("#projects [data-hscroll-arrow]");
     const journeyCards=journey?.querySelector<HTMLElement>(".stack-area");
     let opticalProgress=0;
     const render = (now: number) => {
@@ -510,6 +530,17 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         chroma.y+=(chroma.targetY-chroma.y)*follow;
         chroma.progress=motion
             ? .12+.05*Math.sin(chroma.time*.37)+chroma.mouse*.15+chroma.scroll*.1 : 0;
+        // Hand the arrow the very split the chromatic pass uses below (same
+        // direction, strength and easing), so the pointer and scroll speed
+        // move its fringe exactly as they move the clouds'. Only while the
+        // arrow is on stage; y flips because CSS runs downward.
+        const arrowLife=splitWearer ? parseFloat(splitWearer.style.getPropertyValue("--arrow-life")) : 0;
+        if(splitWearer && arrowLife>0 && arrowLife<1) {
+            const movementX=(chroma.x-.5)*width/height,movementY=chroma.y-.5;
+            const reach=chroma.progress/Math.max(Math.hypot(movementX,movementY),.2);
+            splitWearer.style.setProperty("--sky-split-x",(movementX*reach).toFixed(4));
+            splitWearer.style.setProperty("--sky-split-y",(-movementY*reach).toFixed(4));
+        }
         if(!motion && scroll===previousScroll && last!==0) return;
         // The ambient shimmer keeps mobile drawing, but between scroll changes
         // it only resamples the cached clouds instead of ray-marching again.
@@ -561,8 +592,9 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const beamPaths=carrier ? spectralPaths(carrier.progress) : new Float32Array(28);
         // The glare needs open sky: aim the haze's bright scattering angle at
         // the point where the ray clears the card stack, whatever the layout.
-        const glintFacing=launch ? facingWhereRayCrosses(launch,beamPaths,width/height,
-            clearOfCards(journeyCards,width)/width) : 0;
+        // Handheld layouts have no such margin, so they get no glare at all.
+        const glintFacing=launch && desktop.matches ? facingWhereRayCrosses(launch,beamPaths,
+            width/height,clearOfCards(journeyCards,width)/width) : NO_GLARE;
         const uploadLight=(locations: Record<string,WebGLUniformLocation|null>)=> {
             gl.uniform1f(locations.gleam,opticalActive && launch ? 1 : 0);
             if(!launch) return;
@@ -593,6 +625,45 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                 hero:false,finale:true,distance:19.-11.5*closing**1.2});
         }
         ordered.sort((a,b)=>b.distance-a.distance);
+        // The storm gathers as the projects chapter settles into place and
+        // moves on a couple of screens into it. Desktop only: phones redraw
+        // their sky on scroll alone, so a flash there could never play out.
+        const projectsTop=projects ? projects.getBoundingClientRect().top/height : Infinity;
+        const stormGate=idleAnimate ? smooth((.5-projectsTop)/.5)*(1-smooth((-projectsTop-1.2)/.8)) : 0;
+        // The two nearest ambient clouds answer each other: the second
+        // repeats the strike a moment after the first. A cloud still
+        // condensing or already dispersing is left out, so the lead strike
+        // never goes to one that cannot be seen yet.
+        const stormClouds=stormGate>0 ? ordered
+            .filter(p=>!p.hero && !p.finale && Math.min(p.progress/.2,(1-p.progress)/.18)>.3)
+            .sort((a,b)=>a.distance-b.distance).slice(0,2) : [];
+        if(stormClouds.length>0 && stormGate>.5 && now>=storm.next) {
+            // A strike is a few quick flickers from one spot low in the cloud,
+            // where the sun leaves it in shadow and a glow from within shows.
+            storm.start=now;
+            storm.next=now+3500+stormRandom()*5500;
+            storm.lag=320+stormRandom()*260;
+            storm.spots=storm.spots.map(()=>
+                [-.55+stormRandom()*1.15,-.34+stormRandom()*.24,(stormRandom()-.5)*.4]);
+            let at=0;
+            storm.pulses=Array.from({length:2+Math.floor(stormRandom()*3)},()=> {
+                const pulse={at,power:.45+stormRandom()*.55};
+                at+=60+stormRandom()*110;
+                return pulse;
+            });
+        }
+        /** Light and tremble in a cloud `since` milliseconds after its strike
+         * began. Nothing before the strike, including before the first one. */
+        const strike=(since: number)=> {
+            if(!(since>=0) || !Number.isFinite(since)) return {flash:0,rumble:0};
+            // Each flicker snaps on and decays; low-key, so the sum stays well under 1.
+            const flash=stormGate*.5*storm.pulses.reduce((sum,pulse)=> {
+                const t=since-pulse.at;
+                return t<0 ? sum : sum+pulse.power*smooth(t/30)*Math.exp(-t/110);
+            },0);
+            // The faintest tremble through the cloud afterwards: under a pixel.
+            return {flash,rumble:stormGate*.012*Math.exp(-since/450)*Math.sin(since*.055)};
+        };
         let nearBlur=0;
         let nearest: { x: number; y: number; radius: number; depth: number } | null=null;
         if(sceneDirty) {
@@ -613,7 +684,12 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                 if(!hero && !finale) continue;
             }
             if(!hero && !finale && ambientFormation===0) continue;
-            const {size,depth,worldX,worldY,rotation}=cloudPose(pass,desktop.matches,width/height,life);
+            const pose=cloudPose(pass,desktop.matches,width/height,life);
+            const {size,depth,rotation}=pose;
+            const stormRank=stormClouds.indexOf(pass);
+            const bolt=strike(stormRank<0 ? -1 : now-storm.start-stormRank*storm.lag);
+            const worldX=pose.worldX+bolt.rumble;
+            const worldY=pose.worldY+bolt.rumble*.6;
             gl.uniform1f(uniforms.time,scroll*7.+life*(.9+i*.14));
             gl.uniformMatrix3fv(uniforms.rotation,false,rotation);
             const bounds=[Infinity,Infinity,-Infinity,-Infinity];
@@ -644,6 +720,12 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             const strength=hero ? .72+.26*smooth(progress/.35)
                 : finale ? .85 : desktop.matches ? .98 : .6;
             gl.uniform1f(uniforms.strength,strength);
+            gl.uniform1f(uniforms.flash,bolt.flash);
+            // Lean the strike toward the side of this cloud that faces the
+            // eye (the camera's axis in cloud-local terms), so the glow is
+            // not buried behind the body of a cloud that is turned away.
+            const spot=storm.spots[Math.max(0,stormRank)];
+            gl.uniform3f(uniforms.flashAt,spot[0]+rotation[2]*.32,spot[1]+rotation[5]*.32,spot[2]+rotation[8]*.32);
             if(sceneDirty) gl.drawArrays(gl.TRIANGLES,0,6);
             nearBlur=Math.max(nearBlur,Math.max(0,7.-depth)*.6);
             if(growth>.1 && (!nearest || depth<nearest.depth)) {
