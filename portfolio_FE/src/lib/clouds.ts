@@ -16,33 +16,74 @@ uniform float gleam;
 uniform float gleamProgress;
 uniform float gleamHead;
 uniform float gleamOffset;
+uniform float gleamTail;
+uniform float gleamStretch;
+uniform float gleamFree;
+uniform float gleamTime;
+uniform float gleamPixel;
+uniform float gleamGlint;
 vec3 beamLocal(vec3 world) {
     return (transpose(beamRotation)*(world-beamCenter))/beamScale;
 }
-vec3 opticalLight(vec3 p) {
+// One light, two media. Inside a cloud (cloud = 1) it is the dense, blooming
+// spectral packet, translated rigidly once formed. In open space (cloud = 0)
+// nothing blooms: the same head is a fine white-hot ray inside a faint
+// spectral glow, drawn out between the slower tail and the head.
+vec3 opticalLight(vec3 p, float cloud, float glint) {
     vec3 bands[7] = vec3[7](vec3(.24,.06,1.), vec3(.03,.32,1.),
         vec3(.02,.78,.65), vec3(.3,1.,.07), vec3(1.,.74,.02),
         vec3(1.,.27,.01), vec3(.85,.06,.01));
-    // Translate the complete prism-shaped packet, not seven diverging rays.
-    p.xy-=normalize(spectralRays[3].zw)*gleamOffset;
-    if(abs(p.z-.27)>.8 || length(p.xy-spectralRays[3].xy)>1.85) return vec3(0.);
+    bool dense=cloud>.5;
+    // Move the formed footprint, not seven diverging rays.
+    vec2 origin=spectralRays[3].xy, forward=normalize(spectralRays[3].zw);
+    vec2 offset=p.xy-origin;
+    float run=dot(offset,forward);
+    float side=offset.x*forward.y-offset.y*forward.x;
+    float body=dense ? run-gleamOffset : (run-gleamTail)*gleamStretch;
+    if(abs(p.z-.27)>.8 || abs(side)>.75 || body<-.2 || body>gleamHead+.7) return vec3(0.);
+    vec2 s=origin+forward*body+vec2(forward.y,-forward.x)*side;
+    float grown=smoothstep(0.,1.,gleamProgress);
+    float depth=exp(-pow((p.z-.27)/.19,2.));
+    // Open space: the ray narrows into a point and fades down its trail.
+    float tip=1.-smoothstep(gleamHead-.45,gleamHead+.6,body);
+    float slim=mix(.35,1.,grown)*(.3+.7*tip);
     vec3 sum=vec3(0.);
     for(int k=0;k<7;k++) {
         vec4 ray=spectralRays[k];
         if(dot(ray.zw,ray.zw)<.5) continue;
-        vec2 q=p.xy-ray.xy;
+        vec2 q=s-ray.xy;
         float along=dot(q,ray.zw);
         float across=q.x*ray.w-q.y*ray.z;
-        float grown=smoothstep(0.,1.,gleamProgress);
-        float width=(.012+max(along,0.)*.018)*mix(.35,1.,grown);
-        float profile=exp(-.5*across*across/(width*width));
-        profile+=.11*grown*exp(-.5*across*across/.012);
-        float gate=smoothstep(-.02,.055,along)
-            *(1.-smoothstep(gleamHead,gleamHead+.09,along));
-        float depth=exp(-pow((p.z-.27)/.19,2.));
+        float profile, gate=smoothstep(-.02,.055,along);
+        if(dense) {
+            float width=(.012+max(along,0.)*.018)*mix(.35,1.,grown);
+            profile=exp(-.5*across*across/(width*width));
+            profile+=.11*grown*exp(-.5*across*across/.012);
+            gate*=1.-smoothstep(gleamHead,gleamHead+.09,along);
+        } else {
+            float width=.034*slim;
+            profile=.3*exp(-.5*across*across/(width*width));
+            gate*=tip;
+        }
         sum+=bands[k]*profile*gate*depth;
     }
-    return sum/vec3(3.44,3.23,2.76);
+    sum/=vec3(3.44,3.23,2.76);
+    if(dense) return sum;
+    // Every wavelength shares the ray's centre line, so the core is white.
+    // Never finer than a pixel of the low-resolution sky: below that the
+    // core dims instead of breaking into a crawling dashed line.
+    float fine=.0075*slim, core=max(fine,gleamPixel);
+    sum+=fine/core*exp(-.5*side*side/(core*core))*smoothstep(-.02,.055,body)*tip*depth;
+    float flow=pow(clamp(body/max(gleamHead,.001),0.,1.),2.6);
+    sum*=flow;
+    // Glare belongs to the view, not to the light: it appears only where the
+    // ray scatters toward the eye at the haze's bright angle (glint), so it
+    // swells along the ray as the bright front crosses that zone and dies
+    // away behind it, instead of riding the head as a fixed ball.
+    float lit=smoothstep(-.02,.055,body)*tip*flow*grown*depth;
+    float flare=.7*glint*glint*glint*exp(-.5*side*side/.0009)
+        +.26*glint*exp(-.5*side*side/.0064);
+    return sum+vec3(1.,.97,.93)*flare*lit;
 }
 vec3 lightResponse(vec3 energy) { return 1.-exp(-energy*1.6); }
 `;
@@ -128,7 +169,7 @@ void main() {
                 float blocked=field(p+towardSource*.16)*.16
                     +field(p+towardSource*.34)*.18;
                 vec3 world=center+rotation*(p*scale);
-                vec3 beam=lightResponse(opticalLight(beamLocal(world))*exp(-blocked*1.7));
+                vec3 beam=lightResponse(opticalLight(beamLocal(world),1.,0.)*exp(-blocked*1.7));
                 lighting+=beam*gleam*3.;
             }
             radiance+=transmittance*alpha*lighting;
@@ -147,6 +188,8 @@ void main() {
 // and the red/blue fringes survive past the cloud edge over the starfield.
 const chromaticFragment = `#version 300 es
 precision highp float;
+precision highp sampler3D;
+uniform sampler3D noiseVolume;
 uniform sampler2D scene;
 uniform vec2 resolution;
 uniform vec2 pointer;
@@ -157,18 +200,51 @@ ${opticalField}
 uniform int layer;
 out vec4 color;
 const float zoom=.2, displacement=.05, chromatic=.01;
-vec3 clearSpaceLight(vec2 uv) {
-    if(gleam<=0.) return vec3(0.);
+// Where the view through uv meets the light's plane, in beam-local units. A
+// miss lands far off in z, where the footprint's own bounds reject it.
+vec3 onLightPlane(vec2 uv, vec3 ro) {
     vec2 screen=uv*2.-1.;
     screen.x*=resolution.x/resolution.y;
-    vec3 ro=beamLocal(vec3(0.,0.,6.));
     vec3 rd=(transpose(beamRotation)*normalize(vec3(screen,-1.8)))/beamScale;
-    if(abs(rd.z)<.00001) return vec3(0.);
-    float t=(.27-ro.z)/rd.z;
-    if(t<=0.) return vec3(0.);
-    // Same plane, same spectral footprint, same exposure curve as in the
-    // cloud. This is its unobscured radiance, not a second outgoing beam.
-    return lightResponse(opticalLight(ro+rd*t))*gleam;
+    float t=abs(rd.z)<.00001 ? -1. : (.27-ro.z)/rd.z;
+    return t>0. ? ro+rd*t : vec3(0.,0.,1000.);
+}
+// split is the sky's own chromatic offset, so the light takes the same red
+// and blue fringing as the clouds around it. A ray this fine needs a wider
+// split than a cloud for it to show, so the released light amplifies it.
+vec3 clearSpaceLight(vec2 uv, vec2 split) {
+    if(gleam<=0.) return vec3(0.);
+    vec3 ro=beamLocal(vec3(0.,0.,6.));
+    vec3 p=onLightPlane(uv,ro), warm=onLightPlane(uv+split,ro), cool=onLightPlane(uv-split,ro);
+    // Until the light is released this is exactly the cloud's footprint seen
+    // through its gaps. Released, it eases into the open-space ray.
+    vec3 held=gleamFree<1. ? lightResponse(vec3(opticalLight(warm,1.,0.).r,
+        opticalLight(p,1.,0.).g,opticalLight(cool,1.,0.).b)) : vec3(0.);
+    if(gleamFree<=0.) return held*gleam;
+    // Scattering angle between the light's heading and the line to the eye,
+    // in world proportions. Haze favours one angle (gleamGlint, chosen so it
+    // falls in open sky), and light heading more toward the viewer shows
+    // brighter than light heading away.
+    vec3 toEye=normalize((ro-p)*beamScale);
+    float facing=dot(normalize(vec3(normalize(spectralRays[3].zw),0.)*beamScale),toEye);
+    float glint=exp(-pow((facing-gleamGlint)/.05,2.));
+    float phase=mix(.8,1.15,smoothstep(-.85,-.2,facing));
+    // Light only shows where something scatters it. Past the cloud that is a
+    // thin haze drifting through its path: it sways the view a touch and
+    // thins and thickens along the flight, so the ray keeps shimmering at
+    // rest and shifts as it travels instead of sliding by as a fixed shape.
+    vec3 drift=vec3(gleamTime*.011,-gleamTime*.007,gleamTime*.009);
+    vec3 h=p*vec3(.17,.3,.17)+drift;
+    vec3 sway=vec3(vec2(texture(noiseVolume,h+.31).r,texture(noiseVolume,h.yzx+.67).r)-.5,0.)*.014;
+    float haze=texture(noiseVolume,h*2.1-drift*2.3).r*.65
+        +texture(noiseVolume,h*4.7+drift*3.1).r*.35;
+    // A gentle exposure keeps the glow translucent: only the core runs hot.
+    warm=onLightPlane(uv+split*2.5,ro);
+    cool=onLightPlane(uv-split*2.5,ro);
+    vec3 energy=vec3(opticalLight(warm+sway,0.,glint).r,
+        opticalLight(p+sway,0.,glint).g,opticalLight(cool+sway,0.,glint).b);
+    vec3 released=1.-exp(-energy*(.7+.6*haze)*phase*1.8);
+    return mix(held,released,gleamFree)*gleam;
 }
 void main() {
     vec2 uv=gl_FragCoord.xy/resolution;
@@ -193,12 +269,13 @@ void main() {
     float reach=1.-smoothstep(cover.z*.3,cover.z*1.4,distance(gl_FragCoord.xy,cover.xy));
     float lift=coverAmount*reach*smoothstep(.15,.7,raw.a);
     if(layer==0 && gleam>0.) {
-        // Resample at exactly the same coordinates as the cloud, including
-        // its chromatic warp. Cloud opacity occludes the clear-space view;
-        // its volume already supplies the scattered view of this light.
-        vec3 beam=vec3(clearSpaceLight(base+split).r*(1.-red.a),
-            clearSpaceLight(base).g*(1.-green.a),
-            clearSpaceLight(base-split).b*(1.-blue.a));
+        // Resample at the same warped coordinate as the cloud. Cloud opacity
+        // occludes the clear-space view per channel; its volume already
+        // supplies the scattered view of this light.
+        vec3 beam=clearSpaceLight(base,split)*(1.-vec3(red.a,green.a,blue.a));
+        // A fixed per-pixel offset breaks 8-bit steps in the dim falloff.
+        float grain=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-.5;
+        beam=max(beam+grain/255.*smoothstep(0.,.004,max(beam.r,max(beam.g,beam.b))),0.);
         sky.rgb+=beam*.85;
         sky.a=max(sky.a,max(beam.r,max(beam.g,beam.b))*.85);
     }
@@ -247,6 +324,41 @@ function cloudPose(pass: CloudPass, desktop: boolean, aspect: number, life: numb
     return {size,depth,worldX,worldY,rotation};
 }
 
+/** Screen x, in CSS pixels, midway between the card stack's resting right edge
+ * and the viewport's. Without a usable margin (no stack, or cards spanning the
+ * width) it falls back to four fifths across. */
+function clearOfCards(cards: HTMLElement | null | undefined, width: number) {
+    const edge=cards ? cards.getBoundingClientRect().right : 0;
+    return edge>0 && edge<width*.97 ? Math.min(edge+(width-edge)*.5,width*.97) : width*.8;
+}
+
+/** Cosine of the scattering angle (light heading against the line to the
+ * camera) at the point where the central ray projects to `across`, a 0..1
+ * fraction of the viewport width. Mirrors the shaders' camera: eye at z=6,
+ * focal length 1.8. */
+function facingWhereRayCrosses(launch: ReturnType<typeof cloudPose>, rays: Float32Array, aspect: number, across: number) {
+    const {rotation: r,size,worldX,worldY,depth}=launch;
+    const toWorld=(x: number,y: number,z: number)=> {
+        const sx=x*size,sy=y*size*.8,sz=z*size*.8;
+        return [r[0]*sx+r[3]*sy+r[6]*sz,r[1]*sx+r[4]*sy+r[7]*sz,r[2]*sx+r[5]*sy+r[8]*sz];
+    };
+    const pointAt=(along: number)=> {
+        const p=toWorld(rays[12]+rays[14]*along,rays[13]+rays[15]*along,.27);
+        return [worldX+p[0],worldY+p[1],6-depth+p[2]];
+    };
+    const screenX=(p: number[])=>(p[0]*1.8/(6-p[2])/aspect+1)/2;
+    // The ray runs left to right on screen, so its crossing can be bisected.
+    let near=0,far=40;
+    for(let i=0;i<24;i++) {
+        const middle=(near+far)/2;
+        if(screenX(pointAt(middle))<across) near=middle; else far=middle;
+    }
+    const point=pointAt(near),heading=toWorld(rays[14],rays[15],0);
+    const toEye=[-point[0],-point[1],6-point[2]];
+    const dot=heading[0]*toEye[0]+heading[1]*toEye[1]+heading[2]*toEye[2];
+    return dot/(Math.hypot(...heading)*Math.hypot(...toEye));
+}
+
 /** Mount an optional atmosphere. Missing WebGL leaves the black starfield intact. */
 export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasElement | null = null): () => void {
     const gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, powerPreference: "low-power" });
@@ -285,7 +397,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const attribute = gl.getAttribLocation(program, "position");
     gl.enableVertexAttribArray(attribute);
     gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
-    const opticalUniformNames=["gleam","gleamProgress","gleamHead","gleamOffset","beamCenter","beamScale","beamRotation","spectralRays[0]"];
+    const opticalUniformNames=["gleam","gleamProgress","gleamHead","gleamOffset","gleamTail","gleamStretch","gleamFree","gleamTime","gleamPixel","gleamGlint","beamCenter","beamScale","beamRotation","spectralRays[0]"];
     const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps",...opticalUniformNames].map(n => [n,gl.getUniformLocation(program,n)]));
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_3D, texture);
@@ -316,6 +428,8 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer",...opticalUniformNames].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
     gl.useProgram(chromaticProgram);
     gl.uniform1i(chromaticUniforms.scene,1);
+    // The clear-space haze reads the clouds' noise volume, already on unit 0.
+    gl.uniform1i(gl.getUniformLocation(chromaticProgram,"noiseVolume"),0);
     gl.useProgram(program);
     // A faint split always drifts around the sky; mouse movement and scroll
     // speed each add a little more, and both ease back to the ambient level.
@@ -362,6 +476,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     };
     let previousScroll=-1;
     const journey=document.querySelector<HTMLElement>("#journey");
+    const journeyCards=journey?.querySelector<HTMLElement>(".stack-area");
     let opticalProgress=0;
     const render = (now: number) => {
         if(disposed) return;
@@ -444,12 +559,23 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const carrier=ambientPasses(launchScroll).sort((a,b)=>a.distance-b.distance)[0];
         const launch=carrier && cloudPose(carrier,desktop.matches,width/height,0);
         const beamPaths=carrier ? spectralPaths(carrier.progress) : new Float32Array(28);
+        // The glare needs open sky: aim the haze's bright scattering angle at
+        // the point where the ray clears the card stack, whatever the layout.
+        const glintFacing=launch ? facingWhereRayCrosses(launch,beamPaths,width/height,
+            clearOfCards(journeyCards,width)/width) : 0;
         const uploadLight=(locations: Record<string,WebGLUniformLocation|null>)=> {
             gl.uniform1f(locations.gleam,opticalActive && launch ? 1 : 0);
             if(!launch) return;
             gl.uniform1f(locations.gleamProgress,flight.growth);
             gl.uniform1f(locations.gleamHead,flight.head);
             gl.uniform1f(locations.gleamOffset,flight.offset);
+            gl.uniform1f(locations.gleamTail,flight.tail);
+            gl.uniform1f(locations.gleamStretch,flight.stretch);
+            gl.uniform1f(locations.gleamFree,flight.free);
+            gl.uniform1f(locations.gleamTime,chroma.time);
+            // Cloud-local size of one sky pixel at the launch depth.
+            gl.uniform1f(locations.gleamPixel,launch.depth/(.9*canvas.height)/launch.size);
+            gl.uniform1f(locations.gleamGlint,glintFacing);
             gl.uniform3f(locations.beamCenter,launch.worldX,launch.worldY,6-launch.depth);
             gl.uniform3f(locations.beamScale,launch.size,launch.size*.8,launch.size*.8);
             gl.uniformMatrix3fv(locations.beamRotation,false,launch.rotation);

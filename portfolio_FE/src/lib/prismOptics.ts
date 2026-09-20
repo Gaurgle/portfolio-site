@@ -4,16 +4,32 @@
  * This is geometric optics, not a wave-optics or full caustic simulation. */
 type V = [number, number];
 
+/** Fully formed length of the gleam, in cloud-local units. */
+const FORMED_LENGTH = 1.35;
+/** The tail leaves at this fraction of the head's speed, so the light draws
+ * out into a lengthening trail instead of travelling as a rigid segment. */
+const TAIL_PACE = .48;
+
 /** One unbounded clock for the whole flight, in cloud-local units. The head
- * advances 1.47 units over the original .66 scroll-progress interval. Once
- * formed, the complete spectral footprint translates at that same speed. */
+ * advances 1.47 units over the original .66 scroll-progress interval and
+ * keeps that speed for good. Inside the cloud the formed packet translates
+ * rigidly by `offset`. In open space the same head trails a lengthening ray:
+ * `tail` leaves slower, `stretch` maps that ray back onto the formed
+ * footprint, and `free` eases the open-space look in while the head is still
+ * inside the cloud. Every value is continuous at the moment of formation. */
 export function gleamFlight(progress: number) {
     const distance = Math.max(0, progress - .04) * (1.47 / .66);
     const head = -.12 + distance;
+    const offset = Math.max(0, head - FORMED_LENGTH);
+    const tail = offset * TAIL_PACE;
+    const release = Math.min(1, offset / .2);
     return {
-        head: Math.min(head, 1.35),
-        offset: Math.max(0, head - 1.35),
+        head: Math.min(head, FORMED_LENGTH),
+        offset,
         growth: Math.min(1, distance / 1.47),
+        tail,
+        stretch: FORMED_LENGTH / (FORMED_LENGTH + offset - tail),
+        free: release * release * (3 - 2 * release),
     };
 }
 const add = (a: V, b: V): V => [a[0] + b[0], a[1] + b[1]];

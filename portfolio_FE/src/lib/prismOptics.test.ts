@@ -22,6 +22,44 @@ test("the formed prism packet translates intact, without a new growth or fade ph
     assert.ok(gleamFlight(2).offset>gleamFlight(1).offset);
 });
 
+test("the light forming inside the cloud is never reshaped by the open-space trail", () => {
+    for(const p of [0,.04,.2,.5,.69,.7]) {
+        const f=gleamFlight(p);
+        assert.equal(f.tail,0);
+        assert.equal(f.stretch,1);
+        assert.equal(f.free,0);
+    }
+});
+
+test("released, the tail falls behind at a steady pace so the ray only lengthens", () => {
+    const length=(p: number)=> { const f=gleamFlight(p); return f.head+f.offset-f.tail; };
+    const headSpeed=1.47/.66;
+    let previous=length(.7);
+    for(const p of [.71,.9,1.2,2,5,12]) {
+        const f=gleamFlight(p);
+        const tailSpeed=(gleamFlight(p+.0001).tail-f.tail)/.0001;
+        assert.ok(tailSpeed>0 && tailSpeed<headSpeed*.5, `tail pace at ${p}`);
+        assert.ok(Math.abs(tailSpeed-(gleamFlight(.8001).tail-gleamFlight(.8).tail)/.0001)<1e-6);
+        assert.ok(length(p)>previous, `ray shortened at ${p}`);
+        previous=length(p);
+        // stretch maps the drawn-out ray back onto the formed footprint.
+        assert.ok(Math.abs(length(p)*f.stretch-1.35)<1e-10);
+    }
+});
+
+test("release eases in without a step and completes before the head clears the cloud", () => {
+    const before=gleamFlight(.7), after=gleamFlight(.7001);
+    assert.ok(after.free<1e-4 && after.tail<1e-3 && Math.abs(after.stretch-before.stretch)<1e-3);
+    let previous=0;
+    for(let p=.7;p<=1.2;p+=.005) {
+        const free=gleamFlight(p).free;
+        // Smoothstep peaks at 1.5x its mean slope: .084 per sample here.
+        assert.ok(free>=previous && free<=1 && free-previous<.1, `release jumped at ${p}`);
+        previous=free;
+    }
+    assert.equal(gleamFlight(.8).free,1);
+});
+
 test("flight is reversible, reload-safe and independent of captured exit state", () => {
     const expected=gleamFlight(.5);
     for(const p of [8,1,.1,3,0]) gleamFlight(p);
