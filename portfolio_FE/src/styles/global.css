@@ -82,6 +82,14 @@
     font-display: swap;
 }
 
+/* One size for running prose wherever the page tells its story (about
+   passages, journey stops, featured descriptions), so the chapters read as
+   one voice. Labels, lists and tags keep their own smaller sizes. */
+:root {
+    --copy-size: clamp(1.0625rem, 1.55vw, 1.4rem);
+    --copy-leading: 1.6;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -95,6 +103,25 @@ html, body {
     height: auto;
     overflow-x: clip;
     @apply bg-black text-white min-h-screen;
+}
+
+/* Loading screen: ROOS alone on black (BaseLayout sets is-loading before
+   first paint on home, index.astro lifts it once the sky is compiled). The
+   rest of the world is only hidden, so it fades in around the logo when the
+   class comes off; is-revealing carries the transition for that one moment
+   and is removed again, leaving these elements' own transitions alone. */
+html.is-loading {
+    overflow: hidden;
+}
+html.is-loading :is(body > header, #sidebar, #dock-prompt, #scroll-progress, #bottom-hue,
+    .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
+    #sidebar-toggle) {
+    opacity: 0 !important;
+}
+html.is-revealing :is(body > header, #sidebar, #dock-prompt, #scroll-progress,
+    .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
+    #sidebar-toggle) {
+    transition: opacity 1.4s ease;
 }
 
 /* Prevent iOS auto-zoom on input focus (triggers below 16px) */
@@ -195,12 +222,27 @@ html, body {
     transform: translateY(0);
 }
 
-/* About story cards: a flat, near-opaque panel in the same language as
-   the journey and terminal cards, so prose stays legible while clouds
-   pass cleanly behind a crisp edge (no backdrop blur, no gradient). */
-.story-card {
-    background: rgb(8 8 11 / 0.9);
-    border: 1px solid rgb(63 63 70); /* zinc-700 */
+/* About passages: loose text in the sky, no panel. The clouds' lens pass
+   clears the sky behind it (data-lens); the halo covers what is left. */
+.signal-copy {
+    font-size: var(--copy-size);
+    line-height: var(--copy-leading);
+    color: rgb(244 244 245); /* zinc-100 */
+    text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 16px rgb(0 0 0 / 0.85);
+}
+/* Words arrive the way the prism's light does: split into a red and a blue
+   copy far apart, converging into one white word. Two shadows on both ends
+   so the split eases into the halo instead of switching. */
+.signal .wr-w {
+    text-shadow: -0.4em 0 0 rgb(255 70 90 / 0.85), 0.4em 0 0 rgb(70 190 255 / 0.85);
+    transition:
+        opacity 0.5s ease,
+        transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+        text-shadow 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: calc(var(--wi, 0) * 16ms);
+}
+.signal[data-reveal].is-visible .wr-w {
+    text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 16px rgb(0 0 0 / 0.85);
 }
 
 /* Desktop sidebar: the blur that keeps nav text legible over clouds fades
@@ -227,56 +269,24 @@ html, body {
     @apply border border-zinc-700 rounded-md overflow-hidden bg-black/70;
 }
 
-/* Journey and project cards share the About panels' dark, nearly opaque
-   surface. Color is reserved for content accents rather than window chrome. */
+/* Featured projects have no surface either: a screenshot and its copy,
+   loose in the sky. The storm cloud passes behind them untouched; the copy
+   holds against it with its own heavy shadow. */
 .edit-card {
     position: relative;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    background: rgb(8 8 11 / 0.9);
-    border: 1px solid rgb(63 63 70); /* zinc-700 */
-    border-radius: 0.75rem;
 }
-/* An incoming card keeps the atmospheric surface until its motion is nearly
-   complete. A small compositor layer then fills the remaining transparency
-   before it lands, preventing the previous card's copy from showing through. */
-[data-stack-card]:not(:first-child) > .edit-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background: rgb(8 8 11);
-    opacity: 0;
-    transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: opacity;
-}
-[data-stack-card] > .edit-card > * {
-    position: relative;
-    z-index: 1;
-}
-[data-stack-card].is-settled > .edit-card::before {
-    opacity: 1;
-}
-/* Cards beneath the top of a pile blur slightly as the next card lands on
-   them, so their exposed edges read as depth instead of competing copy.
-   --covered (0..1) follows the landing scrub in smoothScroll.ts. The frame
-   and border stay crisp; overflow: hidden clips the blur at the card edge.
-   Desktop only: phone decks leave a 10px edge, not worth the repaint. */
-@media (min-width: 1024px) {
-    html:not(.reduced-motion) [data-stack-card].is-covered > .edit-card > * {
-        filter: blur(calc(var(--covered, 0) * 2px));
-    }
-}
-/* Media band: whole screenshot visible (contain), on a quiet dark field */
+/* Media band: whole screenshot visible (contain). A hairline keeps a dark
+   screenshot from dissolving into the black around it. */
 .edit-media {
     flex: none;
     height: 46%;
-    overflow: hidden;
-    padding: 0.75rem;
-    background: rgb(24 24 27 / 0.3);
-    border-bottom: 1px solid rgb(63 63 70);
+    padding: 0 1.5rem;
+}
+.edit-media img {
+    object-position: left center;
+    filter: drop-shadow(0 0 1px rgb(255 255 255 / 0.35));
 }
 /* Long descriptions truncate deliberately instead of clipping mid-line
    wherever the body runs out (content length varies per project) */
@@ -286,14 +296,12 @@ html, body {
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-.featured-card .edit-media {
-    border-color: rgba(var(--fc), 0.4);
-}
 .edit-body {
     flex: 1;
     min-height: 0;
     padding: 1.5rem;
     overflow: hidden;
+    text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 16px rgb(0 0 0 / 0.85);
 }
 /* Small mono uppercase info columns under the title */
 .edit-cols {
@@ -328,25 +336,26 @@ html, body {
     transform-origin: top center;
 }
 
-/* ASCII glow — catppuccin accent tints */
+/* ROOS is the light source. The rays come from WebGL (lightBurst.ts); this
+   is only the glyphs' own incandescence, with a hair of the sky's red and
+   blue fringe so the letters belong to the same optics as the clouds. */
 .ascii-glow {
     /* Kept light on purpose: large-radius stacked text-shadows are a very
        expensive paint and were re-running on every navigation to home. */
     text-shadow:
-        0 0 8px rgba(203, 166, 247, 0.6),
-        0 0 22px rgba(245, 194, 231, 0.35),
-        0 0 45px rgba(137, 180, 250, 0.2);
+        -1px 0 0 rgba(255, 70, 90, 0.4),
+        1px 0 0 rgba(70, 190, 255, 0.4),
+        0 0 14px rgba(255, 255, 255, 0.45);
     cursor: default;
 }
-
 /* Subtle glow pulse for banner logo */
 @keyframes terminal-glow {
     0%, 100% {
-        text-shadow: 0 0 5px rgba(203,166,247,0.12);
+        text-shadow: 0 0 5px rgba(157,140,255,0.12);
         opacity: 0.75;
     }
     50% {
-        text-shadow: 0 0 12px rgba(203,166,247,0.25), 0 0 25px rgba(245,194,231,0.12);
+        text-shadow: 0 0 12px rgba(157,140,255,0.25), 0 0 25px rgba(255,107,139,0.12);
         opacity: 1;
     }
 }
@@ -359,17 +368,17 @@ html, body {
 @keyframes pixel-roos-pulse {
     0%, 100% {
         opacity: 0.55;
-        filter: drop-shadow(0 0 1px rgba(148, 226, 213, 0.1));
+        filter: drop-shadow(0 0 1px rgba(63, 232, 210, 0.1));
     }
     50% {
         opacity: 1;
-        filter: drop-shadow(0 0 4px rgba(148, 226, 213, 0.35)) drop-shadow(0 0 10px rgba(203, 166, 247, 0.12));
+        filter: drop-shadow(0 0 4px rgba(63, 232, 210, 0.35)) drop-shadow(0 0 10px rgba(157, 140, 255, 0.12));
     }
 }
 
 .pixel-roos-glow {
     opacity: 1;
-    filter: drop-shadow(0 0 3px rgba(148, 226, 213, 0.25)) drop-shadow(0 0 8px rgba(203, 166, 247, 0.1));
+    filter: drop-shadow(0 0 3px rgba(63, 232, 210, 0.25)) drop-shadow(0 0 8px rgba(157, 140, 255, 0.1));
 }
 
 /* Eagle border beam — sharp 1px line under eagle */
@@ -539,7 +548,7 @@ html.lenis, html.lenis body { height: auto; }
     height: 2px;
     transform-origin: 0 50%;
     transform: scaleX(0);
-    background: linear-gradient(90deg, #a6e3a1, #89b4fa, #cba6f7, #fab387);
+    background: linear-gradient(90deg, #8dffb0, #46beff, #9d8cff, #ffb84d);
     z-index: 60;
     pointer-events: none;
 }
@@ -623,27 +632,27 @@ html.lenis, html.lenis body { height: auto; }
         opacity: 0.75;
         filter: blur(2px);
         scale: 0.96;
-        text-shadow: -4px 0 1px rgb(137 180 250 / 0.8), 4px 0 1px rgb(243 139 168 / 0.7);
+        text-shadow: -4px 0 1px rgb(70 190 255 / 0.8), 4px 0 1px rgb(255 70 90 / 0.7);
     }
     21% { opacity: 0.3; }
     24% {
         opacity: 0.7;
         filter: blur(2.5px);
         scale: 0.95;
-        text-shadow: 5px 0 2px rgb(137 180 250 / 0.8), -5px 0 2px rgb(243 139 168 / 0.7);
+        text-shadow: 5px 0 2px rgb(70 190 255 / 0.8), -5px 0 2px rgb(255 70 90 / 0.7);
     }
     28% { opacity: 0.25; }
     31% {
         opacity: 0.5;
         filter: blur(3.5px);
         scale: 0.93;
-        text-shadow: -6px 0 2px rgb(137 180 250 / 0.7), 6px 0 2px rgb(243 139 168 / 0.6);
+        text-shadow: -6px 0 2px rgb(70 190 255 / 0.7), 6px 0 2px rgb(255 70 90 / 0.6);
     }
     40%, 100% {
         opacity: 0;
         filter: blur(9px);
         scale: 0.88;
-        text-shadow: -10px 0 8px rgb(137 180 250 / 0), 10px 0 8px rgb(243 139 168 / 0);
+        text-shadow: -10px 0 8px rgb(70 190 255 / 0), 10px 0 8px rgb(255 70 90 / 0);
     }
 }
 /* Mobile: smaller inflation (smaller composited textures) and no heavy
@@ -653,7 +662,7 @@ html.lenis, html.lenis body { height: auto; }
         transform: scale(calc(1 + var(--scrub, 0) * 1.9)) translateY(calc(var(--scrub, 0) * -20px));
     }
     .hero-boom .ascii-glow {
-        text-shadow: 0 0 8px rgba(203, 166, 247, 0.5);
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
     }
 }
 
@@ -677,6 +686,12 @@ html.lenis, html.lenis body { height: auto; }
    Grain: a noise mask unioned with a flat layer whose alpha is 1 - grain.
    At rest the flat layer hides the noise entirely; the registered
    --cm-grain eases up on hover, so the speckle fades in with the split. */
+/* Featured titles: how far the pointer has opened their prism split. */
+@property --touch {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+}
 @property --cm-grain {
     syntax: "<number>";
     inherits: true;
@@ -721,7 +736,7 @@ html.lenis, html.lenis body { height: auto; }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
     [data-hscroll-arrow] svg {
         filter:
-            drop-shadow(0 0 40px rgb(137 180 250 / 0.5))
+            drop-shadow(0 0 40px rgb(70 190 255 / 0.5))
             drop-shadow(calc(var(--sky-split-x, 0.1) * 16px) calc(var(--sky-split-y, 0.1) * 16px) 0 rgb(255 70 90 / 0.55))
             drop-shadow(calc(var(--sky-split-x, 0.1) * -16px) calc(var(--sky-split-y, 0.1) * -16px) 0 rgb(70 190 255 / 0.55));
     }
@@ -854,23 +869,146 @@ html.lenis, html.lenis body { height: auto; }
            clears the fixed banner */
         padding-top: 10vh;
     }
-    /* The pile area: cards land on it with a cascade, then the whole
-       area exits left as one object (engine drives both transforms).
-       Cascade math mirrors offX/offY in measureShowcases (24/28px). */
+    /* The stage: one project at a time, at the scale of the screen. The
+       engine slides each card through (strip mode) and then the whole
+       track out left; --enter (0..1) is the card's arrival. */
     .hscroll-pin [data-hscroll-track] {
         position: relative;
         padding: 0;
-        width: calc(min(54rem, 64vw) + var(--deck-n, 3) * 24px);
-        height: calc(min(36rem, 72vh) + var(--deck-n, 3) * 28px);
+        width: min(112rem, 80vw);
+        height: min(56rem, 74vh);
         will-change: transform;
     }
     .hscroll-pin .featured-card {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: min(54rem, 64vw);
-        height: min(36rem, 72vh);
+        inset: 0;
         will-change: transform;
+    }
+    /* A large screenshot with the copy set against its right edge and the
+       title cutting across it. The two halves arrive at different rates
+       (the copy trails, the screenshot settles from slightly oversize), so
+       the project has depth instead of sliding in as one flat panel. */
+    .hscroll-pin .featured-card .edit-card {
+        flex-direction: row;
+        align-items: center;
+        height: 100%;
+    }
+    .hscroll-pin .featured-card .edit-media {
+        flex: 0 0 64%;
+        height: 100%;
+        padding: 0;
+        transform:
+            translate3d(calc((1 - var(--enter, 1)) * -10%), 0, 0)
+            scale(calc(1.07 - var(--enter, 1) * 0.07));
+        will-change: transform;
+    }
+    .hscroll-pin .featured-card .edit-body {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: visible;
+        padding: 0 0 0 2.5rem;
+        transform: translate3d(calc((1 - var(--enter, 1)) * 40%), 0, 0);
+        will-change: transform;
+        /* Deeper than the shared halo: this copy crosses a bright
+           screenshot edge and the storm cloud behind it. */
+        text-shadow:
+            0 0 3px rgb(0 0 0),
+            0 1px 10px rgb(0 0 0 / 0.95),
+            0 4px 34px rgb(0 0 0 / 0.9);
+    }
+    .hscroll-pin .featured-card h3 {
+        /* Padding the box out (and pulling it back with the margins) keeps
+           the fringe and the halo inside the grain mask below. */
+        padding: 2.5rem;
+        margin: -2.5rem -2.5rem -0.5rem calc(-32% - 2.5rem);
+        font-size: clamp(2.75rem, 4.6vw, 6.5rem);
+        font-weight: 800;
+        line-height: 0.94;
+        letter-spacing: -0.035em;
+        /* A distorted prism, like the clouds: the title's light disperses
+           into a soft smear of the spectrum, violet and blue to one side,
+           amber and red to the other. No movement of the letters at all.
+           Motion opens it (--drift, arriving or leaving); so does the
+           pointer, a little (--touch), along its direction from the title's
+           centre (--tx/--ty, FeaturedShowcase.astro), easing in and out on
+           the chapter marks' long curve so it never switches. At rest every
+           copy sits exactly under the glyphs and nothing shows. */
+        --split: max(var(--drift, 0), var(--touch) * 0.35);
+        --sx: calc(var(--tx, 1) * var(--split));
+        --sy: calc(var(--ty, 0) * var(--split));
+        text-shadow:
+            calc(var(--sx) * -24px) calc(var(--sy) * -24px) calc(var(--split) * 12px) rgb(var(--prism-far-a, 157 140 255) / 0.5),
+            calc(var(--sx) * -12px) calc(var(--sy) * -12px) calc(var(--split) * 6px) rgb(var(--prism-near-a, 70 190 255) / 0.7),
+            calc(var(--sx) * 12px) calc(var(--sy) * 12px) calc(var(--split) * 6px) rgb(var(--prism-near-b, 255 184 77) / 0.6),
+            calc(var(--sx) * 24px) calc(var(--sy) * 24px) calc(var(--split) * 12px) rgb(var(--prism-far-b, 255 70 90) / 0.55),
+            0 0 6px rgb(0 0 0),
+            0 4px 40px rgb(0 0 0 / 0.95);
+        transition: --touch 1.1s cubic-bezier(0.37, 0, 0.2, 1);
+        /* Texture: the chapter marks' grain. A noise mask unioned with a
+           flat layer whose alpha is 1 - grain, so the speckle arrives with
+           the split and is absent at rest. */
+        --grain: calc(var(--split) * 0.55);
+        --grain-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.2 0 0 0 -.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        --grain-flat: linear-gradient(rgb(0 0 0 / calc(1 - var(--grain))), rgb(0 0 0 / calc(1 - var(--grain))));
+        -webkit-mask-image: var(--grain-noise), var(--grain-flat);
+        mask-image: var(--grain-noise), var(--grain-flat);
+        -webkit-mask-size: 180px 180px, 100% 100%;
+        mask-size: 180px 180px, 100% 100%;
+        -webkit-mask-composite: source-over;
+        mask-composite: add;
+    }
+    /* Each project disperses differently: a prism turned to another angle
+       throws another part of the spectrum to either side. */
+    .hscroll-pin .featured-card:nth-child(4n + 2) h3 {
+        --prism-far-a: 63 232 210;
+        --prism-near-a: 141 255 176;
+        --prism-near-b: 255 107 139;
+        --prism-far-b: 157 140 255;
+    }
+    .hscroll-pin .featured-card:nth-child(4n + 3) h3 {
+        --prism-far-a: 255 70 90;
+        --prism-near-a: 255 184 77;
+        --prism-near-b: 63 232 210;
+        --prism-far-b: 70 190 255;
+    }
+    .hscroll-pin .featured-card:nth-child(4n + 4) h3 {
+        --prism-far-a: 255 224 102;
+        --prism-near-a: 141 255 176;
+        --prism-near-b: 157 140 255;
+        --prism-far-b: 255 107 139;
+    }
+    html:not(.reduced-motion) .hscroll-pin .featured-card h3:is(:hover, :active) {
+        --touch: 1;
+    }
+    /* One frame for every screenshot, whatever its own shape: same size,
+       same place, cropped from the top (the lightbox shows it whole). */
+    .hscroll-pin .featured-card .edit-media {
+        display: flex;
+        align-items: center;
+    }
+    .hscroll-pin .featured-card .edit-media img {
+        width: 100%;
+        height: auto;
+        max-height: 100%;
+        aspect-ratio: 3 / 2;
+        object-fit: cover;
+        object-position: top center;
+    }
+    .hscroll-pin .featured-card .edit-cols {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        font-size: clamp(0.95rem, 1.05vw, 1.2rem);
+    }
+    .hscroll-pin .featured-card .edit-desc {
+        font-size: var(--copy-size);
+        line-height: var(--copy-leading);
+        color: rgb(228 228 231); /* zinc-200 */
+    }
+    .hscroll-pin .featured-card .project-stack {
+        font-size: clamp(0.75rem, 0.8vw, 0.9rem);
     }
 }
 
@@ -1007,74 +1145,143 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
-/* Card-stack journey: pinned coaster pile on md+. Cards land on each other
-   with a cascade offset so every card's terminal bar stays visible. */
+/* Journey flight: a pinned stage whose milestones are separated in depth,
+   not piled. smoothScroll.ts writes --f on each one: -1 far ahead, 0 in
+   focus, 1 passed the camera. The approach is a slow rise out of the dark;
+   the exit is ROOS's own (inflate, soften, gone), so the whole page shares
+   one way of moving past things. Nothing here has a surface: the sky is
+   cleared behind the text by the clouds' lens pass (data-lens). */
 .journey-stack {
     position: relative;
 }
+.journey-stack .journey-viewport {
+    position: sticky;
+    top: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.journey-stack .stack-area {
+    position: relative;
+}
+.beam-stop {
+    --ahead: min(0, var(--f, -1));
+    --passed: max(0, var(--f, -1));
+    /* Squared: the exit gathers speed instead of starting at full rate, so
+       the copy stays readable until it is clearly on its way out. */
+    --exit: calc(var(--passed) * var(--passed));
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    opacity: calc(1 + var(--ahead) * 1.2 - var(--passed) * 1.5);
+    /* Grows from its left edge, away from the chapter mark beside it. */
+    transform:
+        translate3d(0, calc(var(--ahead) * -7%), 0)
+        scale(calc(1 + var(--ahead) * 0.5 + var(--exit) * 2.6));
+    transform-origin: 0 50%;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+.beam-stop.is-active {
+    pointer-events: auto;
+}
+/* Passage heads (about passages, journey stops) borrow the chapter marks'
+   accent voice: the italic serif of "Audio" and "stack trace", in the mark's
+   own colour. One face doing one job, instead of a separate label style. */
+.passage-head {
+    margin-bottom: 0.6rem;
+    font-family: Georgia, "Times New Roman", serif;
+    font-style: italic;
+    font-size: clamp(1.25rem, 1.9vw, 1.7rem);
+    line-height: 1.1;
+    text-shadow: 0 0 14px rgb(0 0 0 / 0.9);
+}
+.passage-head::first-letter {
+    text-transform: uppercase;
+}
+.beam-title {
+    margin-bottom: 1.5rem;
+    font-size: clamp(2rem, 4.6vw, 4.25rem);
+    font-weight: 800;
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    color: #fff;
+    text-shadow: 0 0 18px rgb(0 0 0 / 0.9);
+}
+.beam-copy {
+    display: grid;
+    gap: 0.9rem;
+    font-size: var(--copy-size);
+    line-height: var(--copy-leading);
+    color: rgb(228 228 231); /* zinc-200 */
+    text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 16px rgb(0 0 0 / 0.85);
+}
+/* Contents of the journey, set under the chapter mark like a book's: the
+   five stops in plain type, the current one lit. Desktop only; the phone
+   stage has no room beside the mark. */
+.stop-contents {
+    display: none;
+    margin-top: 2.25rem;
+    font-size: 0.95rem;
+    line-height: 1.9;
+    color: rgb(113 113 122); /* zinc-500 */
+}
+.stop-contents li {
+    transition: color 0.4s ease, text-shadow 0.4s ease;
+    text-shadow: 0 0 10px rgb(0 0 0 / 0.8);
+}
+/* A bright cloud is behind this entry (clouds.ts reads the sky): dark ink,
+   with a light halo where the cloud's own shadows would swallow it. */
+.stop-contents li.on-cloud {
+    color: rgb(39 39 42 / 0.8); /* zinc-800 */
+    text-shadow: 0 0 10px rgb(255 255 255 / 0.6);
+}
+.stop-contents li.on-cloud.is-current {
+    color: #000;
+}
+.stop-contents li::first-letter {
+    text-transform: uppercase;
+}
+.stop-contents .is-current {
+    color: #fff;
+}
 @media (min-width: 1024px) {
     .journey-stack .journey-viewport {
-        position: sticky;
-        top: 0;
         height: 100vh;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         /* Clear the fixed sidebar: without this the centered composition
            slides under the nav (the numeral over the links, the headline's
            first letters swallowed by the backdrop blur) */
         padding-left: 9.5rem;
     }
-    /* Mark + pile are sized against the column right of the sidebar
+    /* Mark + stage are sized against the column right of the sidebar
        (100vw - 9.5rem), not the full viewport, so the pinned row fits
        from 1024px up without hiding under the nav */
     .journey-stack .chapter-mark {
-        width: min(26rem, calc((100vw - 9.5rem) * 0.32));
+        width: min(24rem, calc((100vw - 9.5rem) * 0.28));
     }
     .journey-stack .stack-area {
-        position: relative;
-        /* Card size + cascade offsets; count comes from the milestone list. */
-        width: calc(min(38rem, (100vw - 9.5rem) * 0.45) + var(--journey-edges, 3) * 26px);
-        height: calc(min(28rem, 58vh) + var(--journey-edges, 3) * 48px);
+        width: min(42rem, calc((100vw - 9.5rem) * 0.46));
+        height: min(34rem, 70vh);
     }
-    .journey-stack [data-stack-card] {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: min(38rem, calc((100vw - 9.5rem) * 0.45));
-        height: min(30rem, 64vh);
-        will-change: transform;
+    /* Out of focus is out of focus: the blur is the depth of field. Desktop
+       only, like the ROOS blur, to spare phone GPUs. */
+    html:not(.reduced-motion) .beam-stop {
+        filter: blur(calc((var(--exit) * 18 - var(--ahead) * 7) * 1px));
+        will-change: transform, opacity, filter;
     }
-    .journey-stack [data-stack-card] .edit-card {
-        height: 100%;
-        /* Offset shadow with a touch of blur: sharp but not cut-out */
-        box-shadow: -10px 10px 18px rgba(0, 0, 0, 0.4);
-    }
-    /* Keep a card's copy clear of the strips the pile leaves exposed (the
-       26px/48px cascade, data-off-x/y): with the default 1.5rem padding the
-       title and paragraphs started 1px inside them and peeked out from under
-       the card above. Only the small label is meant to show in the top strip. */
-    .journey-stack .edit-body {
-        padding: 1.75rem calc(26px + 0.5rem) 1.5rem;
+    .stop-contents {
+        display: block;
     }
 }
-/* Mobile: same pinned pile, but as a vertical deck - cards rise from below
-   (smoothScroll.ts drives the transforms) and land nearly flush, each one
-   leaving a 10px edge of the card underneath. */
+/* Mobile: the same flight on a narrower stage under the compact mark. */
 @media (max-width: 1023px) {
     .journey-stack .journey-viewport {
-        position: sticky;
-        top: 0;
         /* svh: stable under the collapsing mobile URL bar */
         height: 100svh;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    /* Match the available screen, reserving space for the fixed header. */
-    .journey-stack .journey-viewport {
+        /* Match the available screen, reserving space for the fixed header. */
         padding-top: 5rem;
         padding-bottom: 1rem;
     }
@@ -1086,31 +1293,48 @@ html.lenis, html.lenis body { height: auto; }
         justify-content: center;
     }
     .journey-stack .stack-area {
-        position: relative;
         width: 100%;
-        height: calc(clamp(21rem, calc(100svh - 16rem), 24rem) + var(--journey-edges, 3) * 10px);
+        height: clamp(22rem, calc(100svh - 15rem), 30rem);
         flex-shrink: 0;
         min-height: 0;
     }
-    .journey-stack [data-stack-card] {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: calc(100% - var(--journey-edges, 3) * 10px);
-        will-change: transform;
+    .beam-copy {
+        font-size: 0.9375rem;
+        line-height: 1.55;
     }
-    .journey-stack [data-stack-card] .edit-card {
-        height: 100%;
-        /* Top edge with a touch of blur: sharp but not cut-out */
-        box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.4);
+}
+/* Phones run the featured projects through the same flight (the desktop
+   strip needs the width): one project in focus, the rest out of sight. */
+@media (max-width: 1023px) {
+    .hscroll-pin .featured-card {
+        --ahead: min(0, var(--f, -1));
+        --passed: max(0, var(--f, -1));
+        opacity: calc(1 + var(--ahead) * 1.2 - var(--passed) * 1.5);
+        transform:
+            translate3d(0, calc(var(--ahead) * -7%), 0)
+            scale(calc(1 + var(--ahead) * 0.35 + var(--passed) * var(--passed) * 1.4));
+        pointer-events: none;
     }
+    .hscroll-pin .featured-card.is-active {
+        pointer-events: auto;
+    }
+    html.reduced-motion .hscroll-pin .featured-card {
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
+    }
+}
+/* Reduced motion lays the milestones out in flow (layoutStatic): all of
+   them present, none in flight. */
+html.reduced-motion .beam-stop {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
 }
 
 /* Mobile decks stay fixed while the page scrolls. Only transforms change;
    on unusually short screens the card body itself remains reachable. */
 @media (max-width: 1023px) {
-    .journey-stack .edit-body,
     .hscroll-pin .featured-card .edit-body {
         overflow-y: auto;
     }
@@ -1142,6 +1366,17 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
+/* The listing under the featured strip breaks out of the section's 72rem
+   column on wide screens, centred on it, never wider than the space right
+   of the sidebar allows on both sides. Below that it is the column. */
+@media (min-width: 1024px) {
+    .more-projects-stage {
+        --stage: max(100%, min(116rem, calc(100vw - 24rem)));
+        width: var(--stage);
+        margin-left: calc(50% - var(--stage) / 2);
+    }
+}
+
 /* Docked preview viewer: quick crossfade when the shown project changes */
 .animate-fade-in-fast {
     animation: fade-in-fast 0.3s ease;
@@ -1155,7 +1390,7 @@ html.lenis, html.lenis body { height: auto; }
 .ls-row:hover .ls-name,
 .ls-row:focus-visible .ls-name,
 .ls-row-active .ls-name {
-    color: var(--rc, #89b4fa);
+    color: var(--rc, #46beff);
 }
 
 /* Mobile projects carousel: native horizontal scroll-snap. The scrollbar
@@ -1171,7 +1406,7 @@ html.lenis, html.lenis body { height: auto; }
     transform-origin: 0 50%;
     transform: scaleX(0);
     /* Same gradient as the page's top scroll bar */
-    background: linear-gradient(90deg, #a6e3a1, #89b4fa, #cba6f7, #fab387);
+    background: linear-gradient(90deg, #8dffb0, #46beff, #9d8cff, #ffb84d);
 }
 
 /* Velocity marquee */
@@ -1196,7 +1431,7 @@ html.lenis, html.lenis body { height: auto; }
 @property --hue-color {
     syntax: "<color>";
     inherits: false;
-    initial-value: #1e1e2e;
+    initial-value: #07080d;
 }
 #bottom-hue {
     position: fixed;

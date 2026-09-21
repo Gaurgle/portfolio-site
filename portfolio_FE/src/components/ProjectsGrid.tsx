@@ -18,16 +18,21 @@ const firstImage = (p: Project) =>
     (Array.isArray(p.image) ? p.image[0] : p.image) || null;
 
 /** Catppuccin accent per row, cycled. */
-const ACCENTS = ["#a6e3a1", "#89b4fa", "#cba6f7", "#fab387", "#94e2d5", "#f5c2e7"];
+const ACCENTS = ["#8dffb0", "#46beff", "#9d8cff", "#ffb84d", "#3fe8d2", "#ff6b8b"];
 
 /** The rest of the projects (flagships live in the FeaturedShowcase above).
  *  Desktop: a terminal directory listing - monospace rows, a floating
  *  screenshot preview that trails the cursor, and tech filter chips that
  *  read as a grep pipe. Mobile: the native swipe carousel. */
+/** The project that leads the listing, and so opens in the viewer. */
+const LEAD = "pinz";
+
 export default function ProjectsGrid() {
     const rest = projects
         .filter((p) => !("featured" in p) || !p.featured)
-        .sort((a, b) => presentability(a) - presentability(b));
+        .sort((a, b) =>
+            Number(b.projectTitle === LEAD) - Number(a.projectTitle === LEAD) ||
+            presentability(a) - presentability(b));
 
     // The desktop preview opens full size on click, same lightbox the mobile
     // cards use, so every project picture on the page expands.
@@ -67,9 +72,11 @@ export default function ProjectsGrid() {
           )
         : rest;
 
-    // The docked viewer engages on CLICK (rows never navigate - only the
-    // arrow links out). Until the first click it shows a statement.
-    const shown = active && listed.includes(active) ? active : null;
+    // The docked viewer always has a project in focus: the clicked row, or
+    // the first listed one until then and whenever a filter hides the pick
+    // (rows never navigate - only the arrow links out). Only a filter with
+    // no matches leaves it on the resting statement.
+    const shown = active && listed.includes(active) ? active : listed[0] ?? null;
 
     // Warm every preview image into cache once, so row-to-row swaps don't
     // stall on network + decode.
@@ -156,9 +163,12 @@ export default function ProjectsGrid() {
                                             rel="noopener noreferrer"
                                             onClick={(e) => e.stopPropagation()}
                                             aria-label={`${p.projectTitle} on GitHub`}
-                                            className="text-zinc-600 hover:text-white group-hover:text-zinc-300 transition-colors duration-200 shrink-0"
+                                            className="text-zinc-300 hover:text-white transition-colors duration-200 shrink-0"
                                         >
-                                            ↗
+                                            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor"
+                                                 strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                <path d="M7 17 17 7M8 7h9v9" />
+                                            </svg>
                                         </a>
                                     ) : (
                                         <span className="text-zinc-700 shrink-0">·</span>
@@ -173,7 +183,7 @@ export default function ProjectsGrid() {
                         the bottom. Engages on row click; rests as a
                         statement until then. Set sizes: nothing moves or
                         resizes between projects - only content swaps. */}
-                    <div className="w-[34rem] shrink-0 relative flex flex-col">
+                    <div className="w-[clamp(34rem,46%,64rem)] shrink-0 relative flex flex-col">
                         {shown && (
                             <p className="absolute bottom-full left-0 mb-1 font-mono text-base text-white">
                                 {shown.projectTitle.toLowerCase().replaceAll(" ", "-")}
@@ -181,7 +191,7 @@ export default function ProjectsGrid() {
                             </p>
                         )}
                         {!shown ? (
-                            <div className="w-full h-[28rem] flex flex-col justify-end p-8 bg-zinc-900/20 border border-zinc-800 rounded-md">
+                            <div className="w-full aspect-[17/14] flex flex-col justify-end p-8 bg-zinc-900/20 border border-zinc-800 rounded-md">
                                 <p className="text-3xl font-bold leading-tight text-white/90 mb-4">
                                     {rest.length} more
                                     <br />
@@ -204,11 +214,11 @@ export default function ProjectsGrid() {
                                     {...imageSize(firstImage(shown)!)}
                                     alt=""
                                     decoding="async"
-                                    className="w-full h-[28rem] object-contain rounded-md animate-fade-in-fast cursor-zoom-in"
+                                    className="w-full h-auto aspect-[17/14] object-contain object-top rounded-md animate-fade-in-fast cursor-zoom-in"
                                 />
                             </button>
                         ) : (
-                            <div className="w-full h-[28rem] flex items-center justify-center bg-zinc-900/30 border border-zinc-800 rounded-md font-mono text-xs text-zinc-600">
+                            <div className="w-full aspect-[17/14] flex items-center justify-center bg-zinc-900/30 border border-zinc-800 rounded-md font-mono text-xs text-zinc-600">
                                 <span>
                                     <span className="text-ctp-mauve">$</span> ./preview
                                     <br />
@@ -217,8 +227,8 @@ export default function ProjectsGrid() {
                             </div>
                         )}
                         {shown && (
-                            <div className="flex-none mt-3 h-48 overflow-hidden space-y-2">
-                                <p className="text-sm text-zinc-400 leading-relaxed line-clamp-6">
+                            <div className="flex-none mt-3 h-64 overflow-hidden space-y-2">
+                                <p className="text-base 2xl:text-lg text-zinc-300 leading-relaxed line-clamp-6">
                                     {shown.description}
                                 </p>
                                 <p className="font-mono text-xs text-zinc-500 truncate">

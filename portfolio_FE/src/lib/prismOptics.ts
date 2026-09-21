@@ -10,25 +10,38 @@ const FORMED_LENGTH = 1.35;
  * out into a lengthening trail instead of travelling as a rigid segment. */
 const TAIL_PACE = .48;
 
+/** Cloud-local units the head travels per unit of scroll progress. */
+export const GLEAM_PACE = 1.47 / .66;
+
 /** One unbounded clock for the whole flight, in cloud-local units. The head
  * advances 1.47 units over the original .66 scroll-progress interval and
  * keeps that speed for good. Inside the cloud the formed packet translates
  * rigidly by `offset`. In open space the same head trails a lengthening ray:
  * `tail` leaves slower, `stretch` maps that ray back onto the formed
  * footprint, and `free` eases the open-space look in while the head is still
- * inside the cloud. Every value is continuous at the moment of formation. */
-export function gleamFlight(progress: number) {
-    const distance = Math.max(0, progress - .04) * (1.47 / .66);
+ * inside the cloud. Every value is continuous at the moment of formation.
+ *
+ * `lead` is a run of white, undispersed light in front of the prism: the
+ * light enters from that far back along the central ray and everything is
+ * measured from there. A caller that also starts the clock `lead / GLEAM_PACE`
+ * early gets the dispersed part exactly where, and when, it is without a
+ * lead: the run-in is added in front of the flight, not taken out of it. */
+export function gleamFlight(progress: number, lead = 0) {
+    const formed = FORMED_LENGTH + lead;
+    const distance = Math.max(0, progress - .04) * GLEAM_PACE;
     const head = -.12 + distance;
-    const offset = Math.max(0, head - FORMED_LENGTH);
+    const offset = Math.max(0, head - formed);
     const tail = offset * TAIL_PACE;
     const release = Math.min(1, offset / .2);
     return {
-        head: Math.min(head, FORMED_LENGTH),
+        head: Math.min(head, formed),
         offset,
-        growth: Math.min(1, distance / 1.47),
+        // Growth belongs to the dispersed light: it begins at the prism, so
+        // the run-in arrives as the finest ray and the spectrum widens as
+        // it always has.
+        growth: Math.min(1, Math.max(0, distance - lead) / 1.47),
         tail,
-        stretch: FORMED_LENGTH / (FORMED_LENGTH + offset - tail),
+        stretch: formed / (formed + offset - tail),
         free: release * release * (3 - 2 * release),
     };
 }

@@ -25,7 +25,7 @@ export interface SketchOptions {
 }
 
 // Catppuccin Mocha accents
-const CATPPUCCIN = ["#cba6f7", "#89b4fa", "#a6e3a1", "#fab387", "#f5c2e7", "#94e2d5"];
+const CATPPUCCIN = ["#9d8cff", "#46beff", "#8dffb0", "#ffb84d", "#ff6b8b", "#3fe8d2"];
 const TYPES: SketchType[] = ["underline", "box", "circle", "bracket"];
 
 const reducedMotion = () =>

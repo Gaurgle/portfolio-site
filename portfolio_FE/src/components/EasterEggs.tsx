@@ -37,11 +37,11 @@ export default function EasterEggs() {
             '██╔══██╗██║   ██║██║   ██║╚════██║\n' +
             '██║  ██║╚██████╔╝╚██████╔╝███████║\n' +
             '╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝',
-            'color: #a6e3a1; font-family: monospace; font-size: 10px;'
+            'color: #8dffb0; font-family: monospace; font-size: 10px;'
         );
-        console.log('%c👋 hiring? → larsnilsandreas@pm.me', 'color: #cba6f7; font-size: 14px; padding: 8px 0;');
-        console.log('%c📄 cv (en): %c/cv/andreas-roos-cv-en.pdf', 'color: #89b4fa; font-size: 12px;', 'color: #a6e3a1; font-size: 12px; text-decoration: underline;');
-        console.log('%c📄 cv (sv): %c/cv/andreas-roos-cv-sv.pdf', 'color: #89b4fa; font-size: 12px;', 'color: #a6e3a1; font-size: 12px; text-decoration: underline;');
+        console.log('%c👋 hiring? → larsnilsandreas@pm.me', 'color: #9d8cff; font-size: 14px; padding: 8px 0;');
+        console.log('%c📄 cv (en): %c/cv/andreas-roos-cv-en.pdf', 'color: #46beff; font-size: 12px;', 'color: #8dffb0; font-size: 12px; text-decoration: underline;');
+        console.log('%c📄 cv (sv): %c/cv/andreas-roos-cv-sv.pdf', 'color: #46beff; font-size: 12px;', 'color: #8dffb0; font-size: 12px; text-decoration: underline;');
 
 
         return () => {

@@ -48,12 +48,12 @@ export const stack: TechEntry[] = [
 
 // Catppuccin gradient stops: green → teal → blue → mauve → pink → peach
 const glowColors = [
-    [166, 227, 161], // green  #a6e3a1
-    [148, 226, 213], // teal   #94e2d5
-    [137, 180, 250], // blue   #89b4fa
-    [203, 166, 247], // mauve  #cba6f7
-    [245, 194, 231], // pink   #f5c2e7
-    [250, 179, 135], // peach  #fab387
+    [141, 255, 176], // green  #8dffb0
+    [63, 232, 210], // teal   #3fe8d2
+    [70, 190, 255], // blue   #46beff
+    [157, 140, 255], // mauve  #9d8cff
+    [255, 107, 139], // pink   #ff6b8b
+    [255, 184, 77], // peach  #ffb84d
 ];
 
 function getGlowColor(index: number, total: number): string {
