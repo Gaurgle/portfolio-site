@@ -1,11 +1,11 @@
 ---
 /**
- * Featured projects as a pinned card pile (desktop): the chapter mark
- * enters centered, the first card flies in and pushes it out, every card
- * lands on the pile, and the finished pile exits left as one object -
- * leaving the MORE PROJECTS arrow (smoothScroll.ts measureShowcases drives
- * all transforms). On mobile the same markup plays as a vertical deck via
- * the engine's cardstack path: cards rise from below and land flush.
+ * Featured projects as a pinned strip (desktop): the chapter mark enters
+ * centered, the first project flies in and pushes it out, each project
+ * leaves left as the next arrives, and the last one exits - leaving the MORE
+ * PROJECTS arrow (smoothScroll.ts measureShowcases drives all transforms).
+ * Projects have no surface, so nothing piles. On mobile the same markup
+ * flies through in depth like the journey (the engine's focus stack).
  */
 import { projects } from "../../data/projects";
 import ChapterMark from "./ChapterMark.astro";
@@ -21,17 +21,17 @@ const allImages = (p: (typeof projects)[number]) =>
     (Array.isArray(p.image) ? p.image : [p.image]).filter(Boolean) as string[];
 
 // Accent per card (rgb triplets for the CSS var): green, mauve, blue, peach
-const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
+const accents = ["141,255,176", "157,140,255", "70,190,255", "255,184,77"];
 ---
 
-<div data-hscroll data-cardstack data-snap class="hscroll-pin relative">
+<div data-hscroll data-hscroll-mode="strip" data-cardstack data-stack-mode="focus" data-snap class="hscroll-pin relative">
     <div class="hscroll-viewport">
         <!-- Chapter mark: pinned WITH the strip, centered until the first
              card arrives and pushes it out left -->
         <div class="absolute inset-0 hidden lg:flex items-center justify-center z-0">
             <div data-cover-content class="will-change-transform">
                 <ChapterMark n="03" label="PROJECTS"
-                             pre="Things I've " accent="built" color="#89b4fa" />
+                             pre="Things I've " accent="built" color="#46beff" />
             </div>
         </div>
 
@@ -39,22 +39,16 @@ const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
              the deck (the mark is slimmed via .hscroll-pin .chapter-mark) -->
         <div class="lg:hidden px-4 pb-5 text-center">
             <ChapterMark n="03" label="PROJECTS"
-                         pre="Things I've " accent="built" color="#89b4fa" />
+                         pre="Things I've " accent="built" color="#46beff" />
             <h3 class="mt-3 font-bold uppercase tracking-[0.3em] text-sm text-white/80 select-none">
                 <span class="text-ctp-blue font-mono mr-2">//</span>featured projects
             </h3>
         </div>
 
-        <!-- Headline: rides in flush with the first card's leading edge, then
-             docks centered while the rest of the strip sweeps past (engine) -->
-        <h3 data-hscroll-headline
-            class="hidden lg:block absolute top-[9vh] left-0 w-max font-bold uppercase tracking-[0.3em] text-xl md:text-2xl text-white/80 select-none whitespace-nowrap z-20 will-change-transform">
-            <span data-headline-sigil class="text-ctp-blue font-mono mr-2 transition-colors duration-500">//</span>featured projects
-        </h3>
-        <div data-hscroll-track class="relative z-10 px-4" style={`--deck-n: ${featured.length - 1}`}>
+        <div data-hscroll-track class="relative z-10 px-4" style="--deck-n: 0">
             {featured.map((p, i) => (
                 <div class="featured-card" data-spotlight data-stack-card
-                     style={`--fc: ${accents[i % accents.length]}; z-index: ${i + 1}`}>
+                     style={`--fc: ${accents[i % accents.length]}; --f: ${i === 0 ? 0 : -1}`}>
                     <div class="edit-card h-full">
                         {firstImage(p) ? (
                             <div class="edit-media">
@@ -116,7 +110,7 @@ const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
             <div data-hscroll-arrow class="flex items-center select-none will-change-transform">
                 <!-- Massive elbow arrow; the label bends with it: MORE runs
                      along the top shaft, PROJECTS turns and runs down the leg -->
-                <svg class="w-[clamp(22rem,42vw,38rem)] h-auto text-ctp-blue drop-shadow-[0_0_40px_rgba(137,180,250,0.5)]"
+                <svg class="w-[clamp(22rem,42vw,38rem)] h-auto text-ctp-blue drop-shadow-[0_0_40px_rgba(70,190,255,0.5)]"
                      viewBox="0 0 100 100" aria-hidden="true">
                     <!-- A hair of softness for the silhouette only (applied to
                          the path in global.css, with the chromatic fringe it
@@ -287,6 +281,22 @@ const accents = ["166,227,161", "203,166,247", "137,180,250", "250,179,135"];
             });
         }
     }
+
+    // Point a title's prism split away from its centre, toward the pointer
+    // (global.css reads --tx/--ty). Same scheme as the chapter marks: one
+    // document listener survives page swaps, and the direction keeps a floor
+    // near the centre so the split never collapses to nothing.
+    document.addEventListener("pointermove", (event) => {
+        if (event.pointerType === "touch") return;
+        const title = (event.target as Element | null)?.closest?.<HTMLElement>(".featured-card h3");
+        if (!title) return;
+        const box = title.getBoundingClientRect();
+        const x = (event.clientX - box.left) / box.width * 2 - 1;
+        const y = (event.clientY - box.top) / box.height * 2 - 1;
+        const length = Math.max(Math.hypot(x, y), 0.35);
+        title.style.setProperty("--tx", (x / length).toFixed(3));
+        title.style.setProperty("--ty", (y / length).toFixed(3));
+    }, { passive: true });
 
     document.addEventListener("astro:page-load", wireLightboxes);
 </script>

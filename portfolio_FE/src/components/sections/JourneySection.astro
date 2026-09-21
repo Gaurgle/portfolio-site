@@ -1,10 +1,14 @@
 ---
 /**
  * Journey: the chapter mark (02 JOURNEY + hook) stays on the left of the
- * pinned viewport while the coaster pile builds on the right - vertical
- * scroll lands each milestone card on the previous one with a cascade
- * offset (smoothScroll.ts drives the transforms). On mobile the same pin
- * plays as a vertical deck: cards rise from below and land nearly flush.
+ * pinned viewport while the visitor flies through the milestones in depth.
+ * Nothing is boxed: each milestone is loose text in the sky that approaches
+ * from far off, holds in focus, then passes the camera the way ROOS does
+ * (smoothScroll.ts reports --f per milestone, global.css does the flight).
+ * Under the mark sits a plain contents list of the five stops; the right
+ * margin stays empty, because that is where the prism's light flares. The
+ * list has no clearing, so each entry turns to dark ink while a bright cloud
+ * is behind it (data-sky-adapt, clouds.ts).
  */
 import ChapterMark from "./ChapterMark.astro";
 
@@ -19,7 +23,7 @@ type Milestone = {
 
 const milestones: Milestone[] = [
     {
-        n: "01", cmd: "music", color: "text-ctp-green", title: "Studio & stage",
+        n: "01", cmd: "music", color: "text-ctp-mauve", title: "Studio & stage",
         paras: [
             "I've worked in music since 2009, as a drummer, producer, mix engineer and musical director.",
             "With Benjamin Ingrosso, I turned the artist's ideas into arrangements and a show the musicians and crew could run together. For Veronica Maggio and Loreen, I worked with MIDI and playback."
@@ -33,7 +37,7 @@ const milestones: Milestone[] = [
         ]
     },
     {
-        n: "03", cmd: "internship", color: "text-ctp-mauve", title: "Bluetooth at Sigma",
+        n: "03", cmd: "internship", color: "text-ctp-green", title: "Bluetooth at Sigma",
         paras: [
             "At Sigma Connectivity, I built a Bluetooth test platform: an Android app, a Ktor backend with PostgreSQL, and a Svelte dashboard.",
             "A Lua API let testers write their own sequences. Debugging against real devices led me further into Bluetooth LE and LE Audio, and made me want to keep working in that area."
@@ -47,7 +51,7 @@ const milestones: Milestone[] = [
         ]
     },
     {
-        n: "05", cmd: "now", color: "text-ctp-pink", title: "Where I am now",
+        n: "05", cmd: "now", color: "text-ctp-red", title: "Where I am now",
         paras: [
             "I also work part-time at Code Boss on backend and frontend development for clients, plus customer support.",
             "I'm looking for a backend or Android role where I can work with other developers and grow in a shared codebase. Kotlin is my first choice; Bluetooth and audio are interests I'd like to take further."
@@ -57,40 +61,43 @@ const milestones: Milestone[] = [
 ---
 
 <section id="journey" data-section="journey" data-snap
-         data-cmd="./journey --walk" data-cmd-color="#94e2d5"
+         data-cmd="./journey --walk" data-cmd-color="#3fe8d2"
          class="relative">
 
-    <div data-cardstack data-off-x="26" data-off-y="48" class="journey-stack relative z-10" style={`--journey-edges: ${milestones.length - 1}`}>
+    <div data-cardstack data-stack-mode="focus" class="journey-stack relative z-10">
         <div class="journey-viewport">
-            <!-- lg:items-start: the mark's numeral tops out level with the
-                 first card's top edge instead of floating centered -->
-            <div class="relative z-10 w-full flex flex-col lg:flex-row items-center lg:items-start lg:justify-center gap-5 lg:gap-[3vw] px-4 lg:px-[2vw] py-4 lg:py-0">
-                <!-- Chapter mark: stays for the whole pinned pile -->
+            <!-- lg:items-center: the mark and the text in focus share one
+                 horizontal axis, the line the visitor travels along -->
+            <div class="relative z-10 w-full flex flex-col lg:flex-row items-center lg:justify-center gap-5 lg:gap-[4vw] px-4 lg:px-[2vw] py-4 lg:py-0">
+                <!-- Chapter mark: stays for the whole flight, with the
+                     contents of the journey set under it -->
                 <div class="shrink-0 text-center lg:text-left">
                     <ChapterMark n="02" label="JOURNEY"
-                                 line1="From stage to" accent="stack trace" color="#94e2d5"
+                                 line1="From stage to" accent="stack trace" color="#3fe8d2"
  />
+                    <ol data-stack-contents class="stop-contents" aria-hidden="true">
+                        {milestones.map((m) => (
+                            <li data-sky-adapt>{m.cmd}</li>
+                        ))}
+                    </ol>
                 </div>
 
-                <!-- The coaster pile -->
-                <div class="stack-area">
+                <!-- The flight: milestones share one stage, separated in depth.
+                     data-lens: the sky clears and bends around it (clouds.ts) -->
+                <div class="stack-area" data-lens>
                     {milestones.map((m, i) => (
-                        <div data-stack-card style={`z-index: ${i + 1}`}>
-                            <div class="edit-card h-full">
-                                <div class="edit-body">
-                                    <div class={`text-xs font-semibold uppercase tracking-[0.16em] mb-2 ${m.color}`}>{m.n} · {m.cmd}</div>
-                                    <h3 class="text-2xl md:text-4xl font-bold leading-[1.05] text-white mb-4 md:mb-6">{m.title}</h3>
-                                    <div class="space-y-3">
-                                        {m.paras.map((p) => (
-                                            <p class="text-sm md:text-base text-zinc-300 leading-relaxed max-w-xl">{p}</p>
-                                        ))}
-                                    </div>
-
-                                </div>
+                        <article data-stack-card class:list={["beam-stop", m.color]} style={`--f: ${i === 0 ? 0 : -1}`}>
+                            <div class="passage-head">{m.cmd}</div>
+                            <h3 class="beam-title">{m.title}</h3>
+                            <div class="beam-copy">
+                                {m.paras.map((p) => (
+                                    <p>{p}</p>
+                                ))}
                             </div>
-                        </div>
+                        </article>
                     ))}
                 </div>
+
             </div>
         </div>
     </div>

@@ -234,7 +234,7 @@ export default function MiniTerminal() {
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         className="bg-transparent border-none outline-none text-white flex-1"
-                        style={{ caretColor: '#a6e3a1' }}
+                        style={{ caretColor: '#8dffb0' }}
                         spellCheck={false}
                         autoComplete="off"
                     />

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { gleamFlight, refractRay, spectralPaths, tracePrism } from "./prismOptics.ts";
+import { GLEAM_PACE, gleamFlight, refractRay, spectralPaths, tracePrism } from "./prismOptics.ts";
 
 test("one head travels at the same speed before, across and after cloud exit", () => {
     const position=(p: number)=> { const f=gleamFlight(p); return f.head+f.offset; };
@@ -115,4 +115,26 @@ test("Snell refraction preserves normal incidence and handles total reflection",
     const normal=refractRay([1,0],[-1,0],1/1.5)!;
     assert.ok(Math.abs(normal[0]-1)<1e-10);
     assert.equal(refractRay([Math.sqrt(.75),.5],[0,-1],1.5),null);
+});
+
+test("a run-in is added in front of the flight without moving or retiming it", () => {
+    const lead=1.8, early=lead/GLEAM_PACE;
+    for(const p of [.04,.2,.5,.69999,.7,.9,1.5,4]) {
+        const plain=gleamFlight(p), led=gleamFlight(p+early,lead);
+        // Measured from the prism, the head is where and when it was.
+        assert.ok(Math.abs((led.head+led.offset-lead)-(plain.head+plain.offset))<1e-9, `head moved at ${p}`);
+        assert.ok(Math.abs(led.offset-plain.offset)<1e-9, `release retimed at ${p}`);
+        assert.ok(Math.abs(led.tail-plain.tail)<1e-9);
+        assert.ok(Math.abs(led.free-plain.free)<1e-9);
+        assert.ok(Math.abs(led.growth-plain.growth)<1e-9, `spectrum growth changed at ${p}`);
+    }
+});
+
+test("the run-in itself grows from nothing before the prism is reached", () => {
+    const lead=1.8, early=lead/GLEAM_PACE;
+    assert.ok(gleamFlight(.04,lead).head<0);
+    const halfway=gleamFlight(.04+early/2,lead);
+    assert.ok(halfway.head>0 && halfway.head<lead);
+    assert.equal(halfway.growth,0);
+    assert.equal(halfway.offset,0);
 });

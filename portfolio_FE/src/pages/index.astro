@@ -16,7 +16,7 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
          is pinned and truly centered at scroll 0 (no tiny settle-scroll) -->
     <!-- Pin holds until the ROOS dissolve completes (~0.63vh of scrub) -->
     <section id="home" data-section="home" data-snap data-pin="0.75" data-pin-mobile
-             data-cmd="whoami" data-cmd-color="#a6e3a1"
+             data-cmd="whoami" data-cmd-color="#8dffb0"
              class="relative -mt-[80px] md:-mt-[100px]">
         <!-- Full first screen on mobile (svh: stable under the URL bar) so
              the next chapter's mark never peeks below the hero. The hero pins
@@ -35,16 +35,9 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
             <h1 class="contents">
                 <span class="sr-only">Andreas Roos</span>
             <div class="relative mb-8 opacity-0 animate-fade-up">
-                <!-- Soft color glow blobs (desktop only: three large blurred
-                     layers inside the scaling explosion kill phone GPUs) -->
-                <div class="hidden md:block absolute inset-[-40%] -z-10 opacity-30">
-                    <div class="relative w-full h-full blur-2xl">
-                        <div class="absolute inset-0 bg-[#3d2e54]/35 rounded-full" style="transform: translate(8%, -6%) scale(1.05)"></div>
-                        <div class="absolute inset-0 bg-[#54303d]/30 rounded-full" style="transform: translate(-7%, 5%) scale(0.95)"></div>
-                        <div class="absolute inset-0 bg-[#2e3d54]/25 rounded-full" style="transform: translate(3%, 6%)"></div>
-                    </div>
-                </div>
-
+                <!-- The glow is real light: clouds.ts streams volumetric rays
+                     out of these glyphs (lightBurst.ts), so there is no
+                     painted halo behind them -->
                 <pre data-roos aria-hidden="true" class="font-mono text-xs sm:text-base md:text-xl lg:text-2xl ascii-art text-white ascii-glow select-none cursor-pointer" set:html={`
 ██████╗  ██████╗  ██████╗ ███████╗
 ██╔══██╗██╔═══██╗██╔═══██╗██╔════╝
@@ -59,6 +52,9 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
 
         </div>
 
+        <!-- One wrapper for both lines: the loading screen fades it in as a
+             unit (the lines' own opacity belongs to the scrubbed dissolve). -->
+        <div class="hero-lines flex flex-col items-center">
         <!-- Separate words let the glitch shift them independently. -->
         <p class="hero-tagline font-mono text-sm sm:text-base md:text-lg text-zinc-400 tracking-wide whitespace-nowrap -mt-2"><span class="hero-tag" style="--glitch-direction: -1">Backend</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: 0.7">Android</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: -0.6">Bluetooth LE</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: 1">Stockholm</span></p>
 
@@ -66,6 +62,7 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
         <p class="hero-path font-mono text-base text-zinc-400 mt-4">
             ~/portfolio <span class="animate-pulse text-ctp-green">_</span>
         </p>
+        </div>
 
         </div>
     </section>
@@ -88,7 +85,7 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
          would rest inside the contact reveal band (the magnet would pull
          the page away while the visitor reads the list) -->
     <section id="projects" data-section="projects" data-snap
-             data-cmd="ls projects/" data-cmd-color="#89b4fa"
+             data-cmd="ls projects/" data-cmd-color="#46beff"
              class="relative max-w-6xl mx-auto px-4 pb-16 lg:pb-[45vh]">
         <!-- Flagship projects: pinned horizontal filmstrip; the 03 chapter
              mark lives inside the strip's viewport and gets pushed out by
@@ -100,11 +97,20 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
         <!-- Negative top margin on desktop: the grid climbs over the arrow's
              tail while it is still fading out, so the two overlap instead of
              handing off across a gap of empty scroll. -->
-        <div class="relative z-10 mt-10 md:mt-[6vh] lg:-mt-[20vh]">
-            <h3 class="font-bold uppercase tracking-[0.3em] text-xl md:text-2xl text-white/80 select-none mb-10">
-                <span class="text-ctp-blue font-mono mr-2">//</span>more projects
-            </h3>
-            <ProjectsGrid client:load />
+        <!-- more-projects-stage: on wide screens the listing grows past the
+             section's reading column (global.css), so the viewer's picture
+             is sized for the screen and not for a 72rem page. -->
+        <!-- data-hold: once the listing arrives it stays put for a screen
+             and a half of scroll (desktop), so nobody flies past it on the
+             way to the contact panel. Seated high (data-hold-at): the
+             listing is nearly a screen tall and its last row must fit. -->
+        <div data-hold="1.5" data-hold-at="0.09" class="more-projects-stage relative z-10 mt-10 md:mt-[6vh] lg:-mt-[20vh]">
+            <div data-hold-content>
+                <h3 class="font-bold uppercase tracking-[0.3em] text-xl md:text-2xl text-white/80 select-none mb-10">
+                    <span class="text-ctp-blue font-mono mr-2">//</span>more projects
+                </h3>
+                <ProjectsGrid client:load />
+            </div>
         </div>
     </section>
 
@@ -118,6 +124,33 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
 </BaseLayout>
 
 <script>
+    /** Shortest and longest the loading screen may stand, in milliseconds.
+     *  The floor keeps it from flashing by; the ceiling is for a browser
+     *  where the sky never reports in (no WebGL). */
+    const LOADING_FLOOR = 900;
+    const LOADING_CEILING = 3500;
+    /** How long the world takes to fade in around ROOS (global.css). */
+    const REVEAL = 1400;
+
+    document.addEventListener("astro:page-load", () => {
+        const root = document.documentElement;
+        if (!root.classList.contains("is-loading")) return;
+        const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
+        const once = (target: EventTarget, name: string) =>
+            new Promise((done) => target.addEventListener(name, done, { once: true }));
+        const ready = Promise.all([
+            document.fonts.ready,
+            once(document, "sky:ready"),
+            document.readyState === "complete" ? null : once(window, "load"),
+            wait(LOADING_FLOOR),
+        ]);
+        Promise.race([ready, wait(LOADING_CEILING)]).then(() => {
+            root.classList.add("is-revealing");
+            root.classList.remove("is-loading");
+            setTimeout(() => root.classList.remove("is-revealing"), REVEAL);
+        });
+    });
+
     document.addEventListener("astro:page-load", () => {
         // Secret: clicking ROOS summons the terminal
         const roos = document.querySelector("[data-roos]");

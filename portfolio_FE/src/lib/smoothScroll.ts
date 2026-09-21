@@ -288,7 +288,7 @@ function setupScrollSpy(reduced: boolean): void {
     const dockType = (section: HTMLElement) => {
         const cmd = section.dataset.cmd;
         if (!dock || cmd == null) return;
-        if (sigil) sigil.style.color = section.dataset.cmdColor ?? "#a6e3a1";
+        if (sigil) sigil.style.color = section.dataset.cmdColor ?? "#8dffb0";
         window.clearInterval(dockTimer);
         if (reduced) {
             dock.textContent = cmd;
@@ -371,6 +371,13 @@ type CardStack = {
     offY: number;
     /** Mobile: cards rise from below instead of flying in from the right. */
     vertical: boolean;
+    /** `data-stack-mode="focus"`: nothing lands on a pile. The engine only
+     *  reports each card's distance from focus (--f) and CSS flies the
+     *  visitor through them, one in focus at a time. */
+    focus: boolean;
+    /** Focus stacks: the `[data-stack-contents]` entries naming each card, in
+     *  order. The one in focus is marked `is-current`. */
+    contents: HTMLElement[];
 };
 
 function measureCardStacks(): CardStack[] {
@@ -405,6 +412,10 @@ function measureCardStacks(): CardStack[] {
         result.push({
             section, cards, top, per, distance, buffer, offX, offY,
             vertical: !desktop,
+            focus: section.dataset.stackMode === "focus",
+            contents: Array.from(
+                section.querySelectorAll<HTMLElement>("[data-stack-contents] > *"),
+            ),
         });
     }
     return result;
@@ -531,6 +542,9 @@ type Showcase = {
     /** The pile's resting right edge: the exit glues the headline to it. */
     dockRight: number;
     sigilEl: HTMLElement | null;
+    /** `data-hscroll-mode="strip"`: projects pass through one at a time
+     *  instead of landing on a pile (they have no surface to pile with). */
+    strip: boolean;
     arrowEl: HTMLElement | null;
     /** Arrow assembly parts: outline path (with cached length) + the
      *  label's individual letters (stamped on typewriter-style). */
@@ -583,7 +597,9 @@ function measureShowcases(): Showcase[] {
         const vh = window.innerHeight;
         // Generous read-time per landing card, a settle beat on the full
         // pile, one exit slide, and a dwell on the docked arrow.
-        const per = Math.round(vh * 0.75);
+        const strip = section.dataset.hscrollMode === "strip";
+        // A strip segment is an arrival plus a dwell, so it runs longer.
+        const per = Math.round(vh * (strip ? 1.35 : 0.75));
         const settle = Math.round(vh * 0.3);
         // Generous exit: the pile's departure AND the arrow's assembly
         // (outline draw, flood, label stamp) are both scrubbed across it, so
@@ -650,6 +666,7 @@ function measureShowcases(): Showcase[] {
             ),
             dockLeft: Math.round(trackRect.left - sectionRect.left),
             offX, offY, per, settle, exitDist, arrowDwell, buffer, top,
+            strip,
         });
     }
     return result;
@@ -660,6 +677,12 @@ function measureShowcases(): Showcase[] {
 /* ------------------------------------------------------------------ */
 
 type Cover = { content: HTMLElement; top: number; dist: number };
+
+/** Strip showcases: the share of a project's scroll segment spent arriving.
+ *  The rest is dwell: the project holds still, aligned, before the next one
+ *  starts to move. Purely scroll-scrubbed: a transition stopped half way
+ *  stays half way, nothing pulls it on or back. */
+const STRIP_ARRIVE = 0.42;
 
 /** `[data-cover]` blocks pin (via data-pin) while their `[data-cover-content]`
  *  fades and lifts away over the pin's dwell distance. */
@@ -705,10 +728,11 @@ function measureHolds(): Hold[] {
         section.style.marginBottom = `${dist}px`;
         // Engage 15vh early, while the block's top edge is still in view -
         // otherwise the first rows scroll past before the hold catches.
+        // A tall block can ask to be seated higher (data-hold-at, in vh).
         const top =
             section.getBoundingClientRect().top +
             window.scrollY -
-            Math.round(window.innerHeight * 0.15);
+            Math.round(window.innerHeight * parseFloat(section.dataset.holdAt ?? "0.15"));
         result.push({ content, top, dist });
     }
     return result;
@@ -779,6 +803,30 @@ function setCovered(card: HTMLElement, landed: number): void {
     if (card.style.getPropertyValue("--covered") === value) return;
     card.style.setProperty("--covered", value);
     card.classList.toggle("is-covered", eased > 0);
+}
+
+/** Share of each focus-stack segment a card spends fully in focus, either
+ *  side of its centre, before it starts to leave. */
+const FOCUS_DWELL = 0.2;
+/** A card has left by this offset and the next only starts arriving after
+ *  it, so two cards' copy is never on stage together. */
+const FOCUS_HANDOVER = 0.5;
+
+/** Focus stacks: `--f` runs from -1 (still far ahead) through 0 (in focus)
+ *  to 1 (passed the camera). */
+function focusStack(s: CardStack, local: number): void {
+    const position = Math.max(0, Math.min(s.cards.length - 1, local / s.per));
+    const current = Math.round(position);
+    s.contents.forEach((entry, i) => entry.classList.toggle("is-current", i === current));
+    s.cards.forEach((card, i) => {
+        const offset = position - i;
+        const travel = Math.max(0, Math.abs(offset) - FOCUS_DWELL) / (FOCUS_HANDOVER - FOCUS_DWELL);
+        const focus = Math.sign(offset) * Math.min(1, travel);
+        const value = focus.toFixed(3);
+        if (card.style.getPropertyValue("--f") === value) return;
+        card.style.setProperty("--f", value);
+        card.classList.toggle("is-active", Math.abs(focus) < 0.5);
+    });
 }
 
 function bindScrollDriven(reduced: boolean): void {
@@ -1094,10 +1142,34 @@ function bindScrollDriven(reduced: boolean): void {
 
             // Cards fly in from the right, one per scroll beat, and land
             // on the pile with a cascading offset.
+            // A strip project arrives over the first part of its segment and
+            // holds for the rest; a pile card lands over the whole of it.
+            const arrive = sc.per * (sc.strip ? STRIP_ARRIVE : 1);
             sc.cards.forEach((card, i) => {
-                const t = Math.max(0, Math.min(1, (local - i * sc.per) / sc.per));
-                const eased = 1 - Math.pow(1 - t, 3);
+                const t = Math.max(0, Math.min(1, (local - i * sc.per) / arrive));
+                // Strip: ease both ways, so a project also settles into its
+                // seat instead of only braking at it.
+                const eased = sc.strip ? t * t * (3 - 2 * t) : 1 - Math.pow(1 - t, 3);
                 const slide = (1 - eased) * (window.innerWidth * 1.05);
+                if (sc.strip) {
+                    // Nothing piles: a project leaves to the left in step
+                    // with the next one's arrival, like frames of a strip.
+                    // The last one stays and leaves with the track.
+                    const next = i + 1 < sc.cards.length
+                        ? Math.max(0, Math.min(1, (local - (i + 1) * sc.per) / arrive))
+                        : 0;
+                    const gone = next * next * (3 - 2 * next) * (window.innerWidth * 1.05);
+                    card.style.transform = `translate3d(${slide - gone}px, 0, 0)`;
+                    // Arrival, 0..1: CSS moves the screenshot and the copy
+                    // at different rates inside the card, for depth.
+                    card.style.setProperty("--enter", eased.toFixed(3));
+                    // How far from rest the card is, 0..1, arriving or
+                    // leaving: the title's chromatic split opens with it.
+                    const drift = Math.max(1 - eased, gone / (window.innerWidth * 1.05));
+                    card.style.setProperty("--drift", drift.toFixed(3));
+                    card.style.visibility = next >= 1 ? "hidden" : "";
+                    return;
+                }
                 card.style.transform =
                     `translate3d(${i * sc.offX + slide}px, ${i * sc.offY}px, 0)`;
                 // The first card keeps the atmospheric surface. Later cards
@@ -1112,7 +1184,7 @@ function bindScrollDriven(reduced: boolean): void {
             // The first card's arrival pushes the chapter mark out left;
             // the fade is late and sharp so the exit reads as motion.
             if (sc.coverEl) {
-                const t0 = Math.max(0, Math.min(1, local / sc.per));
+                const t0 = Math.max(0, Math.min(1, local / arrive));
                 const eased = 1 - Math.pow(1 - t0, 3);
                 const push = eased * (sc.coverRight + 60);
                 sc.coverEl.style.transform = `translate3d(${-push}px, 0, 0)`;
@@ -1237,6 +1309,10 @@ function bindScrollDriven(reduced: boolean): void {
         // pile with a cascading offset, one per scroll segment (cushioned).
         for (const s of stacks) {
             const local = scroll - s.top - s.buffer;
+            if (s.focus) {
+                focusStack(s, local);
+                continue;
+            }
             s.cards.forEach((card, i) => {
                 const rx = i * s.offX;
                 const ry = i * s.offY;

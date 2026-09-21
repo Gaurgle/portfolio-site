@@ -4,11 +4,11 @@ import { sketchOnHover } from "../lib/sketch";
 // One-page site: links are smooth Lenis anchor jumps; data-spy drives the
 // active state set by the scroll spy in smoothScroll.ts.
 const links = [
-    { href: "/#home", spy: "home", label: "home", color: "text-ctp-green/60", hoverColor: "group-hover:text-ctp-green", ink: "#a6e3a1" },
-    { href: "/#about", spy: "about", label: "about", color: "text-ctp-mauve/60", hoverColor: "group-hover:text-ctp-mauve", ink: "#cba6f7" },
-    { href: "/#journey", spy: "journey", label: "journey", color: "text-ctp-teal/60", hoverColor: "group-hover:text-ctp-teal", ink: "#94e2d5" },
-    { href: "/#projects", spy: "projects", label: "projects", color: "text-ctp-blue/60", hoverColor: "group-hover:text-ctp-blue", ink: "#89b4fa" },
-    { href: "/#contact", spy: "contact", label: "contact", color: "text-ctp-peach/60", hoverColor: "group-hover:text-ctp-peach", ink: "#fab387" },
+    { href: "/#home", spy: "home", label: "home", color: "text-ctp-green/60", hoverColor: "group-hover:text-ctp-green", ink: "#8dffb0" },
+    { href: "/#about", spy: "about", label: "about", color: "text-ctp-mauve/60", hoverColor: "group-hover:text-ctp-mauve", ink: "#9d8cff" },
+    { href: "/#journey", spy: "journey", label: "journey", color: "text-ctp-teal/60", hoverColor: "group-hover:text-ctp-teal", ink: "#3fe8d2" },
+    { href: "/#projects", spy: "projects", label: "projects", color: "text-ctp-blue/60", hoverColor: "group-hover:text-ctp-blue", ink: "#46beff" },
+    { href: "/#contact", spy: "contact", label: "contact", color: "text-ctp-peach/60", hoverColor: "group-hover:text-ctp-peach", ink: "#ffb84d" },
 ];
 
 export default function SidebarNav() {

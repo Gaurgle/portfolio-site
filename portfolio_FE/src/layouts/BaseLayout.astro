@@ -17,6 +17,18 @@ const isHome = Astro.url.pathname === "/";
 <html lang="en" class="dark">
 <head>
     <CommonHead {title} {description} />
+    <!-- Loading screen (home, first arrival only): ROOS alone on black while
+         the shaders compile, the fonts land and the islands hydrate, so the
+         first scroll is smooth. Set before first paint, lifted by index.astro.
+         The flag lives on window so a later return to home skips it. -->
+    {isHome && (
+        <script is:inline>
+            if (!window.__booted) {
+                window.__booted = true;
+                document.documentElement.classList.add("is-loading");
+            }
+        </script>
+    )}
 </head>
 
 <body class="font-sans bg-black text-white relative">
