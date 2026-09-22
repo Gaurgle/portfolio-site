@@ -23,6 +23,10 @@ const SCROLL_LERP = 0.065;
  *  speed, since the glide covers a fixed fraction of that lead per frame.
  *  Touch scrolling stays browser-owned and uncapped. */
 const MAX_SCROLL_SPEED = 1.5;
+/** Sidebar anchor jumps: viewport heights per second for short hops, and
+ *  the longest any jump may take, in seconds. */
+const ANCHOR_SPEED = 3;
+const ANCHOR_MAX_DURATION = 2.2;
 /** True while an anchor-click scroll is in flight (section walls stand down). */
 let anchorBypass = false;
 /** Per-frame contact-reveal magnet, set by bindScrollDriven (needs its
@@ -1444,9 +1448,20 @@ function setupAnchors(): void {
                 // Walls stand down for the jump (safety timeout in case the
                 // scroll gets interrupted and onComplete never fires).
                 anchorBypass = true;
-                const failsafe = window.setTimeout(() => (anchorBypass = false), 2000);
+                // Paced by distance, so a jump to the next section travels
+                // at ANCHOR_SPEED and a jump across the page takes at most
+                // ANCHOR_MAX_DURATION instead of tearing past every stage.
+                const distance = Math.abs(target.getBoundingClientRect().top);
+                const duration = Math.min(
+                    ANCHOR_MAX_DURATION,
+                    Math.max(0.6, distance / (ANCHOR_SPEED * layoutViewportH)),
+                );
+                const failsafe = window.setTimeout(() => (anchorBypass = false), duration * 1000 + 500);
                 lenis.scrollTo(target, {
                     offset: 0,
+                    duration,
+                    easing: (t: number) =>
+                        t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
                     onComplete: () => {
                         window.clearTimeout(failsafe);
                         anchorBypass = false;

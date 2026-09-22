@@ -7,6 +7,17 @@ import ContactPanel from "../components/sections/ContactPanel.astro";
 import FeaturedShowcase from "../components/sections/FeaturedShowcase.astro";
 import TechMarquee from "../components/TechMarquee.tsx";
 import ProjectsGrid from "../components/ProjectsGrid.tsx";
+
+// Rendered twice: the mark itself, and its reflection on the ground line it
+// rises through on arrival (global.css, .hero-mark-ground).
+const ROOS = `
+██████╗  ██████╗  ██████╗ ███████╗
+██╔══██╗██╔═══██╗██╔═══██╗██╔════╝
+██████╔╝██║   ██║██║   ██║███████╗
+██╔══██╗██║   ██║██║   ██║╚════██║
+██║  ██║╚██████╔╝╚██████╔╝███████║
+╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝
+`;
 ---
 <BaseLayout title="Andreas Roos" current="/" revealFooter>
     <ContactPanel slot="reveal-panel" />
@@ -35,17 +46,24 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
             <h1 class="contents">
                 <span class="sr-only">Andreas Roos</span>
             <div class="hero-mark relative mb-8">
+                <!-- Sky half: clipped at the ground line while the mark
+                     rises on arrival. -->
+                <div class="hero-mark-sky">
                 <!-- The glow is real light: clouds.ts streams volumetric rays
                      out of these glyphs (lightBurst.ts), so there is no
                      painted halo behind them -->
-                <pre data-roos aria-hidden="true" class="font-mono text-xs sm:text-base md:text-xl lg:text-2xl ascii-art text-white ascii-glow select-none cursor-pointer" set:html={`
-██████╗  ██████╗  ██████╗ ███████╗
-██╔══██╗██╔═══██╗██╔═══██╗██╔════╝
-██████╔╝██║   ██║██║   ██║███████╗
-██╔══██╗██║   ██║██║   ██║╚════██║
-██║  ██║╚██████╔╝╚██████╔╝███████║
-╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝
-`} />
+                <pre data-roos aria-hidden="true" class="font-mono text-xs sm:text-base md:text-xl lg:text-2xl ascii-art text-white ascii-glow select-none cursor-pointer" set:html={ROOS} />
+                </div>
+                <!-- Ground half: the mark's radiance mirrored on the line it
+                     rises through, growing with it and gone once it stands. -->
+                <!-- The size classes sit on the ground itself, so its
+                     perspective (in em) is measured in the glyphs' size. -->
+                <div class="hero-mark-ground text-xs sm:text-base md:text-xl lg:text-2xl" aria-hidden="true">
+                    <pre class="font-mono ascii-art text-white select-none" set:html={ROOS} />
+                </div>
+                <!-- A soft black haze along the line, so neither the rising
+                     glyphs nor their reflection are cut with a hard edge. -->
+                <div class="hero-mark-horizon" aria-hidden="true"></div>
             </div>
             </h1>
 
@@ -127,9 +145,10 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
     import { projects } from "../data/projects";
 
     /** Shortest and longest the loading screen may stand, in milliseconds.
-     *  The floor lets ROOS finish rising (global.css); the ceiling is for a
-     *  browser where something never reports in (no WebGL, a failed island). */
-    const LOADING_FLOOR = 1600;
+     *  The floor covers ROOS's black beat and rise (global.css); the ceiling
+     *  is for a browser where something never reports in (no WebGL, a
+     *  failed island). */
+    const LOADING_FLOOR = 2400;
     const LOADING_CEILING = 5000;
     /** How long the world takes to fade in around ROOS (global.css). */
     const REVEAL = 1400;

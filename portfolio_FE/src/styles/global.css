@@ -125,43 +125,150 @@ html.is-revealing :is(body > header, #sidebar, #dock-prompt, #scroll-progress,
     #sidebar-toggle, main > :not(#home)) {
     transition: opacity 1.4s ease;
 }
-/* ROOS arrives while the loading screen stands: it rises out of the black
-   and resolves from a soft, dispersed haze into the sharp glyphs, the same
-   diffused prism look the clouds wear. Plays on every arrival at home. */
-.hero-mark {
-    animation: roos-rise 1.5s cubic-bezier(.16, .84, .3, 1) both;
+/* ROOS arrives while the loading screen stands: the glyphs rise out of
+   nothing through an invisible ground line at their own resting bottom edge
+   (the wrapper clips there while the entrance plays, then lets go so the
+   glow is never cut at rest), resolving from a soft, dispersed haze into
+   the sharp glyphs, the same diffused prism look the clouds wear. Plays on
+   every arrival at home. */
+/* A beat of plain black first (the delay; fill-mode both holds the hidden
+   start): the shaders compile and the fonts land while nothing is moving,
+   so the rise itself begins on a quiet main thread. */
+.hero-mark-sky {
+    animation: roos-ground 1.7s linear .4s both;
 }
-.hero-mark .ascii-glow {
-    animation: roos-resolve 1.5s cubic-bezier(.16, .84, .3, 1) both;
+/* The ground: the mark's radiance mirrored below the line, blurred and
+   fading with distance, always clipped at the line. It moves in exact
+   mirror to the rise (same clock, same curve, 0.8 of the travel for the
+   squashed reflection), so the glow spreads over the ground as the glyphs
+   emerge, and it fades away once the mark stands: there is no ground in
+   space, only the light it left on the way up. */
+.hero-mark-ground {
+    position: absolute;
+    top: 118%;
+    /* Three times the mark's width: the perspective throws the far rows
+       well past the glyphs, and the blur needs room beyond that, or the
+       box cuts the reflection square at its sides. */
+    left: -100%;
+    right: -100%;
+    pointer-events: none;
+    clip-path: inset(0 -80px -80px -80px);
+    /* The ground is a plane hinged on the line and tilted toward the
+       viewer in perspective (em: the glyphs' own size). Whatever lies on
+       the line is exactly the mark's width; the further down the plane,
+       the wider, as light thrown from behind the mark onto a floor. The
+       glyphs travel inside this fixed plane, so the base never moves. */
+    transform: perspective(9em) rotateX(35deg);
+    transform-origin: top center;
+    /* Brightest at the line under the mark, fading with distance only:
+       the perspective plane keeps its straight edges, and the blur alone
+       softens them. */
+    -webkit-mask-image: linear-gradient(to bottom,
+        rgba(0, 0, 0, .24), rgba(0, 0, 0, .1) 45%, transparent 75%);
+    mask-image: linear-gradient(to bottom,
+        rgba(0, 0, 0, .24), rgba(0, 0, 0, .1) 45%, transparent 75%);
+    animation: roos-reflection-fade .9s ease-out 2.35s both;
 }
+/* The horizon haze: black fading out both ways from the line, so the two
+   clips there (the rising glyphs above, the reflection below) meet in a
+   soft band instead of a hard edge. Leaves with the reflection. */
+.hero-mark-horizon {
+    position: absolute;
+    top: 118%;
+    left: -100%;
+    right: -100%;
+    height: 40px;
+    margin-top: -20px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent, #000 50%, transparent);
+    animation: roos-reflection-fade .9s ease-out 2.35s both;
+}
+.hero-mark-ground pre {
+    /* Flipped about the bottom row, which is the row that meets the line. */
+    transform-origin: bottom center;
+    filter: blur(8px)
+        drop-shadow(-4px 0 4px rgba(255, 150, 40, 0.45))
+        drop-shadow(4px 0 4px rgba(95, 110, 255, 0.45));
+    will-change: transform;
+    /* A quarter second behind the rise: the reflection follows the mark,
+       never leads it (the perspective magnifies its far rows, so an exact
+       mirror would show its edge a touch before the mark's). */
+    animation: roos-reflection 1.7s cubic-bezier(.3, .1, .2, 1) .65s both;
+}
+/* Read right to left. scaleY flips the glyphs about their bottom row
+   (the stretch 1.18 squashed to .8: .944), so the mirror hangs below that
+   row with the top row furthest away. translateY seats that row on the
+   line (-100% of the box) and, during the rise, mirrors the mark's own
+   travel at .8 (the rise is 150%, so the reflection starts 120% up). The
+   perspective spread belongs to the ground plane above, not to this. */
+/* Opacity as well: at the start the plane's far end lies just above the
+   line and its blur would bleed through, while the mark has nothing above
+   the line yet to reflect. It comes in with the first rows. */
+@keyframes roos-reflection {
+    0% {
+        transform: translateY(-220%) scaleY(-.944);
+        opacity: 0;
+    }
+    40% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100%) scaleY(-.944);
+        opacity: 1;
+    }
+}
+@keyframes roos-reflection-fade {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+/* Transform and filter only: both run on the compositor, so the rise stays
+   smooth while the main thread is busy compiling the sky. Animating
+   text-shadow instead re-painted every glyph each frame and stuttered. */
+.hero-mark-sky .ascii-glow {
+    animation: roos-rise 1.7s cubic-bezier(.3, .1, .2, 1) .4s both;
+    will-change: transform, filter;
+}
+/* The line sits 18% below the box: .ascii-art stretches the glyphs by
+   that much from their top, so that is where their visual bottom is. */
+@keyframes roos-ground {
+    0%, 92% {
+        clip-path: inset(-80px -80px -18% -80px);
+    }
+    100% {
+        clip-path: inset(-80px -80px -80px -80px);
+    }
+}
+/* The dispersed fringe is a filter list of the same shape in every frame
+   (blur plus three shadows), so it interpolates and stays composited; at
+   the end it collapses to nothing and the element's own text-shadow shows. */
 @keyframes roos-rise {
     0% {
-        opacity: 0;
-        transform: translateY(7vh);
+        /* Well below the line: the blur and shadows reach some 30px past
+           the glyphs, and none of that may show before the rise. The
+           scaleY is .ascii-art's own stretch, carried through every frame
+           since an animated transform replaces it. */
+        transform: translateY(150%) scaleY(1.18);
+        filter: blur(9px)
+            drop-shadow(-9px 0 6px rgba(255, 150, 40, 0.6))
+            drop-shadow(9px 0 6px rgba(95, 110, 255, 0.6))
+            drop-shadow(0 6px 8px rgba(40, 220, 190, 0.4));
+    }
+    55% {
+        filter: blur(2px)
+            drop-shadow(-3px 0 3px rgba(255, 150, 40, 0.35))
+            drop-shadow(3px 0 3px rgba(95, 110, 255, 0.35))
+            drop-shadow(0 2px 4px rgba(40, 220, 190, 0.2));
     }
     100% {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-@keyframes roos-resolve {
-    0% {
-        filter: blur(9px);
-        text-shadow:
-            -9px 0 7px rgba(255, 150, 40, 0.55),
-            9px 0 7px rgba(95, 110, 255, 0.55),
-            0 6px 9px rgba(40, 220, 190, 0.35),
-            0 0 14px rgba(255, 255, 255, 0.45);
-    }
-    45% {
-        filter: blur(2px);
-    }
-    100% {
-        filter: blur(0);
-        text-shadow:
-            -1px 0 0 rgba(255, 70, 90, 0.4),
-            1px 0 0 rgba(70, 190, 255, 0.4),
-            0 0 14px rgba(255, 255, 255, 0.45);
+        transform: translateY(0) scaleY(1.18);
+        filter: blur(0)
+            drop-shadow(0 0 0 rgba(255, 150, 40, 0))
+            drop-shadow(0 0 0 rgba(95, 110, 255, 0))
+            drop-shadow(0 0 0 rgba(40, 220, 190, 0));
     }
 }
 
@@ -1621,11 +1728,15 @@ html.reduced-motion .animate-fade-up,
 html.reduced-motion .animate-fade-in,
 html.reduced-motion .animate-fade-in-fast,
 html.reduced-motion .animate-pulse,
-html.reduced-motion .hero-mark,
-html.reduced-motion .hero-mark .ascii-glow {
+html.reduced-motion .hero-mark-sky,
+html.reduced-motion .hero-mark-sky .ascii-glow {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+}
+html.reduced-motion .hero-mark-ground,
+html.reduced-motion .hero-mark-horizon {
+    display: none;
 }
 
 /* Rough-notation annotations in the about cards.
