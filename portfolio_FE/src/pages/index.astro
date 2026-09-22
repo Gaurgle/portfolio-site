@@ -8,8 +8,11 @@ import FeaturedShowcase from "../components/sections/FeaturedShowcase.astro";
 import TechMarquee from "../components/TechMarquee.tsx";
 import ProjectsGrid from "../components/ProjectsGrid.tsx";
 
-// Rendered twice: the mark itself, and its reflection on the ground line it
-// rises through on arrival (global.css, .hero-mark-ground).
+// Rendered three times: the mark itself, its reflection on the ground line
+// it rises through on arrival (global.css, .hero-mark-ground), and its ghost
+// on the loading screen. The letters are drawn with box pieces for their
+// outline and solid blocks for their body, so blanking the blocks leaves an
+// outline the loading screen fills in.
 const ROOS = `
 ██████╗  ██████╗  ██████╗ ███████╗
 ██╔══██╗██╔═══██╗██╔═══██╗██╔════╝
@@ -18,6 +21,7 @@ const ROOS = `
 ██║  ██║╚██████╔╝╚██████╔╝███████║
 ╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝
 `;
+const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
 ---
 <BaseLayout title="Andreas Roos" current="/" revealFooter>
     <ContactPanel slot="reveal-panel" />
@@ -47,16 +51,29 @@ const ROOS = `
             <h1 class="contents">
                 <span class="sr-only">Andreas Roos</span>
             <div class="hero-mark relative mb-8">
-                <!-- Sky half: clipped at the ground line while the mark
-                     rises on arrival. -->
-                <div class="hero-mark-sky">
+                <!-- Loading screen only: a dark grey ghost of the mark where
+                     it will stand. Its outline is there at once; its body
+                     fills in from the ground up over the black floor, the loader
+                     bar drawn as the mark itself. Plain text, nothing to
+                     load. It stays while the white mark sweeps over it. -->
+                <div class="hero-mark-ghost text-xs sm:text-base md:text-xl lg:text-2xl" aria-hidden="true">
+                    <pre class="font-mono ascii-art select-none" set:html={ROOS_OUTLINE} />
+                    <pre class="hero-mark-ghost-fill font-mono ascii-art select-none" set:html={ROOS} />
+                </div>
+                <!-- The mark itself: rises up out of the ground on arrival. -->
+                <div class="hero-mark-sky text-xs sm:text-base md:text-xl lg:text-2xl">
+                <!-- Built like the ghost: the outline drawn once more under
+                     the full mark, so the box pieces read as solid as the
+                     blocks and the two match exactly as one sweeps over
+                     the other. -->
+                <pre class="hero-mark-glyphs hero-mark-outline font-mono ascii-art text-white select-none" aria-hidden="true" set:html={ROOS_OUTLINE} />
                 <!-- The glow is real light: clouds.ts streams volumetric rays
                      out of these glyphs (lightBurst.ts), so there is no
                      painted halo behind them -->
-                <pre data-roos aria-hidden="true" class="font-mono text-xs sm:text-base md:text-xl lg:text-2xl ascii-art text-white ascii-glow select-none cursor-pointer" set:html={ROOS} />
+                <pre data-roos aria-hidden="true" class="hero-mark-glyphs font-mono ascii-art text-white ascii-glow select-none cursor-pointer" set:html={ROOS} />
                 </div>
-                <!-- Ground half: the mark's radiance mirrored on the line it
-                     rises through, growing with it and gone once it stands. -->
+                <!-- Ground half: the mark's radiance mirrored on a ground
+                     line, unfolding from it as its mirror, gone once it stands. -->
                 <!-- The size classes sit on the ground itself, so its
                      perspective (in em) is measured in the glyphs' size. -->
                 <div class="hero-mark-ground text-xs sm:text-base md:text-xl lg:text-2xl" aria-hidden="true">
@@ -145,11 +162,18 @@ const ROOS = `
 <script>
     import { projects } from "../data/projects";
 
-    /** Shortest and longest the loading screen may stand, in milliseconds.
-     *  The floor covers ROOS's black beat and rise (global.css); the ceiling
-     *  is for a browser where something never reports in (no WebGL, a
-     *  failed island). */
-    const LOADING_FLOOR = 2400;
+    /** Black before ROOS rises, in milliseconds (half a second of the bare
+     *  outline, then its one-second fill): at least the floor, and
+     *  until the sky's shaders are compiled and the fonts have landed, so
+     *  the rise never shares the GPU or its glyphs with that work. The
+     *  ceiling is for a browser where the sky never reports in (no WebGL). */
+    const BLACK_FLOOR = 1000;
+    const BLACK_CEILING = 2500;
+    /** From the start of the sweep until the world may fade in: the sweep,
+     *  the reflection's lag and a beat with the mark standing (global.css). */
+    const RISE_FLOOR = 2300;
+    /** Longest the loading screen may stand in all, for a failed island or
+     *  a picture that never arrives. */
     const LOADING_CEILING = 5000;
     /** How long the world takes to fade in around ROOS (global.css). */
     const REVEAL = 1400;
@@ -185,23 +209,36 @@ const ROOS = `
     document.addEventListener("astro:page-load", () => {
         const root = document.documentElement;
         if (!root.classList.contains("is-loading")) return;
+        // One listener: the event fires once, so it is awaited once and
+        // shared by both gates below.
+        const skyReady = once(document, "sky:ready");
         // Islands drop their ssr attribute once hydrated, so only the ones
         // still pending are waited on.
         const hydrated = Array.from(document.querySelectorAll("astro-island[ssr]"))
             .map((island) => once(island, "astro:hydrate"));
+        // Gate one: black until the rise can run undisturbed. The entrance
+        // animations stand paused on their first frame until is-rising.
+        const black = Promise.race([
+            Promise.all([document.fonts.ready, skyReady, wait(BLACK_FLOOR)]),
+            wait(BLACK_CEILING),
+        ]);
+        const risen = black.then(() => {
+            root.classList.add("is-rising");
+            return wait(RISE_FLOOR);
+        });
+        // Gate two: the world fades in once the mark stands and everything
+        // the first scroll needs has arrived.
         const ready = Promise.all([
-            document.fonts.ready,
-            once(document, "sky:ready"),
+            risen,
             document.readyState === "complete" ? null : once(window, "load"),
-            wait(LOADING_FLOOR),
             ...hydrated,
             ...featuredPictures.map((src) => warm(src, "high")),
         ]);
         Promise.race([ready, wait(LOADING_CEILING)]).then(() => {
-            root.classList.add("is-revealing");
+            root.classList.add("is-rising", "is-revealing");
             root.classList.remove("is-loading");
             setTimeout(() => {
-                root.classList.remove("is-revealing");
+                root.classList.remove("is-revealing", "is-rising");
                 laterPictures.forEach((src) => warm(src, "low"));
             }, REVEAL);
         });
