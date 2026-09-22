@@ -44,6 +44,12 @@ const isHome = Astro.url.pathname === "/";
 <!-- Scroll progress bar (driven by Lenis) -->
 <div id="scroll-progress"></div>
 
+<!-- Arrival flash (home only): a soft bloom over the screen as the white
+     mark completes, carrying it into the world's fade-in (global.css). Sits
+     here, outside the page wrapper, since that wrapper is transformed and
+     would trap a fixed element. -->
+{isHome && <div id="arrival-flash" aria-hidden="true"></div>}
+
 <!-- BANNER -->
 <header class="fixed inset-x-0 top-0 z-50 pointer-events-auto">
     <Banner isHome={isHome} />

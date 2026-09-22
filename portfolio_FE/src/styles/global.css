@@ -125,24 +125,112 @@ html.is-revealing :is(body > header, #sidebar, #dock-prompt, #scroll-progress,
     #sidebar-toggle, main > :not(#home)) {
     transition: opacity 1.4s ease;
 }
-/* ROOS arrives while the loading screen stands: the glyphs rise out of
-   nothing through an invisible ground line at their own resting bottom edge
-   (the wrapper clips there while the entrance plays, then lets go so the
-   glow is never cut at rest), resolving from a soft, dispersed haze into
-   the sharp glyphs, the same diffused prism look the clouds wear. Plays on
-   every arrival at home. */
-/* A beat of plain black first (the delay; fill-mode both holds the hidden
-   start): the shaders compile and the fonts land while nothing is moving,
-   so the rise itself begins on a quiet main thread. */
+/* ROOS arrives while the loading screen stands: its ghost draws itself in
+   dark grey from the ground up, then the white mark rises over it the same
+   way, resolving from a soft, dispersed haze into the sharp glyphs, the
+   same diffused prism look the clouds wear, with its reflection unfolding
+   from the ground line as its mirror. Plays on every arrival at home. */
+/* While the loading screen stands in black: the mark's ghost in dark grey
+   where it will rise. Its outline (the box pieces) shows at once; its body
+   (the solid blocks, the second copy) fills in from the ground up over the
+   black floor (index.astro), so the loader is the mark drawing itself. The ghost
+   stays under the white mark as it rises through it, and is gone with the
+   loading screen; it never shows otherwise. */
+.hero-mark-ghost {
+    position: absolute;
+    inset: 0;
+    color: #2c2c2c;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .6s ease;
+}
+.hero-mark-ghost pre {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+}
+.hero-mark-ghost-fill {
+    clip-path: inset(100% 0 0 0);
+}
+html.is-loading .hero-mark-ghost {
+    opacity: 1;
+}
+/* Half a second of the bare outline first, then the fill. */
+html.is-loading .hero-mark-ghost-fill {
+    animation: roos-load 1s ease-out .5s both;
+}
+@keyframes roos-load {
+    100% {
+        clip-path: inset(0 0 0 0);
+    }
+}
+/* (bottom row first: the mark grows up out of the ground) */
+/* The arrival flash: the whole screen lifts a shade, evenly, at the exact
+   moment the white mark is complete and its haze has cleared (the sweep
+   and the resolve both end at 1.4s), then settles back into the world's
+   fade-in, so the mark reads as the light that lit the page. Opacity only,
+   so it runs on the compositor; keyed to is-rising, so a return to home
+   without the loading screen never flashes. */
+#arrival-flash {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    pointer-events: none;
+    opacity: 0;
+    background: rgba(255, 250, 240, .045);
+}
+html.is-rising #arrival-flash {
+    /* Started with the sweep and the resolve, no delay: its peak is the
+       moment the fill completes and the haze is gone (50% of their 1.4s
+       clock, 0.7s, see roos-resolve), the one anchor all three share.
+       Its own clock is longer only so the fade-out can run 3s: it ends
+       exactly as is-rising is dropped (index.astro, 3.7s). */
+    animation: arrival-flash 3.7s linear both;
+}
+/* The rise tracks the fill: from the sweep's first frame the screen
+   brightens with the mark, slowly at first and steeply at the end (the
+   ease-in below), to its apex at 0.625s, ahead of the haze's last trace
+   clearing at 0.7s. Then the long, linear fade. */
+@keyframes arrival-flash {
+    0% {
+        opacity: 0;
+        animation-timing-function: cubic-bezier(.9, 0, 1, .2);
+    }
+    16.9% {
+        opacity: 1;
+        animation-timing-function: linear;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+html.reduced-motion #arrival-flash {
+    display: none;
+}
+/* On arrival the entrance stands paused on its hidden first frame (fill
+   mode both) until index.astro adds is-rising: plain black while the
+   sky's shaders compile and the fonts land, so the rise never shares the
+   GPU with that work. Without the loading screen (a return to home) it
+   simply plays from the start. */
+html.is-loading:not(.is-rising) :is(.hero-mark-sky, .hero-mark-sky .hero-mark-glyphs,
+    .hero-mark-ground, .hero-mark-horizon) {
+    animation-play-state: paused;
+}
 .hero-mark-sky {
-    animation: roos-ground 1.7s linear .4s both;
+    position: relative;
+    animation: roos-sweep 1.4s cubic-bezier(.4, 0, .2, 1) both;
+}
+.hero-mark-outline {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
 }
 /* The ground: the mark's radiance mirrored below the line, blurred and
-   fading with distance, always clipped at the line. It moves in exact
-   mirror to the rise (same clock, same curve, 0.8 of the travel for the
-   squashed reflection), so the glow spreads over the ground as the glyphs
-   emerge, and it fades away once the mark stands: there is no ground in
-   space, only the light it left on the way up. */
+   fading with distance, always clipped at the line. It sweeps in with the
+   mark, in step at the line, and fades away once the mark stands: there is
+   no ground in space, only the light the mark threw while it arrived. */
 .hero-mark-ground {
     position: absolute;
     top: 118%;
@@ -167,7 +255,8 @@ html.is-revealing :is(body > header, #sidebar, #dock-prompt, #scroll-progress,
         rgba(0, 0, 0, .24), rgba(0, 0, 0, .1) 45%, transparent 75%);
     mask-image: linear-gradient(to bottom,
         rgba(0, 0, 0, .24), rgba(0, 0, 0, .1) 45%, transparent 75%);
-    animation: roos-reflection-fade .9s ease-out 2.35s both;
+    animation: roos-sweep-ground 1.4s cubic-bezier(.4, 0, .2, 1) both,
+        roos-reflection-fade .9s ease-out 1.95s both;
 }
 /* The horizon haze: black fading out both ways from the line, so the two
    clips there (the rising glyphs above, the reflection below) meet in a
@@ -184,7 +273,7 @@ html.is-revealing :is(body > header, #sidebar, #dock-prompt, #scroll-progress,
     margin-top: -.85em;
     pointer-events: none;
     background: linear-gradient(to bottom, transparent, #000 50%, transparent);
-    animation: roos-reflection-fade .9s ease-out 2.35s both;
+    animation: roos-reflection-fade .9s ease-out 1.95s both;
 }
 .hero-mark-ground pre {
     /* Flipped about the bottom row, which is the row that meets the line. */
@@ -192,33 +281,9 @@ html.is-revealing :is(body > header, #sidebar, #dock-prompt, #scroll-progress,
     filter: blur(8px)
         drop-shadow(-4px 0 4px rgba(255, 150, 40, 0.45))
         drop-shadow(4px 0 4px rgba(95, 110, 255, 0.45));
-    will-change: transform;
-    /* A quarter second behind the rise: the reflection follows the mark,
-       never leads it (the perspective magnifies its far rows, so an exact
-       mirror would show its edge a touch before the mark's). */
-    animation: roos-reflection 1.7s cubic-bezier(.3, .1, .2, 1) .65s both;
-}
-/* Read right to left. scaleY flips the glyphs about their bottom row
-   (the stretch 1.18 squashed to .8: .944), so the mirror hangs below that
-   row with the top row furthest away. translateY seats that row on the
-   line (-100% of the box) and, during the rise, mirrors the mark's own
-   travel at .8 (the rise is 150%, so the reflection starts 120% up). The
-   perspective spread belongs to the ground plane above, not to this. */
-/* Opacity as well: at the start the plane's far end lies just above the
-   line and its blur would bleed through, while the mark has nothing above
-   the line yet to reflect. It comes in with the first rows. */
-@keyframes roos-reflection {
-    0% {
-        transform: translateY(-220%) scaleY(-.944);
-        opacity: 0;
-    }
-    40% {
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(-100%) scaleY(-.944);
-        opacity: 1;
-    }
+    /* Flipped about the bottom row (the stretch 1.18 squashed to .8:
+       .944) and seated with that row on the line. */
+    transform: translateY(-100%) scaleY(-.944);
 }
 @keyframes roos-reflection-fade {
     0% {
@@ -228,50 +293,66 @@ html.is-revealing :is(body > header, #sidebar, #dock-prompt, #scroll-progress,
         opacity: 0;
     }
 }
-/* Transform and filter only: both run on the compositor, so the rise stays
+/* Filter and clip only: both run on the compositor, so the sweep stays
    smooth while the main thread is busy compiling the sky. Animating
-   text-shadow instead re-painted every glyph each frame and stuttered. */
-.hero-mark-sky .ascii-glow {
-    animation: roos-rise 1.7s cubic-bezier(.3, .1, .2, 1) .4s both;
+   text-shadow instead re-painted every glyph each frame and stuttered.
+   The compositing hint lasts only through the loading screen: once the
+   mark stands it is plain text again, rasterized exactly like the ghost
+   (a composited copy is scaled as a texture, which thins the strokes and
+   opens seams between the blocks). */
+.hero-mark-sky .hero-mark-glyphs {
+    animation: roos-resolve 1.4s cubic-bezier(.4, 0, .2, 1) both;
+}
+html.is-loading .hero-mark-sky .hero-mark-glyphs {
     will-change: transform, filter;
 }
-/* The line sits 18% below the box: .ascii-art stretches the glyphs by
-   that much from their top, so that is where their visual bottom is. */
-@keyframes roos-ground {
-    0%, 92% {
-        clip-path: inset(-80px -80px -18% -80px);
+/* Up out of the ground, as the ghost filled: the mark takes over the ghost
+   a final time. The edge starts below the box's glow margin (nothing may
+   be open before the sweep) and ends above it; the glyphs' visual bottom
+   is 18% below the box (.ascii-art's stretch), inside that margin. */
+@keyframes roos-sweep {
+    0% {
+        clip-path: inset(calc(100% + 80px) -80px -80px -80px);
     }
     100% {
         clip-path: inset(-80px -80px -80px -80px);
     }
 }
-/* The dispersed fringe is a filter list of the same shape in every frame
-   (blur plus three shadows), so it interpolates and stays composited; at
-   the end it collapses to nothing and the element's own text-shadow shows. */
-@keyframes roos-rise {
+/* The reflection unfolds from the hinge downward as the mirror of that:
+   the mark's edge rises from its visual bottom at 1.18H + 80px over
+   H + 160px, so the reflection's edge, squashed to .8, runs from
+   .144H - 64px to .944H + 64px. Its bottom inset is H minus that. The
+   clip is in the plane's own coordinates, before the perspective. */
+@keyframes roos-sweep-ground {
     0% {
-        /* Well below the line: the blur and shadows reach some 30px past
-           the glyphs, and none of that may show before the rise. The
-           scaleY is .ascii-art's own stretch, carried through every frame
-           since an animated transform replaces it. */
-        transform: translateY(150%) scaleY(1.18);
+        clip-path: inset(-80px -80px calc(85.6% + 64px) -80px);
+    }
+    100% {
+        clip-path: inset(-80px -80px calc(5.6% - 64px) -80px);
+    }
+}
+/* The dispersed fringe is a filter list of the same shape in every frame
+   (blur plus three shadows), so it interpolates and stays composited. The
+   last frame names no filter, so it eases to none and stays none. */
+@keyframes roos-resolve {
+    0% {
         filter: blur(9px)
             drop-shadow(-9px 0 6px rgba(255, 150, 40, 0.6))
             drop-shadow(9px 0 6px rgba(95, 110, 255, 0.6))
             drop-shadow(0 6px 8px rgba(40, 220, 190, 0.4));
     }
-    55% {
+    25% {
         filter: blur(2px)
             drop-shadow(-3px 0 3px rgba(255, 150, 40, 0.35))
             drop-shadow(3px 0 3px rgba(95, 110, 255, 0.35))
             drop-shadow(0 2px 4px rgba(40, 220, 190, 0.2));
     }
-    100% {
-        transform: translateY(0) scaleY(1.18);
-        filter: blur(0)
-            drop-shadow(0 0 0 rgba(255, 150, 40, 0))
-            drop-shadow(0 0 0 rgba(95, 110, 255, 0))
-            drop-shadow(0 0 0 rgba(40, 220, 190, 0));
+    /* Clear at 50%: the sweep's ease-out has its top row landed by then
+       (its travel is the box plus the glow margins, and the eased curve is
+       near 80% at half time), so the fill completing and the haze clearing
+       are one moment, the anchor the arrival flash peaks on. */
+    50%, 100% {
+        filter: none;
     }
 }
 
@@ -1734,15 +1815,21 @@ html.reduced-motion .beam-stop {
 html.reduced-motion .animate-fade-up,
 html.reduced-motion .animate-fade-in,
 html.reduced-motion .animate-fade-in-fast,
-html.reduced-motion .animate-pulse,
-html.reduced-motion .hero-mark-sky,
-html.reduced-motion .hero-mark-sky .ascii-glow {
+html.reduced-motion .animate-pulse {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
 }
+/* The mark's entrance: without its animations the glyphs keep .ascii-art's
+   own stretch, so transform is left alone here. */
+html.reduced-motion .hero-mark-sky,
+html.reduced-motion .hero-mark-sky .hero-mark-glyphs {
+    animation: none !important;
+    opacity: 1 !important;
+}
 html.reduced-motion .hero-mark-ground,
-html.reduced-motion .hero-mark-horizon {
+html.reduced-motion .hero-mark-horizon,
+html.reduced-motion .hero-mark-ghost {
     display: none;
 }
 
