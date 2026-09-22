@@ -113,15 +113,56 @@ html, body {
 html.is-loading {
     overflow: hidden;
 }
+/* Every stage below the hero is hidden too: they are laid out by the scroll
+   engine, and until it runs their cards sit as one pile. */
 html.is-loading :is(body > header, #sidebar, #dock-prompt, #scroll-progress, #bottom-hue,
     .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
-    #sidebar-toggle) {
+    #sidebar-toggle, main > :not(#home)) {
     opacity: 0 !important;
 }
 html.is-revealing :is(body > header, #sidebar, #dock-prompt, #scroll-progress,
     .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
-    #sidebar-toggle) {
+    #sidebar-toggle, main > :not(#home)) {
     transition: opacity 1.4s ease;
+}
+/* ROOS arrives while the loading screen stands: it rises out of the black
+   and resolves from a soft, dispersed haze into the sharp glyphs, the same
+   diffused prism look the clouds wear. Plays on every arrival at home. */
+.hero-mark {
+    animation: roos-rise 1.5s cubic-bezier(.16, .84, .3, 1) both;
+}
+.hero-mark .ascii-glow {
+    animation: roos-resolve 1.5s cubic-bezier(.16, .84, .3, 1) both;
+}
+@keyframes roos-rise {
+    0% {
+        opacity: 0;
+        transform: translateY(7vh);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+@keyframes roos-resolve {
+    0% {
+        filter: blur(9px);
+        text-shadow:
+            -9px 0 7px rgba(255, 150, 40, 0.55),
+            9px 0 7px rgba(95, 110, 255, 0.55),
+            0 6px 9px rgba(40, 220, 190, 0.35),
+            0 0 14px rgba(255, 255, 255, 0.45);
+    }
+    45% {
+        filter: blur(2px);
+    }
+    100% {
+        filter: blur(0);
+        text-shadow:
+            -1px 0 0 rgba(255, 70, 90, 0.4),
+            1px 0 0 rgba(70, 190, 255, 0.4),
+            0 0 14px rgba(255, 255, 255, 0.45);
+    }
 }
 
 /* Prevent iOS auto-zoom on input focus (triggers below 16px) */
@@ -1579,7 +1620,9 @@ html.reduced-motion .beam-stop {
 html.reduced-motion .animate-fade-up,
 html.reduced-motion .animate-fade-in,
 html.reduced-motion .animate-fade-in-fast,
-html.reduced-motion .animate-pulse {
+html.reduced-motion .animate-pulse,
+html.reduced-motion .hero-mark,
+html.reduced-motion .hero-mark .ascii-glow {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;

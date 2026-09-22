@@ -14,6 +14,15 @@ import Lenis from "lenis";
 
 let lenis: Lenis | null = null;
 let rafId = 0;
+/** Lenis easing per frame: low for a heavy, deliberate glide. */
+const SCROLL_LERP = 0.065;
+/** Peak scroll speed under Lenis, in viewport heights per second. Each wheel
+ *  delta moves a target the glide chases; with no limit a hard flick queues
+ *  several screens and the page tears through them, skipping every held
+ *  moment. Capping how far the target may run ahead of the glide bounds the
+ *  speed, since the glide covers a fixed fraction of that lead per frame.
+ *  Touch scrolling stays browser-owned and uncapped. */
+const MAX_SCROLL_SPEED = 1.5;
 /** True while an anchor-click scroll is in flight (section walls stand down). */
 let anchorBypass = false;
 /** Per-frame contact-reveal magnet, set by bindScrollDriven (needs its
@@ -598,8 +607,10 @@ function measureShowcases(): Showcase[] {
         // Generous read-time per landing card, a settle beat on the full
         // pile, one exit slide, and a dwell on the docked arrow.
         const strip = section.dataset.hscrollMode === "strip";
-        // A strip segment is an arrival plus a dwell, so it runs longer.
-        const per = Math.round(vh * (strip ? 1.35 : 0.75));
+        // A strip segment is an arrival plus a dwell, so it runs longer:
+        // 0.9vh to arrive (unhurried, at the page's own scroll pace) and
+        // 0.8vh held still (STRIP_ARRIVE splits it).
+        const per = Math.round(vh * (strip ? 1.7 : 0.75));
         const settle = Math.round(vh * 0.3);
         // Generous exit: the pile's departure AND the arrow's assembly
         // (outline draw, flood, label stamp) are both scrubbed across it, so
@@ -682,7 +693,7 @@ type Cover = { content: HTMLElement; top: number; dist: number };
  *  The rest is dwell: the project holds still, aligned, before the next one
  *  starts to move. Purely scroll-scrubbed: a transition stopped half way
  *  stays half way, nothing pulls it on or back. */
-const STRIP_ARRIVE = 0.42;
+const STRIP_ARRIVE = 0.53;
 
 /** `[data-cover]` blocks pin (via data-pin) while their `[data-cover-content]`
  *  fades and lifts away over the pin's dwell distance. */
@@ -1505,7 +1516,21 @@ export function initSmoothScroll(): void {
         // Touch scrolling stays browser-owned. The animation RAF still runs,
         // but no Lenis rest magnet can restart a completed mobile gesture.
         if (isDesktop() && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-            lenis = new Lenis({ lerp: 0.065, smoothWheel: true, wheelMultiplier: 0.85 });
+            lenis = new Lenis({
+                lerp: SCROLL_LERP,
+                smoothWheel: true,
+                wheelMultiplier: 0.85,
+                // Runs per wheel event, before the delta (multiplier already
+                // applied) reaches the target, and may rewrite it.
+                virtualScroll: (data) => {
+                    if (!lenis) return true;
+                    const maxLead = (MAX_SCROLL_SPEED * layoutViewportH) / (SCROLL_LERP * 60);
+                    const lead = lenis.targetScroll - lenis.animatedScroll;
+                    const next = Math.max(-maxLead, Math.min(maxLead, lead + data.deltaY));
+                    data.deltaY = next - lead;
+                    return true;
+                },
+            });
         }
 
         let previousTime = 0;

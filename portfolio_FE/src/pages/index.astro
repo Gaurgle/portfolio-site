@@ -34,7 +34,7 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
                  display: contents so the visual layout is unchanged. -->
             <h1 class="contents">
                 <span class="sr-only">Andreas Roos</span>
-            <div class="relative mb-8 opacity-0 animate-fade-up">
+            <div class="hero-mark relative mb-8">
                 <!-- The glow is real light: clouds.ts streams volumetric rays
                      out of these glyphs (lightBurst.ts), so there is no
                      painted halo behind them -->
@@ -124,30 +124,66 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
 </BaseLayout>
 
 <script>
+    import { projects } from "../data/projects";
+
     /** Shortest and longest the loading screen may stand, in milliseconds.
-     *  The floor keeps it from flashing by; the ceiling is for a browser
-     *  where the sky never reports in (no WebGL). */
-    const LOADING_FLOOR = 900;
-    const LOADING_CEILING = 3500;
+     *  The floor lets ROOS finish rising (global.css); the ceiling is for a
+     *  browser where something never reports in (no WebGL, a failed island). */
+    const LOADING_FLOOR = 1600;
+    const LOADING_CEILING = 5000;
     /** How long the world takes to fade in around ROOS (global.css). */
     const REVEAL = 1400;
+
+    const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
+    const once = (target: EventTarget, name: string) =>
+        new Promise((done) => target.addEventListener(name, done, { once: true }));
+    /** Fetches and decodes one picture into the browser's cache, so the lazy
+     *  img that asks for it later paints at once. Never rejects: a missing
+     *  picture must not hold the loading screen. */
+    const warm = (src: string, priority: "high" | "low") =>
+        new Promise<void>((done) => {
+            const img = new Image();
+            img.setAttribute("fetchpriority", priority);
+            img.onload = () => img.decode().catch(() => {}).then(done);
+            img.onerror = () => done();
+            img.src = src;
+        });
+    const pictures = (p: (typeof projects)[number]) =>
+        (Array.isArray(p.image) ? p.image : [p.image])
+            .filter((src): src is string => typeof src === "string");
+    /** The featured cards are the first pictures on the way down, so they are
+     *  buffered under the loading screen. Everything after them is warmed in
+     *  the background once the world has faded in. */
+    const featuredPictures = projects
+        .filter((p) => p.featured)
+        .map((p) => pictures(p)[0])
+        .filter((src): src is string => typeof src === "string");
+    const laterPictures = projects
+        .flatMap(pictures)
+        .filter((src) => !featuredPictures.includes(src));
 
     document.addEventListener("astro:page-load", () => {
         const root = document.documentElement;
         if (!root.classList.contains("is-loading")) return;
-        const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
-        const once = (target: EventTarget, name: string) =>
-            new Promise((done) => target.addEventListener(name, done, { once: true }));
+        // Islands drop their ssr attribute once hydrated, so only the ones
+        // still pending are waited on.
+        const hydrated = Array.from(document.querySelectorAll("astro-island[ssr]"))
+            .map((island) => once(island, "astro:hydrate"));
         const ready = Promise.all([
             document.fonts.ready,
             once(document, "sky:ready"),
             document.readyState === "complete" ? null : once(window, "load"),
             wait(LOADING_FLOOR),
+            ...hydrated,
+            ...featuredPictures.map((src) => warm(src, "high")),
         ]);
         Promise.race([ready, wait(LOADING_CEILING)]).then(() => {
             root.classList.add("is-revealing");
             root.classList.remove("is-loading");
-            setTimeout(() => root.classList.remove("is-revealing"), REVEAL);
+            setTimeout(() => {
+                root.classList.remove("is-revealing");
+                laterPictures.forEach((src) => warm(src, "low"));
+            }, REVEAL);
         });
     });
 
