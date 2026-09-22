@@ -1180,8 +1180,12 @@ html.lenis, html.lenis body { height: auto; }
     .hscroll-pin .hscroll-viewport {
         position: sticky;
         top: 0;
-        /* svh: stable under the collapsing mobile URL bar */
-        height: 100svh;
+        /* lvh: the full screen with the browser bar hidden, so the pinned
+           screen never resizes and no strip opens under it when the bar
+           goes; while the bar shows it covers the bottom edge instead.
+           The deck inside is still sized to the small viewport (below), so
+           it always fits. Must match measureViewportHeight (smoothScroll). */
+        height: 100lvh;
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -1430,8 +1434,8 @@ html.lenis, html.lenis body { height: auto; }
 /* Mobile: the same flight on a narrower stage under the compact mark. */
 @media (max-width: 1023px) {
     .journey-stack .journey-viewport {
-        /* svh: stable under the collapsing mobile URL bar */
-        height: 100svh;
+        /* lvh: see .hscroll-viewport. Must match measureViewportHeight. */
+        height: 100lvh;
         /* Match the available screen, reserving space for the fixed header. */
         padding-top: 5rem;
         padding-bottom: 1rem;

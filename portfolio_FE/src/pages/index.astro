@@ -29,13 +29,14 @@ const ROOS = `
     <section id="home" data-section="home" data-snap data-pin="0.75" data-pin-mobile
              data-cmd="whoami" data-cmd-color="#8dffb0"
              class="relative -mt-[80px] md:-mt-[100px]">
-        <!-- Full first screen on mobile (svh: stable under the URL bar) so
-             the next chapter's mark never peeks below the hero. The hero pins
+        <!-- Full first screen on mobile (lvh: the screen with the browser
+             bar hidden, matching the engine's pin height) so nothing peeks
+             below the hero when the bar goes. The hero pins
              on mobile too (data-pin-mobile), so the explosion plays out while
              the screen holds still instead of during the scroll-away. -->
         <!-- pb lifts the centered content ~4.5vh above geometric center:
              optically balanced instead of reading slightly low -->
-        <div data-hero-scrub class="pin-viewport relative min-h-[100svh] lg:min-h-[calc(100vh-120px)] flex flex-col items-center justify-center pb-[9svh] lg:pb-[9vh]">
+        <div data-hero-scrub class="pin-viewport relative min-h-[100lvh] lg:min-h-[calc(100vh-120px)] flex flex-col items-center justify-center pb-[9svh] lg:pb-[9vh]">
         <div class="hero-boom max-w-4xl mx-auto px-4 flex flex-col items-center justify-center text-center">
 
             <!-- ASCII Art Name with pixelated glow. Bottom margin stays wide

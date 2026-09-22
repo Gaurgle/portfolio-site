@@ -48,12 +48,14 @@ const prefersReducedMotion = (): boolean =>
 const isDesktop = (): boolean =>
     window.matchMedia("(min-width: 1024px)").matches;
 
-/** Match the CSS pin height, even when the URL bar is already collapsed. */
+/** Match the CSS pin height: on phones that is the large viewport (lvh,
+ *  the screen with the browser bar hidden), whatever the bar is doing at
+ *  the moment of measuring. */
 export function measureViewportHeight(): number {
     if (isDesktop()) return window.innerHeight || 1;
     const probe = document.createElement("div");
     probe.style.cssText =
-        "position:fixed;top:0;width:0;height:100svh;visibility:hidden;pointer-events:none";
+        "position:fixed;top:0;width:0;height:100lvh;visibility:hidden;pointer-events:none";
     document.body.appendChild(probe);
     const height = probe.getBoundingClientRect().height;
     probe.remove();
