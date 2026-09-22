@@ -8,11 +8,16 @@
 <style>
     /* No CSS opacity: the sky's 0.85 opacity is applied in the shader
        (clouds.ts), so the front copy and the sky behind share one look. */
+    /* lvh: the largest the phone viewport gets, with the browser bar hidden.
+       The sky always fills it; while the bar shows it only covers the sky's
+       bottom edge. Sized to the small viewport instead, a skyless strip
+       opened under it every time the bar hid, and the canvas never has to
+       resize for the bar either way. */
     #cloud-atmosphere, #cloud-foreground {
         position: fixed;
         inset: 0;
         width: 100%;
-        height: 100svh;
+        height: 100lvh;
         z-index: 1;
         pointer-events: none;
     }

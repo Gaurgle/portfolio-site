@@ -44,7 +44,10 @@ vec3 opticalLight(vec3 p, float cloud, float glint) {
     float run=dot(offset,forward)+gleamLead;
     float side=offset.x*forward.y-offset.y*forward.x;
     float body=dense ? run-gleamOffset : (run-gleamTail)*gleamStretch;
-    if(abs(p.z-.27)>.8 || abs(side)>.75 || body<-.2 || body>gleamHead+.7) return vec3(0.);
+    // Inside a cloud the light behind the formed packet (the run-in and, once
+    // released, the trail) is not part of the rigid body: keep it in reach.
+    float back=dense ? min(body,run-gleamTail) : body;
+    if(abs(p.z-.27)>.8 || abs(side)>.75 || back<-.2 || body>gleamHead+.7) return vec3(0.);
     // The spectral footprint hangs off the prism, a lead's length into the body.
     vec2 s=origin+forward*(body-gleamLead)+vec2(forward.y,-forward.x)*side;
     float grown=smoothstep(0.,1.,gleamProgress);
@@ -75,9 +78,20 @@ vec3 opticalLight(vec3 p, float cloud, float glint) {
         sum+=bands[k]*profile*gate*depth;
     }
     sum/=vec3(3.44,3.23,2.76);
-    // The dense look starts at the prism. The run-in before it belongs to
-    // the open-space look alone (clearSpaceLight), cloud or no cloud.
-    if(dense) return sum;
+    if(dense) {
+        // The dispersed look starts at the prism. Before it the same light
+        // is still one white, undispersed core: cloud drifting in front of
+        // the prism scatters it like any other light instead of being
+        // painted over by the clear-space ray. Lit from the tail to the
+        // prism, brightening toward the head as the open-space ray does, so
+        // the two looks meet at the same strength wherever the cloud ends.
+        float trail=(run-gleamTail)*gleamStretch;
+        float pre=(1.-smoothstep(gleamLead-.06,gleamLead+.02,run))
+            *smoothstep(-.02,.055,trail)*(1.-smoothstep(gleamHead-.02,gleamHead+.07,run))
+            *pow(clamp(trail/max(gleamHead,.001),0.,1.),2.6);
+        float white=exp(-.5*side*side/.00004)+.11*exp(-.5*side*side/.012);
+        return sum+vec3(1.)*white*pre*depth;
+    }
     // Every wavelength shares the ray's centre line, so the core is white.
     // Never finer than a pixel of the low-resolution sky: below that the
     // core dims instead of breaking into a crawling dashed line.
@@ -297,9 +311,7 @@ vec3 lensField(vec2 at) {
 // split is the sky's own chromatic offset, so the light takes the same red
 // and blue fringing as the clouds around it. A ray this fine needs a wider
 // split than a cloud for it to show, so the released light amplifies it.
-// before: 1 where this is the run-in ahead of the prism, 0 from the prism on.
-vec3 clearSpaceLight(vec2 uv, vec2 split, out float before) {
-    before=0.;
+vec3 clearSpaceLight(vec2 uv, vec2 split) {
     if(gleam<=0.) return vec3(0.);
     vec3 ro=beamLocal(vec3(0.,0.,6.));
     vec3 p=onLightPlane(uv,ro), warm=onLightPlane(uv+split,ro), cool=onLightPlane(uv-split,ro);
@@ -307,7 +319,8 @@ vec3 clearSpaceLight(vec2 uv, vec2 split, out float before) {
     // open-space look from the start, the same ray that leaves the cloud at
     // the other end (fine core, faint glow, the sky's split, the haze).
     float run=dot(p.xy-spectralRays[3].xy,normalize(spectralRays[3].zw))+gleamLead;
-    before=1.-smoothstep(gleamLead-.25,gleamLead+.05,run);
+    // 1 on the run-in ahead of the prism, 0 from the prism on.
+    float before=1.-smoothstep(gleamLead-.25,gleamLead+.05,run);
     float open=max(gleamFree,before);
     // Until the light is released this is exactly the cloud's footprint seen
     // through its gaps. Released, it eases into the open-space ray.
@@ -372,14 +385,10 @@ void main() {
     float lift=coverAmount*reach*smoothstep(.15,.7,raw.a)*(1.-lens.x*.85);
     if(layer==0 && gleam>0.) {
         // Resample at the same warped coordinate as the cloud. Cloud opacity
-        // occludes the clear-space view per channel; its volume already
-        // supplies the scattered view of this light.
-        // The run-in is the one part with no cloud-scattered twin in the
-        // scene, so cloud must not hide it: it shows through as the same
-        // ray, at the same strength, as the one that leaves the cloud.
-        float before;
-        vec3 light=clearSpaceLight(beamBase,beamSplit,before);
-        vec3 beam=light*mix(1.-vec3(red.a,green.a,blue.a),vec3(1.),before);
+        // occludes the clear-space view per channel, run-in included; the
+        // volume already supplies the scattered view of this light.
+        vec3 light=clearSpaceLight(beamBase,beamSplit);
+        vec3 beam=light*(1.-vec3(red.a,green.a,blue.a));
         // A fixed per-pixel offset breaks 8-bit steps in the dim falloff.
         float grain=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-.5;
         beam=max(beam+grain/255.*smoothstep(0.,.004,max(beam.r,max(beam.g,beam.b))),0.);
@@ -430,6 +439,10 @@ function cloudPose(pass: CloudPass, desktop: boolean, aspect: number, life: numb
     }
     return {size,depth,worldX,worldY,rotation};
 }
+
+/** Scroll, in screens, by which the hero and its opening cloud are gone;
+ *  the gleam's run-in never begins before it. */
+const HERO_CLEAR = 1.3;
 
 /** A scattering-angle cosine no ray can have: the glare lobe never lights. */
 const NO_GLARE = 9;
@@ -711,9 +724,21 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // The ambient shimmer keeps mobile drawing, but between scroll changes
         // it only resamples the cached clouds instead of ray-marching again.
         const journeyTop=journey ? journey.getBoundingClientRect().top/height : Infinity;
-        // The clock starts early by exactly the run-in's length, so the light
-        // reaches the prism, and crosses the cloud, when it always did.
-        const opticalTarget=motion ? Math.max(0,(1.4-journeyTop)/2.+gleamLead/GLEAM_PACE) : 0;
+        // A fixed scroll position, so the launch frame below and the clock
+        // cannot drift apart between reloads, fast scrolling or resizing.
+        const launchScroll=Math.max(0,scroll+journeyTop-.6);
+        // The head reaches the prism as the journey's top passes 1.4 screens.
+        // The run-in starts ahead of that by its own length at the flight's
+        // pace, but never while the hero is still on screen: on a phone the
+        // journey sits close under the hero, and the light would otherwise
+        // be lit at the very top, alone, where its cloud is not yet. Where
+        // the hero cuts the run-in short it runs faster instead, so the
+        // light still meets the prism at the same moment.
+        const prismAt=launchScroll+.6-1.4;
+        const runInStart=Math.max(prismAt-2*gleamLead/GLEAM_PACE,HERO_CLEAR);
+        const opticalTarget=!motion ? 0 : scroll<prismAt
+            ? Math.max(0,(scroll-runInStart)/Math.max(prismAt-runInStart,1e-3))*gleamLead/GLEAM_PACE
+            : gleamLead/GLEAM_PACE+(scroll-prismAt)/2;
         const opticalMoving=Math.abs(opticalTarget-opticalProgress)>.0005;
         opticalProgress=last===0 || !motion ? opticalTarget
             : opticalProgress+(opticalTarget-opticalProgress)*(1-Math.exp(-step*10));
@@ -787,7 +812,6 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // Pick the existing front cloud halfway through the original birth
         // interval. The light owns this world frame for its entire flight;
         // crossing the cloud edge never changes its position or velocity.
-        const launchScroll=Math.max(0,scroll+journeyTop-.6);
         const carrier=ambientPasses(weatherScroll(launchScroll)).sort((a,b)=>a.distance-b.distance)[0];
         const launch=carrier && cloudPose(carrier,desktop.matches,width/height,0);
         const beamPaths=carrier ? spectralPaths(carrier.progress) : new Float32Array(28);

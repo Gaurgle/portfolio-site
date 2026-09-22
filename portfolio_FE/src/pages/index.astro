@@ -7,6 +7,17 @@ import ContactPanel from "../components/sections/ContactPanel.astro";
 import FeaturedShowcase from "../components/sections/FeaturedShowcase.astro";
 import TechMarquee from "../components/TechMarquee.tsx";
 import ProjectsGrid from "../components/ProjectsGrid.tsx";
+
+// Rendered twice: the mark itself, and its reflection on the ground line it
+// rises through on arrival (global.css, .hero-mark-ground).
+const ROOS = `
+██████╗  ██████╗  ██████╗ ███████╗
+██╔══██╗██╔═══██╗██╔═══██╗██╔════╝
+██████╔╝██║   ██║██║   ██║███████╗
+██╔══██╗██║   ██║██║   ██║╚════██║
+██║  ██║╚██████╔╝╚██████╔╝███████║
+╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝
+`;
 ---
 <BaseLayout title="Andreas Roos" current="/" revealFooter>
     <ContactPanel slot="reveal-panel" />
@@ -18,13 +29,14 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
     <section id="home" data-section="home" data-snap data-pin="0.75" data-pin-mobile
              data-cmd="whoami" data-cmd-color="#8dffb0"
              class="relative -mt-[80px] md:-mt-[100px]">
-        <!-- Full first screen on mobile (svh: stable under the URL bar) so
-             the next chapter's mark never peeks below the hero. The hero pins
+        <!-- Full first screen on mobile (lvh: the screen with the browser
+             bar hidden, matching the engine's pin height) so nothing peeks
+             below the hero when the bar goes. The hero pins
              on mobile too (data-pin-mobile), so the explosion plays out while
              the screen holds still instead of during the scroll-away. -->
         <!-- pb lifts the centered content ~4.5vh above geometric center:
              optically balanced instead of reading slightly low -->
-        <div data-hero-scrub class="pin-viewport relative min-h-[100svh] lg:min-h-[calc(100vh-120px)] flex flex-col items-center justify-center pb-[9svh] lg:pb-[9vh]">
+        <div data-hero-scrub class="pin-viewport relative min-h-[100lvh] lg:min-h-[calc(100vh-120px)] flex flex-col items-center justify-center pb-[9svh] lg:pb-[9vh]">
         <div class="hero-boom max-w-4xl mx-auto px-4 flex flex-col items-center justify-center text-center">
 
             <!-- ASCII Art Name with pixelated glow. Bottom margin stays wide
@@ -34,18 +46,25 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
                  display: contents so the visual layout is unchanged. -->
             <h1 class="contents">
                 <span class="sr-only">Andreas Roos</span>
-            <div class="relative mb-8 opacity-0 animate-fade-up">
+            <div class="hero-mark relative mb-8">
+                <!-- Sky half: clipped at the ground line while the mark
+                     rises on arrival. -->
+                <div class="hero-mark-sky">
                 <!-- The glow is real light: clouds.ts streams volumetric rays
                      out of these glyphs (lightBurst.ts), so there is no
                      painted halo behind them -->
-                <pre data-roos aria-hidden="true" class="font-mono text-xs sm:text-base md:text-xl lg:text-2xl ascii-art text-white ascii-glow select-none cursor-pointer" set:html={`
-██████╗  ██████╗  ██████╗ ███████╗
-██╔══██╗██╔═══██╗██╔═══██╗██╔════╝
-██████╔╝██║   ██║██║   ██║███████╗
-██╔══██╗██║   ██║██║   ██║╚════██║
-██║  ██║╚██████╔╝╚██████╔╝███████║
-╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝
-`} />
+                <pre data-roos aria-hidden="true" class="font-mono text-xs sm:text-base md:text-xl lg:text-2xl ascii-art text-white ascii-glow select-none cursor-pointer" set:html={ROOS} />
+                </div>
+                <!-- Ground half: the mark's radiance mirrored on the line it
+                     rises through, growing with it and gone once it stands. -->
+                <!-- The size classes sit on the ground itself, so its
+                     perspective (in em) is measured in the glyphs' size. -->
+                <div class="hero-mark-ground text-xs sm:text-base md:text-xl lg:text-2xl" aria-hidden="true">
+                    <pre class="font-mono ascii-art text-white select-none" set:html={ROOS} />
+                </div>
+                <!-- A soft black haze along the line, so neither the rising
+                     glyphs nor their reflection are cut with a hard edge. -->
+                <div class="hero-mark-horizon text-xs sm:text-base md:text-xl lg:text-2xl" aria-hidden="true"></div>
             </div>
             </h1>
 
@@ -124,30 +143,67 @@ import ProjectsGrid from "../components/ProjectsGrid.tsx";
 </BaseLayout>
 
 <script>
+    import { projects } from "../data/projects";
+
     /** Shortest and longest the loading screen may stand, in milliseconds.
-     *  The floor keeps it from flashing by; the ceiling is for a browser
-     *  where the sky never reports in (no WebGL). */
-    const LOADING_FLOOR = 900;
-    const LOADING_CEILING = 3500;
+     *  The floor covers ROOS's black beat and rise (global.css); the ceiling
+     *  is for a browser where something never reports in (no WebGL, a
+     *  failed island). */
+    const LOADING_FLOOR = 2400;
+    const LOADING_CEILING = 5000;
     /** How long the world takes to fade in around ROOS (global.css). */
     const REVEAL = 1400;
+
+    const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
+    const once = (target: EventTarget, name: string) =>
+        new Promise((done) => target.addEventListener(name, done, { once: true }));
+    /** Fetches and decodes one picture into the browser's cache, so the lazy
+     *  img that asks for it later paints at once. Never rejects: a missing
+     *  picture must not hold the loading screen. */
+    const warm = (src: string, priority: "high" | "low") =>
+        new Promise<void>((done) => {
+            const img = new Image();
+            img.setAttribute("fetchpriority", priority);
+            img.onload = () => img.decode().catch(() => {}).then(done);
+            img.onerror = () => done();
+            img.src = src;
+        });
+    const pictures = (p: (typeof projects)[number]) =>
+        (Array.isArray(p.image) ? p.image : [p.image])
+            .filter((src): src is string => typeof src === "string");
+    /** The featured cards are the first pictures on the way down, so they are
+     *  buffered under the loading screen. Everything after them is warmed in
+     *  the background once the world has faded in. */
+    const featuredPictures = projects
+        .filter((p) => p.featured)
+        .map((p) => pictures(p)[0])
+        .filter((src): src is string => typeof src === "string");
+    const laterPictures = projects
+        .flatMap(pictures)
+        .filter((src) => !featuredPictures.includes(src));
 
     document.addEventListener("astro:page-load", () => {
         const root = document.documentElement;
         if (!root.classList.contains("is-loading")) return;
-        const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
-        const once = (target: EventTarget, name: string) =>
-            new Promise((done) => target.addEventListener(name, done, { once: true }));
+        // Islands drop their ssr attribute once hydrated, so only the ones
+        // still pending are waited on.
+        const hydrated = Array.from(document.querySelectorAll("astro-island[ssr]"))
+            .map((island) => once(island, "astro:hydrate"));
         const ready = Promise.all([
             document.fonts.ready,
             once(document, "sky:ready"),
             document.readyState === "complete" ? null : once(window, "load"),
             wait(LOADING_FLOOR),
+            ...hydrated,
+            ...featuredPictures.map((src) => warm(src, "high")),
         ]);
         Promise.race([ready, wait(LOADING_CEILING)]).then(() => {
             root.classList.add("is-revealing");
             root.classList.remove("is-loading");
-            setTimeout(() => root.classList.remove("is-revealing"), REVEAL);
+            setTimeout(() => {
+                root.classList.remove("is-revealing");
+                laterPictures.forEach((src) => warm(src, "low"));
+            }, REVEAL);
         });
     });
 

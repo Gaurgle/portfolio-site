@@ -18,15 +18,20 @@ const isHome = Astro.url.pathname === "/";
 <head>
     <CommonHead {title} {description} />
     <!-- Loading screen (home, first arrival only): ROOS alone on black while
-         the shaders compile, the fonts land and the islands hydrate, so the
-         first scroll is smooth. Set before first paint, lifted by index.astro.
-         The flag lives on window so a later return to home skips it. -->
+         the shaders compile, the fonts land, the islands hydrate and the
+         scroll engine lays the stages out, so the first scroll is smooth.
+         Set before first paint, lifted by index.astro. The flag lives on
+         window so a later return to home skips it. -->
     {isHome && (
         <script is:inline>
             if (!window.__booted) {
                 window.__booted = true;
                 document.documentElement.classList.add("is-loading");
             }
+            // The stages are laid out from the top once the engine runs. A
+            // reload must not paint the old scroll position first: the cards
+            // would show as one pile until the engine places them.
+            history.scrollRestoration = "manual";
         </script>
     )}
 </head>
