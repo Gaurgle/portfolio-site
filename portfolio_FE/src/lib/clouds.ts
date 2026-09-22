@@ -440,6 +440,10 @@ function cloudPose(pass: CloudPass, desktop: boolean, aspect: number, life: numb
     return {size,depth,worldX,worldY,rotation};
 }
 
+/** Scroll, in screens, by which the hero and its opening cloud are gone;
+ *  the gleam's run-in never begins before it. */
+const HERO_CLEAR = 1.3;
+
 /** A scattering-angle cosine no ray can have: the glare lobe never lights. */
 const NO_GLARE = 9;
 
@@ -720,9 +724,21 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // The ambient shimmer keeps mobile drawing, but between scroll changes
         // it only resamples the cached clouds instead of ray-marching again.
         const journeyTop=journey ? journey.getBoundingClientRect().top/height : Infinity;
-        // The clock starts early by exactly the run-in's length, so the light
-        // reaches the prism, and crosses the cloud, when it always did.
-        const opticalTarget=motion ? Math.max(0,(1.4-journeyTop)/2.+gleamLead/GLEAM_PACE) : 0;
+        // A fixed scroll position, so the launch frame below and the clock
+        // cannot drift apart between reloads, fast scrolling or resizing.
+        const launchScroll=Math.max(0,scroll+journeyTop-.6);
+        // The head reaches the prism as the journey's top passes 1.4 screens.
+        // The run-in starts ahead of that by its own length at the flight's
+        // pace, but never while the hero is still on screen: on a phone the
+        // journey sits close under the hero, and the light would otherwise
+        // be lit at the very top, alone, where its cloud is not yet. Where
+        // the hero cuts the run-in short it runs faster instead, so the
+        // light still meets the prism at the same moment.
+        const prismAt=launchScroll+.6-1.4;
+        const runInStart=Math.max(prismAt-2*gleamLead/GLEAM_PACE,HERO_CLEAR);
+        const opticalTarget=!motion ? 0 : scroll<prismAt
+            ? Math.max(0,(scroll-runInStart)/Math.max(prismAt-runInStart,1e-3))*gleamLead/GLEAM_PACE
+            : gleamLead/GLEAM_PACE+(scroll-prismAt)/2;
         const opticalMoving=Math.abs(opticalTarget-opticalProgress)>.0005;
         opticalProgress=last===0 || !motion ? opticalTarget
             : opticalProgress+(opticalTarget-opticalProgress)*(1-Math.exp(-step*10));
@@ -796,7 +812,6 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // Pick the existing front cloud halfway through the original birth
         // interval. The light owns this world frame for its entire flight;
         // crossing the cloud edge never changes its position or velocity.
-        const launchScroll=Math.max(0,scroll+journeyTop-.6);
         const carrier=ambientPasses(weatherScroll(launchScroll)).sort((a,b)=>a.distance-b.distance)[0];
         const launch=carrier && cloudPose(carrier,desktop.matches,width/height,0);
         const beamPaths=carrier ? spectralPaths(carrier.progress) : new Float32Array(28);

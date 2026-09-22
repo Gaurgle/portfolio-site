@@ -1468,7 +1468,9 @@ function setupAnchors(): void {
                     },
                 });
             } else {
-                target.scrollIntoView();
+                // No Lenis (phones, reduced motion): the browser's own glide,
+                // unless motion is to be kept still.
+                target.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth" });
             }
             history.replaceState(null, "", hash);
         };
