@@ -633,9 +633,17 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const showcase=document.querySelector<HTMLElement>("#projects [data-hscroll]");
     const CALM_PACE=.3, CALM_TAIL=1.5;
     let calmFrom=Infinity, calmTo=Infinity;
-    /** Scroll as the weather experiences it: continuous, slowed in the strip. */
-    const weatherScroll=(at: number)=>
-        at<=calmFrom ? at : calmFrom+(Math.min(at,calmTo)-calmFrom)*CALM_PACE+Math.max(0,at-calmTo);
+    // The weather, and the cloud the journey's light is launched from, were
+    // composed against the page with the hero pinned for half a screen. The
+    // hero now holds longer for its curtain; the weather waits out the extra
+    // hold, so every cloud still meets the content it was placed for.
+    const WEATHER_HERO_PIN=.5;
+    const heroPin=parseFloat(document.querySelector<HTMLElement>("#home")?.dataset.pin ?? "");
+    const heroHold=Number.isFinite(heroPin) ? Math.max(0,heroPin-WEATHER_HERO_PIN) : 0;
+    /** Scroll as the weather experiences it: continuous, slowed in the strip,
+     *  and started once the hero has let go of the page. */
+    const weatherScroll=(at: number)=>Math.max(0,
+        (at<=calmFrom ? at : calmFrom+(Math.min(at,calmTo)-calmFrom)*CALM_PACE+Math.max(0,at-calmTo))-heroHold);
     let width=0, height=0, frame=0, last=0, elapsed=0, disposed=false;
     const resize = () => {
         const w=canvas.clientWidth, h=canvas.clientHeight;
@@ -669,7 +677,16 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     // (data-sky-adapt) is told when a bright cloud is behind it, so it can
     // switch to dark ink instead of the cloud having to make way.
     const skyReaders=Array.from(document.querySelectorAll<HTMLElement>("[data-sky-adapt]"));
-    const skySample=new Uint8Array(4*64);
+    // Up to 64 pixels per reader, read into a pixel buffer and collected a
+    // frame or so later behind a fence, so the page never waits on the GPU.
+    const SKY_SPAN=64;
+    const skySample=new Uint8Array(4*SKY_SPAN*skyReaders.length);
+    const skyBuffer=gl.createBuffer();
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER,skyBuffer);
+    gl.bufferData(gl.PIXEL_PACK_BUFFER,skySample.byteLength,gl.STREAM_READ);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
+    const skyPending: {element: HTMLElement; span: number; offset: number}[]=[];
+    let skyFence: WebGLSync | null=null;
     let skyTick=0;
     const lensRects=new Float32Array(16), lensPowers=new Float32Array(4);
     const lensDims=new Float32Array(4), lensErodes=new Float32Array(4);
@@ -766,9 +783,13 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             }
         }
         const opening=motion ? Math.min(1,scroll/1.15) : 1;
-        // Only section entrances lift a cloud in front of the content; the
-        // hero exit leaves ROOS inflating through the cloud on its own.
+        // Section entrances lift a cloud in front of the content. The hero
+        // exit leaves ROOS inflating through the cloud on its own, then, as
+        // ROOS fades out (about half a screen in), the hero cloud itself is
+        // lifted in front of the page: a curtain the first chapter is found
+        // behind as it disperses, rather than laid over it.
         const veil=entrance*.65;
+        const curtain=motion && opening<1 ? smooth((opening-.45)/.15) : 0;
         // The closing volume forms over the last screens and settles along
         // the top edge once the contact panel is revealed.
         const closing=motion ? clamp01((scroll-(pageEnd-1.3))/1.3) : 0;
@@ -854,9 +875,13 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         uploadLight(uniforms);
         if(motion && opening<1) {
             // Rests large behind the logo, then rushes the camera and passes
-            // through it before dispersing to expose the page.
+            // through it before dispersing to expose the page. On desktop the
+            // rush front-loads (1-(1-o)^1.6): the camera reaches the cloud about
+            // 0.75 screens in and spends the rest travelling through it, inside
+            // the fog, instead of crossing it in a few frames.
+            const approach=desktop.matches ? 1-(1-opening)**1.6 : opening**1.3;
             ordered.push({c:{phase:0,size:3.6},i:3,cycle:0,progress:opening,
-                hero:true,finale:false,distance:9.5-8.5*opening**1.3});
+                hero:true,finale:false,distance:9.5-8.5*approach});
         }
         // The closing volume. On desktop it is one cloud from the projects
         // listing to the contact panel: it condenses far behind the listing (a
@@ -930,7 +955,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             // Mobile is deliberately sequential: hero, one ambient pass,
             // then the closing cloud. No two ray-marched volumes overlap.
             const ambientFormation=motion
-                ? smooth((scroll-(desktop.matches?.85:1.1))/.5)*(1-smooth(closing))
+                ? smooth((scroll-heroHold-(desktop.matches?.85:1.1))/.5)*(1-smooth(closing))
                 : 1;
             if(!desktop.matches && (opening<1 || closing>0)) {
                 if(!hero && !finale) continue;
@@ -968,7 +993,15 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                 : desktop.matches
                     ? smooth(Math.min(progress/.2,(1-progress)/.18))*ambientFormation
                     : smooth(progress/.18)*ambientFormation;
-            gl.uniform1f(uniforms.formation,growth*growth*(3-2*growth));
+            // The fog only shows while formation is above about .55 (seen from
+            // inside), so an eased ramp to 0 crosses that band in a few frames
+            // and the curtain seemed to vanish. It thins linearly into the
+            // band instead, as the camera comes out the far side: the last
+            // quarter screen of the pass is spent evaporating.
+            const formation=hero && desktop.matches
+                ? .52+.48*clamp01((1-progress)/.44)
+                : growth*growth*(3-2*growth);
+            gl.uniform1f(uniforms.formation,formation);
             const strength=hero ? .72+.26*smooth(progress/.35)
                 : finale ? .85 : desktop.matches ? .98 : .6;
             gl.uniform1f(uniforms.strength,strength);
@@ -990,7 +1023,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // instead of switching at a depth threshold.
         const proximity=nearest ? clamp01((11-nearest.depth)/2.5) : 0;
         const ease=idleAnimate ? 1-Math.exp(-step*7) : 1;
-        cover.amount+=(proximity*smooth(veil/.3)-cover.amount)*ease;
+        cover.amount+=(proximity*Math.max(smooth(veil/.3),curtain)-cover.amount)*ease;
         if(nearest) {
             const follow=cover.amount<.02 ? 1 : ease;
             cover.x+=(nearest.x-cover.x)*follow;
@@ -1006,7 +1039,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         gl.uniform1f(chromaticUniforms.progress,chroma.progress);
         // cover.y runs down from the top; gl_FragCoord runs up from the bottom.
         gl.uniform3f(chromaticUniforms.cover,cover.x,canvas.height-cover.y,
-            Math.max(1,cover.radius*Math.sqrt(Math.max(veil,.05))));
+            Math.max(1,cover.radius*Math.sqrt(Math.max(veil,curtain,.05))));
         gl.uniform1f(chromaticUniforms.coverAmount,cover.amount);
         uploadLight(chromaticUniforms);
         gl.uniform4fv(chromaticUniforms["lenses[0]"],lensRects);
@@ -1043,26 +1076,43 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // Read the finished sky behind each adaptive element: one row of
         // pixels through its middle, every third frame. Desktop only; the
         // readback would cost a phone more than the effect is worth.
-        if(desktop.matches && skyReaders.length>0 && ++skyTick%3===0) {
-            for(const element of skyReaders) {
+        if(skyFence) {
+            const status=gl.clientWaitSync(skyFence,0,0);
+            if(status===gl.ALREADY_SIGNALED || status===gl.CONDITION_SATISFIED) {
+                gl.deleteSync(skyFence);
+                skyFence=null;
+                gl.bindBuffer(gl.PIXEL_PACK_BUFFER,skyBuffer);
+                gl.getBufferSubData(gl.PIXEL_PACK_BUFFER,0,skySample);
+                gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
+                for(const {element,span,offset} of skyPending) {
+                    let light=0;
+                    // Premultiplied over a black page: the channels are what shows.
+                    for(let i=offset;i<offset+span*4;i+=4) {
+                        light+=.2126*skySample[i]+.7152*skySample[i+1]+.0722*skySample[i+2];
+                    }
+                    light/=span*255;
+                    // Two thresholds, so a cloud edge drifting across the text
+                    // cannot make it flicker between inks.
+                    const onCloud=element.classList.contains("on-cloud");
+                    element.classList.toggle("on-cloud",light>(onCloud ? .3 : .42));
+                }
+                skyPending.length=0;
+            }
+        } else if(desktop.matches && skyReaders.length>0 && ++skyTick%3===0) {
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER,skyBuffer);
+            skyReaders.forEach((element,index)=>{
                 const box=element.getBoundingClientRect();
-                if(box.width===0 || box.bottom<0 || box.top>height) continue;
+                if(box.width===0 || box.bottom<0 || box.top>height) return;
                 const x=Math.floor(box.left*pixel);
                 const y=Math.floor(canvas.height-(box.top+box.height/2)*pixel);
-                const span=Math.max(1,Math.min(64,Math.floor(box.width*pixel)));
-                if(x<0 || y<0 || x+span>canvas.width || y>=canvas.height) continue;
-                gl.readPixels(x,y,span,1,gl.RGBA,gl.UNSIGNED_BYTE,skySample);
-                let light=0;
-                // Premultiplied over a black page: the channels are what shows.
-                for(let i=0;i<span;i++) {
-                    light+=.2126*skySample[i*4]+.7152*skySample[i*4+1]+.0722*skySample[i*4+2];
-                }
-                light/=span*255;
-                // Two thresholds, so a cloud edge drifting across the text
-                // cannot make it flicker between inks.
-                const onCloud=element.classList.contains("on-cloud");
-                element.classList.toggle("on-cloud",light>(onCloud ? .3 : .42));
-            }
+                const span=Math.max(1,Math.min(SKY_SPAN,Math.floor(box.width*pixel)));
+                if(x<0 || y<0 || x+span>canvas.width || y>=canvas.height) return;
+                const offset=index*4*SKY_SPAN;
+                gl.readPixels(x,y,span,1,gl.RGBA,gl.UNSIGNED_BYTE,offset);
+                skyPending.push({element,span,offset});
+            });
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
+            if(skyPending.length>0) skyFence=gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE,0);
         }
         // Upscaling the low-resolution mobile buffer already softens it.
         // Avoid filtering a full-screen canvas on every scroll frame there.
@@ -1095,6 +1145,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         if (!contextLost) {
             gl.deleteTexture(texture);gl.deleteBuffer(buffer);
             gl.deleteTexture(sceneTexture);gl.deleteFramebuffer(sceneBuffer);
+            gl.deleteBuffer(skyBuffer);if(skyFence) gl.deleteSync(skyFence);
             burst?.dispose();
             shaders.forEach(s=>gl.deleteShader(s));programs.forEach(p=>gl.deleteProgram(p));
         }

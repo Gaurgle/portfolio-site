@@ -108,8 +108,10 @@ export default function ProjectsGrid() {
                     ))}
                 </div>
 
-                <div className="flex gap-10" onMouseEnter={warmImages}>
-                    {/* Rows. Fixed min-height: filtering must not shrink the
+                <div className="flex" onMouseEnter={warmImages}>
+                    {/* Rows. They run up to the viewer, so the open row's
+                        pane meets the picture; the gap lives in their right
+                        padding instead. Fixed min-height: filtering must not shrink the
                         page (a shorter document would drop the reader into
                         the contact reveal band mid-interaction). */}
                     <div
@@ -133,7 +135,7 @@ export default function ProjectsGrid() {
                                     role="button"
                                     tabIndex={0}
                                     style={{ "--rc": accent } as CSSProperties}
-                                    className={`ls-row group flex items-baseline gap-5 py-4 px-2 border-b border-zinc-800/70
+                                    className={`ls-row group flex items-baseline gap-5 py-4 pl-2 pr-12 border-b border-zinc-800/70
                                                font-mono cursor-pointer transition-colors duration-200
                                                ${selected ? "ls-row-active bg-white/[0.03]" : ""}`}
                                 >

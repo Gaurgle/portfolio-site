@@ -29,8 +29,10 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
     <!-- ================= HERO ================= -->
     <!-- Negative top margin cancels the layout's header padding, so the hero
          is pinned and truly centered at scroll 0 (no tiny settle-scroll) -->
-    <!-- Pin holds a beat past the ROOS dissolve (~0.63vh of scrub) -->
-    <section id="home" data-section="home" data-pin="0.5" data-pin-mobile
+    <!-- Pin holds past the ROOS dissolve (~0.63vh of scrub) until the hero
+         cloud, lifted in front as a curtain (clouds.ts), has nearly reached
+         the camera (1.15vh): the first chapter is uncovered, not overlaid. -->
+    <section id="home" data-section="home" data-pin="1" data-pin-mobile
              data-hue="#8dffb0"
              class="relative -mt-[80px] md:-mt-[100px]">
         <!-- Full first screen on mobile (lvh: the screen with the browser
@@ -92,7 +94,7 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
              opacity belongs to the scrubbed dissolve). -->
         <div class="hero-lines flex flex-col items-center">
         <!-- Separate words let the glitch shift them independently. -->
-        <p class="hero-tagline font-mono text-sm sm:text-base md:text-lg text-zinc-400 tracking-wide whitespace-nowrap -mt-2"><span class="hero-tag" style="--glitch-direction: -1">Backend</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: 0.7">Android</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: -0.6">Bluetooth LE</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: 1">Stockholm</span></p>
+        <p class="hero-tagline font-mono text-sm sm:text-base md:text-lg text-zinc-200 tracking-wide whitespace-nowrap -mt-2"><span class="hero-tag" style="--glitch-direction: -1">Backend</span> <span class="text-zinc-500">-</span> <span class="hero-tag" style="--glitch-direction: 0.7">Android</span> <span class="text-zinc-500">-</span> <span class="hero-tag" style="--glitch-direction: -0.6">Bluetooth LE</span> <span class="text-zinc-500">-</span> <span class="hero-tag" style="--glitch-direction: 1">Stockholm</span></p>
         </div>
 
         </div>
@@ -201,9 +203,43 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
         .flatMap(pictures)
         .filter((src) => !featuredPictures.includes(src));
 
+    /** Keys that scroll the page when nothing focused takes them. */
+    const SCROLL_KEYS = new Set([" ", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
+
+    /** Holds the page still at the top while the loading screen stands.
+     *  `overflow: hidden` alone stops neither the smooth-scroll engine (it
+     *  reads the wheel itself and scrolls from script) nor touch on iOS, so
+     *  the input is swallowed before anything else sees it, and any scroll
+     *  that still gets through is put back. Returns the release. */
+    function holdScroll(): () => void {
+        const swallow = (event: Event) => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        };
+        const swallowKey = (event: KeyboardEvent) => {
+            if (SCROLL_KEYS.has(event.key)) swallow(event);
+        };
+        const pin = () => {
+            if (window.scrollY !== 0) window.scrollTo(0, 0);
+        };
+        const capture = { capture: true, passive: false };
+        window.addEventListener("wheel", swallow, capture);
+        window.addEventListener("touchmove", swallow, capture);
+        window.addEventListener("keydown", swallowKey, capture);
+        window.addEventListener("scroll", pin);
+        pin();
+        return () => {
+            window.removeEventListener("wheel", swallow, capture);
+            window.removeEventListener("touchmove", swallow, capture);
+            window.removeEventListener("keydown", swallowKey, capture);
+            window.removeEventListener("scroll", pin);
+        };
+    }
+
     document.addEventListener("astro:page-load", () => {
         const root = document.documentElement;
         if (!root.classList.contains("is-loading")) return;
+        const releaseScroll = holdScroll();
         // One listener: the event fires once, so it is awaited once and
         // shared by both gates below.
         const skyReady = once(document, "sky:ready");
@@ -230,6 +266,7 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
             ...featuredPictures.map((src) => warm(src, "high")),
         ]);
         Promise.race([ready, wait(LOADING_CEILING)]).then(() => {
+            releaseScroll();
             root.classList.add("is-rising", "is-revealing");
             root.classList.remove("is-loading");
             setTimeout(() => {
