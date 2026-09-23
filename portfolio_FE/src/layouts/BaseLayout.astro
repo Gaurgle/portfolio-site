@@ -37,6 +37,16 @@ const isHome = Astro.url.pathname === "/";
 </head>
 
 <body class="font-sans bg-black text-white relative">
+<!--
+    $ whoami
+    andreas roos  ~  backend, android, bluetooth le  ~  stockholm
+
+    $ cat contact.txt
+    larsnilsandreas@pm.me
+
+    $ ls secrets/
+    click the name. type help.
+-->
 <!-- Film grain: a whisper of animated noise over everything, so the black
      reads as material instead of emptiness -->
 <div id="film-grain" aria-hidden="true"></div>
@@ -54,15 +64,6 @@ const isHome = Astro.url.pathname === "/";
 <header class="fixed inset-x-0 top-0 z-50 pointer-events-auto">
     <Banner isHome={isHome} />
 </header>
-
-<!-- Docked section prompt: separate fixed object ABOVE the header bar
-     (page content lives in a z-10 stacking context and can never rise over
-     the z-50 banner, so this cannot be a sticky element inside a section).
-     The scroll spy re-types the active section's command into it. -->
-<div id="dock-prompt"
-     class="fixed z-[60] top-[26px] left-8 max-w-[11.5rem] overflow-hidden whitespace-nowrap font-mono text-sm text-zinc-300 pointer-events-none select-none hidden lg:block">
-    <span id="dock-sigil">$</span> <span id="dock-cmd"></span><span id="dock-caret">▍</span>
-</div>
 
 <!-- SIDEBAR TOGGLE (outside header to avoid z-50 stacking context trapping the overlay) -->
 <SidebarToggle client:load />

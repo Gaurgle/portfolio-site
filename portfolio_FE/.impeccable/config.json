@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "bounce-easing",
+        "value": "crt-wobble",
+        "createdAt": "2026-09-23T13:42:01.240Z",
+        "reason": "Literal motion: the CRT easter egg (type 'crt' in the mini terminal) imitates an old tube's picture wobble; in the codebase since March 2026, untouched by this branch"
+      }
+    ]
+  }
+}

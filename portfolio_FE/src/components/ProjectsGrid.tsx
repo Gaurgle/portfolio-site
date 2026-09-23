@@ -21,9 +21,8 @@ const firstImage = (p: Project) =>
 const ACCENTS = ["#8dffb0", "#46beff", "#9d8cff", "#ffb84d", "#3fe8d2", "#ff6b8b"];
 
 /** The rest of the projects (flagships live in the FeaturedShowcase above).
- *  Desktop: a terminal directory listing - monospace rows, a floating
- *  screenshot preview that trails the cursor, and tech filter chips that
- *  read as a grep pipe. Mobile: the native swipe carousel. */
+ *  Desktop: a directory listing - monospace rows, a docked screenshot
+ *  viewer, and tech filter chips. Mobile: the native swipe carousel. */
 /** The project that leads the listing, and so opens in the viewer. */
 const LEAD = "pinz";
 
@@ -93,15 +92,6 @@ export default function ProjectsGrid() {
         <div>
             {/* ==================== desktop: ls listing ==================== */}
             <div className="hidden lg:block">
-                <p className="font-mono text-sm text-zinc-400 mb-1">
-                    <span className="text-ctp-blue">$</span> ls projects/
-                    {filter && (
-                        <span className="text-zinc-500">
-                            {" "}| grep <span className="text-ctp-blue">{filter.toLowerCase()}</span>
-                        </span>
-                    )}
-                    <span className="text-zinc-600 select-none">  # click a row to preview</span>
-                </p>
                 <div className="flex flex-wrap gap-1.5 mb-6">
                     {chips.map((tag) => (
                         <button
@@ -128,7 +118,7 @@ export default function ProjectsGrid() {
                     >
                         {listed.length === 0 && (
                             <div className="py-6 px-2 font-mono text-sm text-zinc-500">
-                                grep: no matches in projects/
+                                no projects match
                             </div>
                         )}
                         {listed.map((p, i) => {
@@ -144,7 +134,7 @@ export default function ProjectsGrid() {
                                     tabIndex={0}
                                     style={{ "--rc": accent } as CSSProperties}
                                     className={`ls-row group flex items-baseline gap-5 py-4 px-2 border-b border-zinc-800/70
-                                               font-mono cursor-pointer transition-colors duration-200 hover:bg-white/[0.02]
+                                               font-mono cursor-pointer transition-colors duration-200
                                                ${selected ? "ls-row-active bg-white/[0.03]" : ""}`}
                                 >
                                     <span className="ls-name whitespace-nowrap text-lg text-zinc-200 transition-colors duration-200">
@@ -187,7 +177,7 @@ export default function ProjectsGrid() {
                         {shown && (
                             <p className="absolute bottom-full left-0 mb-1 font-mono text-base text-white">
                                 {shown.projectTitle.toLowerCase().replaceAll(" ", "-")}
-                                <span className="text-ctp-blue animate-pulse">_</span>
+                                <span className="text-ctp-blue">.</span>
                             </p>
                         )}
                         {!shown ? (
@@ -198,7 +188,7 @@ export default function ProjectsGrid() {
                                     projects<span className="text-ctp-blue">.</span>
                                 </p>
                                 <p className="font-mono text-xs text-zinc-500">
-                                    <span className="text-ctp-blue">$</span> click a row to open it here
+                                    click a row to open it here
                                 </p>
                             </div>
                         ) : firstImage(shown) ? (
@@ -219,11 +209,7 @@ export default function ProjectsGrid() {
                             </button>
                         ) : (
                             <div className="w-full aspect-[17/14] flex items-center justify-center bg-zinc-900/30 border border-zinc-800 rounded-md font-mono text-xs text-zinc-600">
-                                <span>
-                                    <span className="text-ctp-mauve">$</span> ./preview
-                                    <br />
-                                    no screenshot yet
-                                </span>
+                                <span>no screenshot yet</span>
                             </div>
                         )}
                         {shown && (

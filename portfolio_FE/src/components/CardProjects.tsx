@@ -205,9 +205,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                 <div className="h-44 w-full flex-shrink-0 relative flex items-center justify-center
                                 bg-zinc-900/30 border-b border-zinc-800/50 overflow-hidden select-none">
                     <div className="font-mono text-xs text-zinc-600 text-center leading-relaxed">
-                        <span className="text-ctp-mauve">$</span> ./preview
-                        <br />
-                        <span className="text-zinc-700">no screenshot yet</span>
+                        <span className="text-zinc-500">no screenshot yet</span>
                     </div>
                 </div>
             )}

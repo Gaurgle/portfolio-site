@@ -6,7 +6,7 @@ import Lenis from "lenis";
  * Owns the Lenis instance, its RAF loop, snap points, and every scroll-driven
  * effect: progress bar, hero dissolve, wrapped particle parallax, relative
  * parallax (ghost numerals), the pinned horizontal journey, the velocity
- * marquee, typed prompts, reveal-on-scroll, and the sidebar scroll spy.
+ * marquee, reveal-on-scroll, and the sidebar scroll spy.
  *
  * Astro's ClientRouter swaps the DOM per navigation, so everything is torn
  * down on `astro:before-swap` and rebuilt on `astro:page-load`.
@@ -27,7 +27,7 @@ const MAX_SCROLL_SPEED = 1.5;
  *  the longest any jump may take, in seconds. */
 const ANCHOR_SPEED = 3;
 const ANCHOR_MAX_DURATION = 2.2;
-/** True while an anchor-click scroll is in flight (section walls stand down). */
+/** True while an anchor-click scroll is in flight (the reveal magnet stands down). */
 let anchorBypass = false;
 /** Per-frame contact-reveal magnet, set by bindScrollDriven (needs its
  *  measurements); runs from the RAF loop since rest detection can't live
@@ -238,85 +238,15 @@ function setupMagnetic(reduced: boolean): void {
 }
 
 /* ------------------------------------------------------------------ */
-/* Typed command prompts                                               */
-/* ------------------------------------------------------------------ */
-
-/**
- * `<span data-type-cmd="cat about.txt"></span>` types itself out when it
- * scrolls into view, with a blinking caret while typing.
- */
-function setupTypedPrompts(reduced: boolean): void {
-    const els = document.querySelectorAll<HTMLElement>("[data-type-cmd]");
-    if (!els.length) return;
-
-    if (reduced) {
-        els.forEach((el) => (el.textContent = el.dataset.typeCmd ?? ""));
-        return;
-    }
-
-    const io = new IntersectionObserver(
-        (entries) => {
-            for (const entry of entries) {
-                if (!entry.isIntersecting) continue;
-                const el = entry.target as HTMLElement;
-                io.unobserve(el);
-
-                const text = el.dataset.typeCmd ?? "";
-                el.classList.add("is-typing");
-                let i = 0;
-                const interval = window.setInterval(() => {
-                    el.textContent = text.slice(0, ++i);
-                    if (i >= text.length) {
-                        window.clearInterval(interval);
-                        el.classList.remove("is-typing");
-                        el.classList.add("is-typed");
-                    }
-                }, 45);
-                cleanups.push(() => window.clearInterval(interval));
-            }
-        },
-        { threshold: 0.6 },
-    );
-
-    els.forEach((el) => io.observe(el));
-    observers.push(io);
-}
-
-/* ------------------------------------------------------------------ */
 /* Sidebar scroll spy                                                  */
 /* ------------------------------------------------------------------ */
 
-function setupScrollSpy(reduced: boolean): void {
+function setupScrollSpy(): void {
     const sections = document.querySelectorAll<HTMLElement>("[data-section]");
     if (!sections.length) return;
 
-    const dock = document.getElementById("dock-cmd");
-    const sigil = document.getElementById("dock-sigil");
     const hueEl = document.getElementById("bottom-hue");
-    let dockTimer = 0;
     let currentActive = "";
-
-    // (The dock sits at a fixed left inside the sidebar column - see
-    // BaseLayout - so no measurement is needed.)
-
-    /** Re-type the active section's command into the docked prompt. */
-    const dockType = (section: HTMLElement) => {
-        const cmd = section.dataset.cmd;
-        if (!dock || cmd == null) return;
-        if (sigil) sigil.style.color = section.dataset.cmdColor ?? "#8dffb0";
-        window.clearInterval(dockTimer);
-        if (reduced) {
-            dock.textContent = cmd;
-            return;
-        }
-        let i = 0;
-        dock.textContent = "";
-        dockTimer = window.setInterval(() => {
-            dock.textContent = cmd.slice(0, ++i);
-            if (i >= cmd.length) window.clearInterval(dockTimer);
-        }, 40);
-    };
-    cleanups.push(() => window.clearInterval(dockTimer));
 
     const setActive = (section: HTMLElement) => {
         const name = section.dataset.section ?? "";
@@ -327,15 +257,17 @@ function setupScrollSpy(reduced: boolean): void {
         });
         // Lets CSS react to focus (e.g. ghost numerals brightening).
         sections.forEach((s) => s.classList.toggle("section-active", s === section));
+        // Named on <html> too, so fixed chrome outside the sections can react
+        // (the header socials give way to the contact chapter's own links).
+        document.documentElement.dataset.section = name;
         // The bottom hue adopts the chapter's accent (CSS cross-fades it);
         // the hero alone stays hue-free.
         if (hueEl) {
-            if (section.dataset.cmdColor) {
-                hueEl.style.setProperty("--hue-color", section.dataset.cmdColor);
+            if (section.dataset.hue) {
+                hueEl.style.setProperty("--hue-color", section.dataset.hue);
             }
             hueEl.classList.toggle("hue-off", name === "home");
         }
-        dockType(section);
     };
 
     const io = new IntersectionObserver(
@@ -411,7 +343,7 @@ function measureCardStacks(): CardStack[] {
 
         // Generous read-time: each coaster owns ~0.9 viewport of scroll
         // (a bit brisker on mobile, where scrolling is thumb-flicks).
-        const per = Math.round(layoutViewportH * (desktop ? 0.9 : 0.75));
+        const per = Math.round(layoutViewportH * (desktop ? 0.65 : 0.6));
         const distance = (cards.length - 1) * per;
         // Cushion on entry and exit: pinned, but the pile holds still for
         // this much vertical scroll before/after the landing sequence.
@@ -616,14 +548,14 @@ function measureShowcases(): Showcase[] {
         // A strip segment is an arrival plus a dwell, so it runs longer:
         // 0.9vh to arrive (unhurried, at the page's own scroll pace) and
         // 0.8vh held still (STRIP_ARRIVE splits it).
-        const per = Math.round(vh * (strip ? 1.7 : 0.75));
+        const per = Math.round(vh * (strip ? 1.2 : 0.75));
         const settle = Math.round(vh * 0.3);
         // Generous exit: the pile's departure AND the arrow's assembly
         // (outline draw, flood, label stamp) are both scrubbed across it, so
         // this is the dial that sets how much scroll the whole assembly gets.
         // The label's share of that is widened separately in the scrub, so the
         // lettering slows without dragging out the draw and flood with it.
-        const exitDist = Math.round(vh * 1.4);
+        const exitDist = Math.round(vh * 1.0);
         // Short dwell: the arrow does not need to sit finished on an empty
         // stage, and a long one leaves dead scroll between it and the grid it
         // points at. The grid climbs over its tail instead (see index.astro).
@@ -690,7 +622,7 @@ function measureShowcases(): Showcase[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Chapter covers (title slides that fade into the docked prompt)      */
+/* Chapter covers (title slides that fade as their content arrives)   */
 /* ------------------------------------------------------------------ */
 
 type Cover = { content: HTMLElement; top: number; dist: number };
@@ -913,20 +845,6 @@ function bindScrollDriven(reduced: boolean): void {
     let holds = reduced ? [] : measureHolds();
     let covers = reduced ? [] : measureCovers();
 
-    // Section walls: scroll momentum dies exactly at each section start; the
-    // next gesture continues past it. No snap animation, just a stop.
-    // Desktop only: braking scrollTo calls fight native touch momentum.
-    const measureWalls = (): number[] =>
-        !isDesktop() ? [] :
-        Array.from(document.querySelectorAll<HTMLElement>("[data-snap]"))
-            .map((el) => Math.round(el.getBoundingClientRect().top + window.scrollY))
-            // The first section starts ~100px in; a wall there would halt the
-            // very first scroll gesture for nothing.
-            .filter((w) => w > window.innerHeight * 0.5)
-            .sort((a, b) => a - b);
-    let walls = reduced ? [] : measureWalls();
-    let lastScroll = window.scrollY;
-    let braking = false;
 
     // Reveal magnet: stopping mid-reveal leaves the page edge hanging over
     // the contact panel. Once the scroll RESTS inside the reveal band
@@ -949,7 +867,7 @@ function bindScrollDriven(reduced: boolean): void {
         let lastY = -1;
         magnetTick = () => {
             if (!lenis) return;
-            if (touching || braking || anchorBypass) {
+            if (touching || anchorBypass) {
                 restFrames = 0;
                 return;
             }
@@ -1000,7 +918,6 @@ function bindScrollDriven(reduced: boolean): void {
         markDrifts = measureMarkDrifts();
         holds = measureHolds();
         covers = measureCovers();
-        walls = measureWalls();
         lenis?.resize();
         onScroll();
     };
@@ -1054,38 +971,6 @@ function bindScrollDriven(reduced: boolean): void {
         // pinned/held content doesn't shiver against the page.
         const scroll = window.scrollY;
         const vh = viewportH;
-
-        // Wall coming up? Brake into the boundary with a short eased stop
-        // instead of a dead halt. The crossing test looks ~8 frames ahead:
-        // braking only after the fact overshoots the wall and yanks the page
-        // back over it - a visible bounce at every section start under
-        // momentum. (Skipped during anchor jumps.)
-        if (lenis && !anchorBypass && !braking) {
-            const projected = scroll + lenis.velocity * 8;
-            for (const w of walls) {
-                // 1px tolerance: a brake that lands a hair short of the wall
-                // must not re-arm it against the very next gesture.
-                const crossed =
-                    (lastScroll < w - 1 && Math.max(scroll, projected) > w) ||
-                    (lastScroll > w + 1 && Math.min(scroll, projected) < w);
-                if (crossed) {
-                    braking = true;
-                    // Failsafe: a user gesture can interrupt the brake and
-                    // swallow onComplete - never leave the walls disabled.
-                    const failsafe = window.setTimeout(() => (braking = false), 700);
-                    lenis.scrollTo(w, {
-                        duration: 0.45,
-                        easing: (t: number) => 1 - Math.pow(1 - t, 3),
-                        onComplete: () => {
-                            window.clearTimeout(failsafe);
-                            braking = false;
-                        },
-                    });
-                    break;
-                }
-            }
-        }
-        lastScroll = scroll;
 
         if (bar) bar.style.transform = `scaleX(${progress || 0})`;
 
@@ -1576,11 +1461,9 @@ export function initSmoothScroll(): void {
 
     setupWordReveals(reduced);
     setupMagnetic(reduced);
-    setupTypedPrompts(reduced);
-    setupScrollSpy(reduced);
+    setupScrollSpy();
     setupAnchors();
-    // Applies pin/stack heights and registers the section walls against the
-    // final stretched layout.
+    // Applies pin/stack heights against the final stretched layout.
     bindScrollDriven(reduced);
 }
 

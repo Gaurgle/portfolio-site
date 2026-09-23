@@ -29,9 +29,9 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
     <!-- ================= HERO ================= -->
     <!-- Negative top margin cancels the layout's header padding, so the hero
          is pinned and truly centered at scroll 0 (no tiny settle-scroll) -->
-    <!-- Pin holds until the ROOS dissolve completes (~0.63vh of scrub) -->
-    <section id="home" data-section="home" data-snap data-pin="0.75" data-pin-mobile
-             data-cmd="whoami" data-cmd-color="#8dffb0"
+    <!-- Pin holds a beat past the ROOS dissolve (~0.63vh of scrub) -->
+    <section id="home" data-section="home" data-pin="0.5" data-pin-mobile
+             data-hue="#8dffb0"
              class="relative -mt-[80px] md:-mt-[100px]">
         <!-- Full first screen on mobile (lvh: the screen with the browser
              bar hidden, matching the engine's pin height) so nothing peeks
@@ -88,16 +88,11 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
 
         </div>
 
-        <!-- One wrapper for both lines: the loading screen fades it in as a
-             unit (the lines' own opacity belongs to the scrubbed dissolve). -->
+        <!-- The loading screen fades the tagline in as a unit (its own
+             opacity belongs to the scrubbed dissolve). -->
         <div class="hero-lines flex flex-col items-center">
         <!-- Separate words let the glitch shift them independently. -->
         <p class="hero-tagline font-mono text-sm sm:text-base md:text-lg text-zinc-400 tracking-wide whitespace-nowrap -mt-2"><span class="hero-tag" style="--glitch-direction: -1">Backend</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: 0.7">Android</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: -0.6">Bluetooth LE</span> <span class="text-zinc-600">-</span> <span class="hero-tag" style="--glitch-direction: 1">Stockholm</span></p>
-
-        <!-- The path shares the glitch dissolve without the ROOS zoom. -->
-        <p class="hero-path font-mono text-base text-zinc-400 mt-4">
-            ~/portfolio <span class="animate-pulse text-ctp-green">_</span>
-        </p>
         </div>
 
         </div>
@@ -120,9 +115,9 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
     <!-- Desktop tail: the ls listing is short, and without this cushion it
          would rest inside the contact reveal band (the magnet would pull
          the page away while the visitor reads the list) -->
-    <section id="projects" data-section="projects" data-snap
-             data-cmd="ls projects/" data-cmd-color="#46beff"
-             class="relative max-w-6xl mx-auto px-4 pb-16 lg:pb-[45vh]">
+    <section id="projects" data-section="projects"
+             data-hue="#46beff"
+             class="relative max-w-6xl mx-auto px-4 pb-16 lg:pb-[30vh]">
         <!-- Flagship projects: pinned horizontal filmstrip; the 03 chapter
              mark lives inside the strip's viewport and gets pushed out by
              the first card -->
@@ -140,10 +135,10 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
              and a half of scroll (desktop), so nobody flies past it on the
              way to the contact panel. Seated high (data-hold-at): the
              listing is nearly a screen tall and its last row must fit. -->
-        <div data-hold="1.5" data-hold-at="0.09" class="more-projects-stage relative z-10 mt-10 md:mt-[6vh] lg:-mt-[20vh]">
+        <div data-hold="0.8" data-hold-at="0.09" class="more-projects-stage relative z-10 mt-10 md:mt-[6vh] lg:-mt-[20vh]">
             <div data-hold-content>
                 <h3 class="font-bold uppercase tracking-[0.3em] text-xl md:text-2xl text-white/80 select-none mb-10">
-                    <span class="text-ctp-blue font-mono mr-2">//</span>more projects
+                    more projects<span class="text-ctp-blue">.</span>
                 </h3>
                 <ProjectsGrid client:load />
             </div>
