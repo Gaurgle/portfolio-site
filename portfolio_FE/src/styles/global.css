@@ -30,6 +30,19 @@
     font-display: swap;
 }
 
+/* Box drawing and block elements for the ROOS mark, cut from the full Noto
+   Sans Mono (the latin file lacks them). Without it each phone fills those
+   glyphs from whatever system font it has, at other widths, and the mark
+   shears apart. Blocking briefly on 3KB beats showing the sheared mark. */
+@font-face {
+    font-family: "Noto Sans Mono";
+    src: url("/fonts/noto-sans-mono-box-400-normal.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+    unicode-range: U+2500-259F;
+}
+
 @font-face {
     font-family: "Noto Sans Mono";
     src: url("/fonts/noto-sans-mono-latin-500-normal.woff2") format("woff2");
@@ -1584,27 +1597,44 @@ html.reduced-motion .beam-stop {
 .ls-row-active .ls-name {
     color: var(--rc, #46beff);
 }
-/* Hover: frosted glass, inverted. The row becomes a pane: what lies behind
-   it is blurred and inverted, then dimmed to a graphite grey, a step up from
-   the selected row rather than a flash. The stars turn to soft dark motes,
-   the cloud behind the listing (clouds.ts, the closing cloud) to darker
+/* Hover: an inverted pane. What lies behind the row is inverted, then
+   dimmed to a graphite grey, a step up from the selected row rather than a
+   flash. No blur: over the animated sky a blur is recomputed every frame
+   and made hovering lag, while the colour steps are nearly free. The stars
+   turn to dark motes, the cloud behind the listing (clouds.ts, the closing cloud) to darker
    billows, and the sky's own spectral fringes come through inverted, so the
    pane is not black and white. Flat: no edge lines, nothing raised. The
-   type stays light, the name in its accent as when selected. */
+   type stays light, the name in its accent as when selected.
+   The pane is a pseudo-element whose filter never changes: only its opacity
+   eases, which the compositor does alone. Animating the filter itself, or
+   leaving an idle backdrop-filter on every row, re-filtered the live sky
+   under each row every frame and made the whole listing lag. Hidden once
+   faded out, so rows at rest cost nothing. */
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
     .ls-row {
-        -webkit-backdrop-filter: blur(0) invert(0) brightness(1) saturate(1);
-        backdrop-filter: blur(0) invert(0) brightness(1) saturate(1);
-        transition:
-            -webkit-backdrop-filter 0.6s cubic-bezier(0.22, 1, 0.36, 1),
-            backdrop-filter 0.6s cubic-bezier(0.22, 1, 0.36, 1),
-            background-color 0.6s ease,
-            color 0.35s ease;
+        position: relative;
+        isolation: isolate;
+        transition: background-color 0.3s ease, color 0.25s ease;
+    }
+    .ls-row::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        -webkit-backdrop-filter: invert(1) brightness(0.36) saturate(1.4);
+        backdrop-filter: invert(1) brightness(0.36) saturate(1.4);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease-out, visibility 0s linear 0.3s;
     }
     .ls-row:hover {
-        -webkit-backdrop-filter: blur(7px) invert(1) brightness(0.36) saturate(1.4);
-        backdrop-filter: blur(7px) invert(1) brightness(0.36) saturate(1.4);
         background-color: rgb(255 255 255 / 0.03);
+    }
+    .ls-row:hover::before {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.1s ease-out, visibility 0s;
     }
 }
 
