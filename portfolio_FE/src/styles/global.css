@@ -90,6 +90,16 @@ html, body {
     @apply bg-black text-white min-h-screen;
 }
 
+/* No page scrollbar: the top progress bar shows the position instead. A
+   classic scrollbar also appeared only once the loading screen let go of
+   the page, and its width shoved the whole layout sideways. */
+html {
+    scrollbar-width: none;
+}
+html::-webkit-scrollbar {
+    display: none;
+}
+
 /* Loading screen: ROOS alone on black (BaseLayout sets is-loading before
    first paint on home, index.astro lifts it once the sky is compiled). The
    rest of the world is only hidden, so it fades in around the logo when the

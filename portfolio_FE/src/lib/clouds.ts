@@ -633,9 +633,17 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const showcase=document.querySelector<HTMLElement>("#projects [data-hscroll]");
     const CALM_PACE=.3, CALM_TAIL=1.5;
     let calmFrom=Infinity, calmTo=Infinity;
-    /** Scroll as the weather experiences it: continuous, slowed in the strip. */
-    const weatherScroll=(at: number)=>
-        at<=calmFrom ? at : calmFrom+(Math.min(at,calmTo)-calmFrom)*CALM_PACE+Math.max(0,at-calmTo);
+    // The weather, and the cloud the journey's light is launched from, were
+    // composed against the page with the hero pinned for half a screen. The
+    // hero now holds longer for its curtain; the weather waits out the extra
+    // hold, so every cloud still meets the content it was placed for.
+    const WEATHER_HERO_PIN=.5;
+    const heroPin=parseFloat(document.querySelector<HTMLElement>("#home")?.dataset.pin ?? "");
+    const heroHold=Number.isFinite(heroPin) ? Math.max(0,heroPin-WEATHER_HERO_PIN) : 0;
+    /** Scroll as the weather experiences it: continuous, slowed in the strip,
+     *  and started once the hero has let go of the page. */
+    const weatherScroll=(at: number)=>Math.max(0,
+        (at<=calmFrom ? at : calmFrom+(Math.min(at,calmTo)-calmFrom)*CALM_PACE+Math.max(0,at-calmTo))-heroHold);
     let width=0, height=0, frame=0, last=0, elapsed=0, disposed=false;
     const resize = () => {
         const w=canvas.clientWidth, h=canvas.clientHeight;
@@ -775,9 +783,13 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             }
         }
         const opening=motion ? Math.min(1,scroll/1.15) : 1;
-        // Only section entrances lift a cloud in front of the content; the
-        // hero exit leaves ROOS inflating through the cloud on its own.
+        // Section entrances lift a cloud in front of the content. The hero
+        // exit leaves ROOS inflating through the cloud on its own, then, as
+        // ROOS fades out (about half a screen in), the hero cloud itself is
+        // lifted in front of the page: a curtain the first chapter is found
+        // behind as it disperses, rather than laid over it.
         const veil=entrance*.65;
+        const curtain=motion && opening<1 ? smooth((opening-.45)/.15) : 0;
         // The closing volume forms over the last screens and settles along
         // the top edge once the contact panel is revealed.
         const closing=motion ? clamp01((scroll-(pageEnd-1.3))/1.3) : 0;
@@ -863,9 +875,13 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         uploadLight(uniforms);
         if(motion && opening<1) {
             // Rests large behind the logo, then rushes the camera and passes
-            // through it before dispersing to expose the page.
+            // through it before dispersing to expose the page. On desktop the
+            // rush front-loads (1-(1-o)^1.6): the camera reaches the cloud about
+            // 0.75 screens in and spends the rest travelling through it, inside
+            // the fog, instead of crossing it in a few frames.
+            const approach=desktop.matches ? 1-(1-opening)**1.6 : opening**1.3;
             ordered.push({c:{phase:0,size:3.6},i:3,cycle:0,progress:opening,
-                hero:true,finale:false,distance:9.5-8.5*opening**1.3});
+                hero:true,finale:false,distance:9.5-8.5*approach});
         }
         // The closing volume. On desktop it is one cloud from the projects
         // listing to the contact panel: it condenses far behind the listing (a
@@ -939,7 +955,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             // Mobile is deliberately sequential: hero, one ambient pass,
             // then the closing cloud. No two ray-marched volumes overlap.
             const ambientFormation=motion
-                ? smooth((scroll-(desktop.matches?.85:1.1))/.5)*(1-smooth(closing))
+                ? smooth((scroll-heroHold-(desktop.matches?.85:1.1))/.5)*(1-smooth(closing))
                 : 1;
             if(!desktop.matches && (opening<1 || closing>0)) {
                 if(!hero && !finale) continue;
@@ -977,7 +993,15 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                 : desktop.matches
                     ? smooth(Math.min(progress/.2,(1-progress)/.18))*ambientFormation
                     : smooth(progress/.18)*ambientFormation;
-            gl.uniform1f(uniforms.formation,growth*growth*(3-2*growth));
+            // The fog only shows while formation is above about .55 (seen from
+            // inside), so an eased ramp to 0 crosses that band in a few frames
+            // and the curtain seemed to vanish. It thins linearly into the
+            // band instead, as the camera comes out the far side: the last
+            // quarter screen of the pass is spent evaporating.
+            const formation=hero && desktop.matches
+                ? .52+.48*clamp01((1-progress)/.44)
+                : growth*growth*(3-2*growth);
+            gl.uniform1f(uniforms.formation,formation);
             const strength=hero ? .72+.26*smooth(progress/.35)
                 : finale ? .85 : desktop.matches ? .98 : .6;
             gl.uniform1f(uniforms.strength,strength);
@@ -999,7 +1023,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // instead of switching at a depth threshold.
         const proximity=nearest ? clamp01((11-nearest.depth)/2.5) : 0;
         const ease=idleAnimate ? 1-Math.exp(-step*7) : 1;
-        cover.amount+=(proximity*smooth(veil/.3)-cover.amount)*ease;
+        cover.amount+=(proximity*Math.max(smooth(veil/.3),curtain)-cover.amount)*ease;
         if(nearest) {
             const follow=cover.amount<.02 ? 1 : ease;
             cover.x+=(nearest.x-cover.x)*follow;
@@ -1015,7 +1039,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         gl.uniform1f(chromaticUniforms.progress,chroma.progress);
         // cover.y runs down from the top; gl_FragCoord runs up from the bottom.
         gl.uniform3f(chromaticUniforms.cover,cover.x,canvas.height-cover.y,
-            Math.max(1,cover.radius*Math.sqrt(Math.max(veil,.05))));
+            Math.max(1,cover.radius*Math.sqrt(Math.max(veil,curtain,.05))));
         gl.uniform1f(chromaticUniforms.coverAmount,cover.amount);
         uploadLight(chromaticUniforms);
         gl.uniform4fv(chromaticUniforms["lenses[0]"],lensRects);
