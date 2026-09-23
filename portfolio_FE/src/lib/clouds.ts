@@ -421,7 +421,12 @@ function cloudPose(pass: CloudPass, desktop: boolean, aspect: number, life: numb
     const paths=[[-edge,-1.7],[edge,2.1],[-1.3,3.6],[1.6,-3.5]];
     const mobileHeroExit=!desktop ? smooth((progress-.78)/.22)*3.4 : 0;
     const path=hero ? [-.1-progress*.25,.95-progress*.8-mobileHeroExit]
-        : finale ? [.8+progress*.4,4.6-progress*.9]
+        : finale ? (desktop
+            // Desktop: born far behind the projects listing and held there while
+            // the rows are read (the first 60%), then carried up and in to rest
+            // along the top edge of the contact panel as the page lifts away.
+            ? [-2.3+3.5*smooth((progress-.6)/.4),.7+3*smooth((progress-.6)/.4)]
+            : [.8+progress*.4,4.6-progress*.9])
         : desktop ? paths[(cycle+i)%paths.length]
         : [-1.35+progress*3.6,-1.35];
     const worldX=path[0]+.25*variation+.14*Math.sin(life*.045+phase);
@@ -649,6 +654,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     };
     let previousScroll=-1;
     const projects=document.querySelector<HTMLElement>("#projects");
+    const listingEl=document.querySelector<HTMLElement>(".more-projects-stage");
     // Lightning inside the cloud over the projects chapter. Seeded, like the
     // noise, so the storm repeats from visit to visit.
     const storm={next:0,start:-Infinity,lag:0,pulses:[] as {at: number; power: number}[],
@@ -802,8 +808,13 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         gl.uniform1i(uniforms.steps,desktop.matches?64:32);
         const active=desktop.matches?clouds:[clouds[0]];
         // Back-to-front ordering changes as volumes pass and recycle.
+        // Screens of scroll per pass, per volume. Tuned to the page length: on
+        // desktop the near volume must be condensing as the projects chapter
+        // opens (about 7.5 screens in), so the storm has a cloud to live in.
+        // Phones keep their own pace; their page runs shorter and lighter.
+        const cycles=desktop.matches ? [7,8.6] : [9,11];
         const ambientPasses=(atScroll: number): CloudPass[]=>active.map((c,i)=> {
-            const travel=atScroll/(9+i*2)+c.phase;
+            const travel=atScroll/cycles[i]+c.phase;
             const progress=(travel%1)/.72;
             return {c,i,cycle:Math.floor(travel),progress,hero:false,finale:false,
                 distance:[17,26][i]-[13,17][i]*progress};
@@ -847,9 +858,21 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             ordered.push({c:{phase:0,size:3.6},i:3,cycle:0,progress:opening,
                 hero:true,finale:false,distance:9.5-8.5*opening**1.3});
         }
-        if(closing>0) {
-            ordered.push({c:{phase:0,size:3.4},i:4,cycle:0,progress:closing,
-                hero:false,finale:true,distance:19.-11.5*closing**1.2});
+        // The closing volume. On desktop it is one cloud from the projects
+        // listing to the contact panel: it condenses far behind the listing (a
+        // cloud for the glass rows to frost against), holds there while the
+        // rows are read, then drifts up and in over the last screens to settle
+        // along the top edge of the panel. Phones have no listing rows, so
+        // there it forms over the last screens alone. `closing` stays the
+        // short final ramp the ambient weather dissolves against.
+        const finaleFrom=idleAnimate && listingEl
+            ? Math.min(scroll+listingEl.getBoundingClientRect().top/height-1.3,pageEnd-1.3)
+            : pageEnd-1.3;
+        const finaleProgress=motion ? clamp01((scroll-finaleFrom)/Math.max(pageEnd-finaleFrom,1e-3)) : 0;
+        if(finaleProgress>0) {
+            ordered.push({c:{phase:0,size:3.4},i:4,cycle:0,progress:finaleProgress,
+                hero:false,finale:true,
+                distance:desktop.matches ? 16-8.5*finaleProgress**1.2 : 19-11.5*finaleProgress**1.2});
         }
         ordered.sort((a,b)=>b.distance-a.distance);
         // The storm gathers as the projects chapter settles into place and

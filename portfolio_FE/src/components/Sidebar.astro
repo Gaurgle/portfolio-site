@@ -15,16 +15,24 @@ import SidebarNav from "./SidebarNav";
         <!-- Links -->
         <SidebarNav client:load />
 
-        <!-- CV downloads -->
+        <!-- CV downloads: same light as the nav, in the CV's red -->
         <div class="mt-8 space-y-1">
-            <p class="font-mono text-[10px] text-zinc-300 mb-2 tracking-wide">~/cv</p>
-            <a class="group flex items-center gap-2 py-1.5 font-mono text-sm text-zinc-300 hover:text-white transition-colors duration-200"
+            <p class="font-mono text-xs text-zinc-400 mb-2 tracking-wide">cv</p>
+            <a class="nav-link flex items-center gap-2 py-1.5 font-mono text-base" style="--ink: #ff465a"
                href="/cv/andreas-roos-cv-en.pdf" download>
-                <span class="text-zinc-400 group-hover:text-ctp-red transition-colors">↓</span> <span data-cv>cv (en)</span>
+                <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 4v13M6 11l6 6 6-6M5 21h14" />
+                </svg>
+                <span data-cv>cv (en)</span>
             </a>
-            <a class="group flex items-center gap-2 py-1.5 font-mono text-sm text-zinc-300 hover:text-white transition-colors duration-200"
+            <a class="nav-link flex items-center gap-2 py-1.5 font-mono text-base" style="--ink: #ff465a"
                href="/cv/andreas-roos-cv-sv.pdf" download>
-                <span class="text-zinc-400 group-hover:text-ctp-red transition-colors">↓</span> <span data-cv>cv (sv)</span>
+                <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 4v13M6 11l6 6 6-6M5 21h14" />
+                </svg>
+                <span data-cv>cv (sv)</span>
             </a>
         </div>
 

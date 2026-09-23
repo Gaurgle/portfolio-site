@@ -5,7 +5,7 @@ export default {
     ],
     theme: {
         fontFamily: {
-            sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+            sans: ["Schibsted Grotesk", "system-ui", "-apple-system", "sans-serif"],
             mono: ['"Noto Sans Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
             ramose: ["Ramose", "cursive"],
         },

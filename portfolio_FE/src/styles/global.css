@@ -10,42 +10,14 @@
 /* Self-hosted latin subsets: no third-party font host on the critical path,
    so first paint never waits on an external stylesheet and DNS round trip. */
 
+/* Body face: Schibsted Grotesk, a Nordic grotesk with more edge than the
+   usual interface sans (angled terminals, a narrow-ish set). One variable
+   file covers every weight the site uses, 400 for copy to 800 for the
+   chapter numerals and titles. */
 @font-face {
-    font-family: "Inter";
-    src: url("/fonts/inter-latin-400-normal.woff2") format("woff2");
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Inter";
-    src: url("/fonts/inter-latin-500-normal.woff2") format("woff2");
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Inter";
-    src: url("/fonts/inter-latin-600-normal.woff2") format("woff2");
-    font-weight: 600;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Inter";
-    src: url("/fonts/inter-latin-700-normal.woff2") format("woff2");
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Inter";
-    src: url("/fonts/inter-latin-800-normal.woff2") format("woff2");
-    font-weight: 800;
+    font-family: "Schibsted Grotesk";
+    src: url("/fonts/schibsted-grotesk-latin-wght-normal.woff2") format("woff2");
+    font-weight: 400 900;
     font-style: normal;
     font-display: swap;
 }
@@ -115,12 +87,12 @@ html.is-loading {
 }
 /* Every stage below the hero is hidden too: they are laid out by the scroll
    engine, and until it runs their cards sit as one pile. */
-html.is-loading :is(body > header, #sidebar, #dock-prompt, #scroll-progress, #bottom-hue,
+html.is-loading :is(body > header, #sidebar, #scroll-progress, #bottom-hue,
     .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
     #sidebar-toggle, main > :not(#home)) {
     opacity: 0 !important;
 }
-html.is-revealing :is(body > header, #sidebar, #dock-prompt, #scroll-progress,
+html.is-revealing :is(body > header, #sidebar, #scroll-progress,
     .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
     #sidebar-toggle, main > :not(#home)) {
     transition: opacity 1.4s ease;
@@ -786,8 +758,8 @@ html.lenis, html.lenis body { height: auto; }
 }
 
 /* Hero dissolve: [data-hero-scrub] (the pinned viewport) carries --scrub;
-   .hero-boom inflates to swallow the screen as it fades; the tagline and
-   ~/portfolio line dissolve with small glitch shifts. Scale + fade run
+   .hero-boom inflates to swallow the screen as it fades; the tagline
+   dissolves with small glitch shifts. Scale + fade run
    everywhere; the large ROOS blur is desktop-only to spare phone GPUs. */
 /* Keep the expanding name in front of both glitching text lines. */
 [data-hero-scrub] {
@@ -808,16 +780,14 @@ html.lenis, html.lenis body { height: auto; }
 }
 /* A dark halo keeps the grey lines legible when a cloud drifts behind
    them; black text would vanish wherever no cloud is rendered. */
-.hero-tagline,
-.hero-path {
+.hero-tagline {
     position: relative;
     z-index: 0;
     text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 14px rgb(0 0 0 / 0.8);
 }
 /* Scroll controls both effects so they reverse cleanly. Diffuse and recede
    first, then glitch. Independent scale preserves the jitter translations. */
-[data-hero-scrub] .hero-tagline,
-[data-hero-scrub] .hero-path {
+[data-hero-scrub] .hero-tagline {
     animation: hero-tagline-dissolve 1s linear both paused;
     animation-delay: calc(var(--scrub, 0) * -1s);
 }
@@ -825,11 +795,6 @@ html.lenis, html.lenis body { height: auto; }
     display: inline-block;
     animation: hero-text-jitter 1s steps(1, end) both paused;
     animation-delay: calc(var(--scrub, 0) * -1s);
-}
-[data-hero-scrub] .hero-path {
-    --glitch-direction: -0.8;
-    animation-name: hero-tagline-dissolve, hero-text-jitter;
-    animation-timing-function: linear, steps(1, end);
 }
 @keyframes hero-text-jitter {
     0%, 16%, 20%, 26%, 40%, 100% { transform: translate(0, 0); }
@@ -901,11 +866,11 @@ html.lenis, html.lenis body { height: auto; }
 /* Chapter mark: boxy display font for the hook lines, slashed-zero mono for
    the numerals, Ramose for the colored keyword */
 .chapter-mark text {
-    font-family: "Archivo Black", "Inter", system-ui, sans-serif;
+    font-family: "Archivo Black", "Schibsted Grotesk", system-ui, sans-serif;
     fill: #ffffff; /* numerals + hook lines fully opaque */
 }
 .chapter-mark text.cm-num {
-    font-family: "Inter", system-ui, sans-serif;
+    font-family: "Schibsted Grotesk", system-ui, sans-serif;
     font-weight: 800;
 }
 /* Hover: a chromatic split, the clouds' effect in miniature. Red and blue
@@ -980,14 +945,6 @@ html.lenis, html.lenis body { height: auto; }
 }
 /* The single special word's font comes per-section via the accentStyle prop */
 
-/* Docked section prompt caret (the dock itself lives in BaseLayout, fixed
-   above the header bar; the scroll spy re-types the active command into it) */
-#dock-caret {
-    margin-left: 2px;
-    color: rgb(161 161 170);
-    animation: caret-blink 1.1s step-end infinite;
-}
-
 /* Pinned dwell pages: the viewport-sized child sticks while the section's
    extra height (set by smoothScroll.ts from data-pin) scrolls by */
 @media (min-width: 1024px) {
@@ -1051,31 +1008,30 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
-/* Typed command prompts */
-[data-type-cmd] {
-    display: inline-block;
-    min-height: 1.25em;
+/* Sidebar nav: each link carries its chapter colour as --ink. Hovered, or
+   while its section is active (.spy-active, set by the scroll spy), the
+   word takes that colour and glows softly with it - the site diffused
+   light, not a marker or a rail - and eases a step to the right. */
+.nav-link {
+    --ink: #fff;
+    color: rgb(244 244 245); /* zinc-100 */
+    transition:
+        color 0.25s ease,
+        text-shadow 0.45s ease,
+        transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
-[data-type-cmd].is-typing::after,
-[data-type-cmd].is-typed::after {
-    content: "▍";
-    margin-left: 2px;
-    color: rgb(161 161 170);
+.nav-link:hover,
+.nav-link:focus-visible,
+.nav-link.spy-active {
+    color: var(--ink);
+    text-shadow:
+        0 0 10px color-mix(in srgb, var(--ink) 55%, transparent),
+        0 0 28px color-mix(in srgb, var(--ink) 30%, transparent);
 }
-[data-type-cmd].is-typed::after {
-    animation: caret-blink 1.1s step-end infinite;
-}
-@keyframes caret-blink {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0; }
-}
-
-/* Sidebar scroll spy */
-.spy-active {
-    color: #fff !important;
-}
-.spy-active > span:first-child {
-    opacity: 1 !important;
+.nav-link:hover,
+.nav-link:focus-visible {
+    outline: none;
+    transform: translateX(4px);
 }
 
 /* Pinned horizontal filmstrip (featured projects): full-bleed - it escapes
@@ -1628,6 +1584,29 @@ html.reduced-motion .beam-stop {
 .ls-row-active .ls-name {
     color: var(--rc, #46beff);
 }
+/* Hover: frosted glass, inverted. The row becomes a pane: what lies behind
+   it is blurred and inverted, then dimmed to a graphite grey, a step up from
+   the selected row rather than a flash. The stars turn to soft dark motes,
+   the cloud behind the listing (clouds.ts, the closing cloud) to darker
+   billows, and the sky's own spectral fringes come through inverted, so the
+   pane is not black and white. Flat: no edge lines, nothing raised. The
+   type stays light, the name in its accent as when selected. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .ls-row {
+        -webkit-backdrop-filter: blur(0) invert(0) brightness(1) saturate(1);
+        backdrop-filter: blur(0) invert(0) brightness(1) saturate(1);
+        transition:
+            -webkit-backdrop-filter 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+            backdrop-filter 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+            background-color 0.6s ease,
+            color 0.35s ease;
+    }
+    .ls-row:hover {
+        -webkit-backdrop-filter: blur(7px) invert(1) brightness(0.36) saturate(1.4);
+        backdrop-filter: blur(7px) invert(1) brightness(0.36) saturate(1.4);
+        background-color: rgb(255 255 255 / 0.03);
+    }
+}
 
 /* Mobile projects carousel: native horizontal scroll-snap. The scrollbar
    is hidden - position is shown by the progress bar underneath instead. */
@@ -1661,7 +1640,7 @@ html.reduced-motion .beam-stop {
 }
 
 /* Bottom hue: tinted by the ACTIVE chapter's accent (the scroll spy sets
-   --hue-color from each section's data-cmd-color), cross-fading as you
+   --hue-color from each section's data-hue), cross-fading as you
    move through the site - green, mauve, teal, blue, and finally the
    contact orange, where the journey ends. Opacity is engine-driven. */
 @property --hue-color {
@@ -1753,9 +1732,6 @@ html.reduced-motion .beam-stop {
     .contact-panel textarea {
         height: 3.25rem;
     }
-    .contact-panel form {
-        padding: 0.75rem;
-    }
 }
 /* Desktop: the inner row normally centers (max-w-6xl), but below ~1470px
    the centering offset shrinks under the sidebar width and the form slides
@@ -1777,12 +1753,109 @@ html.reduced-motion .beam-stop {
     }
 }
 
-/* The compose card sits on the indigo panel - fully opaque, or the
-   gradient bleeds through and the form reads washed out */
-.contact-panel .terminal-card {
-    background: rgb(12, 12, 18);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+/* Contact form: loose text on the panel black. Labels speak in the italic
+   serif of the passage heads, in the chapter peach; a field is one hairline
+   that takes the peach while it has focus. The caret, the selection and the
+   autofill fill are themed too, so the browser leaves no default behind. */
+.field-label {
+    display: block;
+    margin-bottom: 0.1rem;
+    font-family: Georgia, "Times New Roman", serif;
+    font-style: italic;
+    font-size: clamp(1.05rem, 1.4vw, 1.35rem);
+    line-height: 1.2;
+    color: #ffb84d;
+}
+.contact-field {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid rgb(255 255 255 / 0.25);
+    border-radius: 0;
+    font-size: 1.125rem;
+    line-height: 1.5;
+    color: #fff;
+    caret-color: #ffb84d;
+    transition: border-color 0.3s ease;
+}
+.contact-field::placeholder {
+    color: rgb(113 113 122); /* zinc-500 */
+}
+.contact-field:focus {
+    outline: none;
+    border-bottom-color: #ffb84d;
+}
+.contact-field:-webkit-autofill {
+    -webkit-text-fill-color: #fff;
+    box-shadow: 0 0 0 1000px #000 inset;
+    transition: background-color 9999s;
+}
+.contact-panel ::selection {
+    background: rgb(255 184 77 / 0.35);
+    color: #fff;
+}
+@media (min-width: 1024px) {
+    .contact-field {
+        font-size: 1.25rem;
+    }
+}
+/* The direct lines under the 04 mark: a row when stacked, a plain list
+   beneath the mark on desktop, like the journey stops under 02. */
+.contact-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem 1.25rem;
+    font-family: theme("fontFamily.mono");
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: rgb(212 212 216); /* zinc-300 */
+}
+/* Stacked: the address takes its own row, the two profiles share the next */
+.contact-links li:first-child {
+    flex-basis: 100%;
+    text-align: center;
+}
+.contact-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color 0.25s ease;
+}
+.contact-links svg {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    fill: currentColor;
+}
+.contact-links a:hover {
+    color: #fff;
+}
+@media (min-width: 1024px) {
+    .contact-links {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0;
+        font-size: 1rem;
+        line-height: 1.9;
+    }
+    .contact-links li:first-child {
+        flex-basis: auto;
+        text-align: left;
+    }
+}
+
+/* The header's GitHub and LinkedIn give way once the visitor reaches the
+   contact chapter, where the same links stand under the 04 mark. The scroll
+   spy names the active chapter on <html> (smoothScroll.ts). */
+.site-socials {
+    transition: opacity 0.6s ease;
+}
+html[data-section="contact"] .site-socials {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .page-over-panel {
@@ -1799,8 +1872,7 @@ html.reduced-motion .beam-stop {
     [data-reveal],
     [data-hero-scrub] .hero-boom,
     [data-hero-scrub] .hero-tagline,
-    [data-hero-scrub] .hero-tag,
-    [data-hero-scrub] .hero-path {
+    [data-hero-scrub] .hero-tag {
         opacity: 1 !important;
         transform: none !important;
         scale: none !important;
