@@ -59,9 +59,10 @@ where the session runs.
   `src/pages/index.astro`, read by `smoothScroll.ts`.
 
 **Ship policy:** PR to `main`; merge only after Frontend CI (`build`) and the
-Vercel preview pass. A push or merge to `main` touching `portfolio_FE/**`
-triggers the Vercel production deploy (`frontend.yml` calls the deploy hook),
-so merging is releasing and needs an explicit request.
+Vercel preview pass. Any push or merge to `main` deploys to production: Vercel's
+GitHub integration builds every `main` commit, and `frontend.yml` also calls
+the deploy hook for `portfolio_FE/**` changes. Merging is releasing and needs
+an explicit request.
 
 ## Build
 
