@@ -727,11 +727,14 @@ html.lenis, html.lenis body { height: auto; }
 [data-reveal-delay="5"].is-visible { animation-delay: 0.40s; }
 [data-reveal-delay="6"].is-visible { animation-delay: 0.48s; }
 
-/* Film grain: oversized fixed layer jittered by stepped transforms
-   (compositor-only - the texture itself is painted once) */
+/* Film grain: fixed layer jittered by stepped transforms (compositor-only -
+   the texture itself is painted once). The noise tiles every 220px, so any
+   shift reads the same as that shift mod 220px: one tile of overscan on each
+   side covers every offset, instead of a layer several screens large. The
+   offsets are the old percentage ones at a 1440x900 viewport, taken mod 220. */
 #film-grain {
     position: fixed;
-    inset: -60%;
+    inset: -220px;
     z-index: 80;
     pointer-events: none;
     opacity: 0.018;
@@ -742,15 +745,15 @@ html.lenis, html.lenis body { height: auto; }
 }
 @keyframes grain-shift {
     0%, 100% { transform: translate(0, 0); }
-    10% { transform: translate(-4%, -8%); }
-    20% { transform: translate(-12%, 4%); }
-    30% { transform: translate(6%, -18%); }
-    40% { transform: translate(-4%, 16%); }
-    50% { transform: translate(-12%, 8%); }
-    60% { transform: translate(12%, 0%); }
-    70% { transform: translate(0%, 12%); }
-    80% { transform: translate(3%, 24%); }
-    90% { transform: translate(-8%, 8%); }
+    10% { transform: translate(-127px, -158px); }
+    20% { transform: translate(-160px, 79px); }
+    30% { transform: translate(190px, -136px); }
+    40% { transform: translate(-127px, 97px); }
+    50% { transform: translate(-160px, 158px); }
+    60% { transform: translate(160px, 0); }
+    70% { transform: translate(0, 18px); }
+    80% { transform: translate(95px, 35px); }
+    90% { transform: translate(-33px, 158px); }
 }
 @media (prefers-reduced-motion: reduce) {
     #film-grain { animation: none; }
@@ -1216,13 +1219,17 @@ html.lenis, html.lenis body { height: auto; }
 /* While inside the showcase, the particle field lights up: a pre-painted
    bright copy of each layer crossfades in. Opacity is compositor-cheap;
    the old live brightness/saturate filter over four full-screen canvases
-   re-filtered them on every frame. */
+   re-filtered them on every frame. Hidden once faded out, so the copies
+   are not composited over the whole page while unseen. */
 .particle-layer canvas[data-bright] {
     opacity: 0;
-    transition: opacity 0.8s ease;
+    visibility: hidden;
+    transition: opacity 0.8s ease, visibility 0s linear 0.8s;
 }
 .in-showcase .particle-layer canvas[data-bright] {
     opacity: 1;
+    visibility: visible;
+    transition: opacity 0.8s ease, visibility 0s;
 }
 /* Mobile: the filmstrip becomes a pinned vertical deck like the journey -
    cards rise from below (engine cardstack path) and land nearly flush. */
@@ -1369,6 +1376,39 @@ html.lenis, html.lenis body { height: auto; }
 }
 .journey-stack .stack-area {
     position: relative;
+}
+/* The flight's per-card values are only read on the card that carries
+   them. Registered as non-inheriting, a change to them restyles the card
+   alone rather than every element inside it, on every scroll frame. */
+@property --f {
+    syntax: "<number>";
+    inherits: false;
+    initial-value: -1;
+}
+@property --ahead {
+    syntax: "<number>";
+    inherits: false;
+    initial-value: 0;
+}
+@property --passed {
+    syntax: "<number>";
+    inherits: false;
+    initial-value: 0;
+}
+@property --exit {
+    syntax: "<number>";
+    inherits: false;
+    initial-value: 0;
+}
+/* Fully faded (smoothScroll.ts focusStack): skip drawing it at all. The
+   featured cards only fly this way on phones. */
+.beam-stop.is-gone {
+    visibility: hidden;
+}
+@media (max-width: 1023px) {
+    .hscroll-pin .featured-card.is-gone {
+        visibility: hidden;
+    }
 }
 .beam-stop {
     --ahead: min(0, var(--f, -1));
@@ -1597,44 +1637,48 @@ html.reduced-motion .beam-stop {
 .ls-row-active .ls-name {
     color: var(--rc, #46beff);
 }
-/* Hover: an inverted pane. What lies behind the row is inverted, then
-   dimmed to a graphite grey, a step up from the selected row rather than a
-   flash. No blur: over the animated sky a blur is recomputed every frame
-   and made hovering lag, while the colour steps are nearly free. The stars
-   turn to dark motes, the cloud behind the listing (clouds.ts, the closing cloud) to darker
-   billows, and the sky's own spectral fringes come through inverted, so the
-   pane is not black and white. Flat: no edge lines, nothing raised. The
-   type stays light, the name in its accent as when selected.
-   The pane is a pseudo-element whose filter never changes: only its opacity
-   eases, which the compositor does alone. Animating the filter itself, or
-   leaving an idle backdrop-filter on every row, re-filtered the live sky
-   under each row every frame and made the whole listing lag. Hidden once
-   faded out, so rows at rest cost nothing. */
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+/* Selected: an inverted pane. What lies behind the open row is inverted,
+   then dimmed to a graphite grey. The stars turn to dark motes, the cloud
+   behind the listing (clouds.ts, the closing cloud) to darker billows, and
+   the sky's own spectral fringes come through inverted, so the pane is not
+   black and white. Flat: no edge lines, nothing raised, no blur (over the
+   animated sky a blur is recomputed every frame; the colour steps are
+   nearly free). The pane is a pseudo-element whose filter never changes:
+   only its opacity eases, and it is hidden once faded, so only the open
+   row ever filters the sky. Hover stays a faint wash, cheap and immediate. */
+.ls-row {
+    position: relative;
+    isolation: isolate;
+}
+.ls-row::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    -webkit-backdrop-filter: invert(1) brightness(0.36) saturate(1.4);
+    backdrop-filter: invert(1) brightness(0.36) saturate(1.4);
+    opacity: 0;
+    visibility: hidden;
+}
+.ls-row-active::before {
+    opacity: 1;
+    visibility: visible;
+}
+@media (prefers-reduced-motion: no-preference) {
     .ls-row {
-        position: relative;
-        isolation: isolate;
-        transition: background-color 0.3s ease, color 0.25s ease;
+        transition: background-color 0.15s ease-out, color 0.25s ease;
     }
     .ls-row::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        z-index: -1;
-        pointer-events: none;
-        -webkit-backdrop-filter: invert(1) brightness(0.36) saturate(1.4);
-        backdrop-filter: invert(1) brightness(0.36) saturate(1.4);
-        opacity: 0;
-        visibility: hidden;
         transition: opacity 0.3s ease-out, visibility 0s linear 0.3s;
     }
-    .ls-row:hover {
-        background-color: rgb(255 255 255 / 0.03);
+    .ls-row-active::before {
+        transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
     }
-    .ls-row:hover::before {
-        opacity: 1;
-        visibility: visible;
-        transition: opacity 0.1s ease-out, visibility 0s;
+}
+@media (hover: hover) and (pointer: fine) {
+    .ls-row:hover {
+        background-color: rgb(255 255 255 / 0.025);
     }
 }
 

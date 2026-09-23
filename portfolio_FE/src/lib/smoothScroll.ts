@@ -516,6 +516,9 @@ type Showcase = {
     arrowDwell: number;
     buffer: number;
     top: number;
+    /** Which clamped end state the engine last wrote while the showcase was
+     *  out of range: before it starts, after it ends, or none (in range). */
+    rested: "before" | "after" | null;
 };
 
 function measureShowcases(): Showcase[] {
@@ -615,7 +618,7 @@ function measureShowcases(): Showcase[] {
             ),
             dockLeft: Math.round(trackRect.left - sectionRect.left),
             offX, offY, per, settle, exitDist, arrowDwell, buffer, top,
-            strip,
+            strip, rested: null,
         });
     }
     return result;
@@ -775,6 +778,10 @@ function focusStack(s: CardStack, local: number): void {
         if (card.style.getPropertyValue("--f") === value) return;
         card.style.setProperty("--f", value);
         card.classList.toggle("is-active", Math.abs(focus) < 0.5);
+        // The opacity global.css flies the card with; at zero the card is
+        // hidden outright, so its blur and layer cost nothing while unseen.
+        const opacity = 1 + Math.min(0, focus) * 1.2 - Math.max(0, focus) * 1.5;
+        card.classList.toggle("is-gone", opacity <= 0);
     });
 }
 
@@ -964,6 +971,7 @@ function bindScrollDriven(reduced: boolean): void {
         ? []
         : Array.from(document.querySelectorAll<HTMLElement>("[data-focus]"));
 
+    let lastScrub = "";
     const onScroll = () => {
         const progress = lenis ? lenis.progress : nativeProgress();
         // The browser's actual offset, not Lenis's animated value: transforms
@@ -971,6 +979,9 @@ function bindScrollDriven(reduced: boolean): void {
         // pinned/held content doesn't shiver against the page.
         const scroll = window.scrollY;
         const vh = viewportH;
+        // Measure before any write below, so reading the boxes never forces
+        // the browser to settle this frame's styles and layout early.
+        const focusRects = focusEls.map((el) => el.getBoundingClientRect());
 
         if (bar) bar.style.transform = `scaleX(${progress || 0})`;
 
@@ -994,7 +1005,13 @@ function bindScrollDriven(reduced: boolean): void {
             // registers right away without changing the full explosion.
             const raw = (scroll - vh * 0.02) / (vh * 0.61);
             const t = Math.max(0, Math.min(1, raw));
-            heroScrub.style.setProperty("--scrub", String(Math.pow(t, 1.5)));
+            // Written only when it changes: --scrub inherits through the
+            // whole hero, and past the hero it would restyle it every frame.
+            const scrub = String(Math.pow(t, 1.5));
+            if (scrub !== lastScrub) {
+                heroScrub.style.setProperty("--scrub", scrub);
+                lastScrub = scrub;
+            }
         }
 
         // (Particle layers are driven from the RAF loop - parallaxTick -
@@ -1021,9 +1038,9 @@ function bindScrollDriven(reduced: boolean): void {
         // Depth-of-field focus (see focusEls above). A dead zone around the
         // center keeps the active card fully sharp, and outgoing cards
         // (above center) defocus far more slowly than incoming ones.
-        for (const el of focusEls) {
-            const r = el.getBoundingClientRect();
-            if (r.bottom < -150 || r.top > vh + 150) continue;
+        focusEls.forEach((el, i) => {
+            const r = focusRects[i];
+            if (r.bottom < -150 || r.top > vh + 150) return;
             const mid = r.top + r.height / 2;
             const delta = mid - vh / 2;
             const norm =
@@ -1032,7 +1049,7 @@ function bindScrollDriven(reduced: boolean): void {
                     : (-delta / (vh / 2)) * 0.4;
             const d = Math.max(0, Math.min(1, norm) - 0.25) / 0.75;
             el.style.opacity = (1 - d * 0.55).toFixed(3);
-        }
+        });
 
         // Featured showcase pile (cushioned: waits out the entry buffer).
         // While inside one, the particle background lights up (CSS reacts
@@ -1041,6 +1058,19 @@ function bindScrollDriven(reduced: boolean): void {
         for (const sc of showcases) {
             const local = scroll - sc.top - sc.buffer;
             const stackLen = sc.cards.length * sc.per;
+            if (
+                local > -vh * 0.2 &&
+                local < stackLen + sc.settle + sc.exitDist + sc.buffer
+            ) {
+                inShowcase = true;
+            }
+            // Every value below is clamped: before 0 and past the arrow's
+            // exit it sits at its first or last state. Write that once, then
+            // leave the showcase alone until the scroll brings it back.
+            const end = stackLen + sc.settle + sc.exitDist + sc.arrowDwell + sc.buffer;
+            const rested = local <= 0 ? "before" : local >= end ? "after" : null;
+            if (rested && rested === sc.rested) continue;
+            sc.rested = rested;
 
             // Cards fly in from the right, one per scroll beat, and land
             // on the pile with a cascading offset.
@@ -1191,12 +1221,6 @@ function bindScrollDriven(reduced: boolean): void {
                 sc.arrowEl.style.setProperty("--arrow-life", (arrival * 0.55 + e2 * 0.45).toFixed(4));
             }
 
-            if (
-                local > -vh * 0.2 &&
-                local < stackLen + sc.settle + sc.exitDist + sc.buffer
-            ) {
-                inShowcase = true;
-            }
         }
         document.documentElement.classList.toggle("in-showcase", inShowcase);
 

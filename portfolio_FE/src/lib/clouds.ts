@@ -669,7 +669,16 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     // (data-sky-adapt) is told when a bright cloud is behind it, so it can
     // switch to dark ink instead of the cloud having to make way.
     const skyReaders=Array.from(document.querySelectorAll<HTMLElement>("[data-sky-adapt]"));
-    const skySample=new Uint8Array(4*64);
+    // Up to 64 pixels per reader, read into a pixel buffer and collected a
+    // frame or so later behind a fence, so the page never waits on the GPU.
+    const SKY_SPAN=64;
+    const skySample=new Uint8Array(4*SKY_SPAN*skyReaders.length);
+    const skyBuffer=gl.createBuffer();
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER,skyBuffer);
+    gl.bufferData(gl.PIXEL_PACK_BUFFER,skySample.byteLength,gl.STREAM_READ);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
+    const skyPending: {element: HTMLElement; span: number; offset: number}[]=[];
+    let skyFence: WebGLSync | null=null;
     let skyTick=0;
     const lensRects=new Float32Array(16), lensPowers=new Float32Array(4);
     const lensDims=new Float32Array(4), lensErodes=new Float32Array(4);
@@ -1043,26 +1052,43 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // Read the finished sky behind each adaptive element: one row of
         // pixels through its middle, every third frame. Desktop only; the
         // readback would cost a phone more than the effect is worth.
-        if(desktop.matches && skyReaders.length>0 && ++skyTick%3===0) {
-            for(const element of skyReaders) {
+        if(skyFence) {
+            const status=gl.clientWaitSync(skyFence,0,0);
+            if(status===gl.ALREADY_SIGNALED || status===gl.CONDITION_SATISFIED) {
+                gl.deleteSync(skyFence);
+                skyFence=null;
+                gl.bindBuffer(gl.PIXEL_PACK_BUFFER,skyBuffer);
+                gl.getBufferSubData(gl.PIXEL_PACK_BUFFER,0,skySample);
+                gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
+                for(const {element,span,offset} of skyPending) {
+                    let light=0;
+                    // Premultiplied over a black page: the channels are what shows.
+                    for(let i=offset;i<offset+span*4;i+=4) {
+                        light+=.2126*skySample[i]+.7152*skySample[i+1]+.0722*skySample[i+2];
+                    }
+                    light/=span*255;
+                    // Two thresholds, so a cloud edge drifting across the text
+                    // cannot make it flicker between inks.
+                    const onCloud=element.classList.contains("on-cloud");
+                    element.classList.toggle("on-cloud",light>(onCloud ? .3 : .42));
+                }
+                skyPending.length=0;
+            }
+        } else if(desktop.matches && skyReaders.length>0 && ++skyTick%3===0) {
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER,skyBuffer);
+            skyReaders.forEach((element,index)=>{
                 const box=element.getBoundingClientRect();
-                if(box.width===0 || box.bottom<0 || box.top>height) continue;
+                if(box.width===0 || box.bottom<0 || box.top>height) return;
                 const x=Math.floor(box.left*pixel);
                 const y=Math.floor(canvas.height-(box.top+box.height/2)*pixel);
-                const span=Math.max(1,Math.min(64,Math.floor(box.width*pixel)));
-                if(x<0 || y<0 || x+span>canvas.width || y>=canvas.height) continue;
-                gl.readPixels(x,y,span,1,gl.RGBA,gl.UNSIGNED_BYTE,skySample);
-                let light=0;
-                // Premultiplied over a black page: the channels are what shows.
-                for(let i=0;i<span;i++) {
-                    light+=.2126*skySample[i*4]+.7152*skySample[i*4+1]+.0722*skySample[i*4+2];
-                }
-                light/=span*255;
-                // Two thresholds, so a cloud edge drifting across the text
-                // cannot make it flicker between inks.
-                const onCloud=element.classList.contains("on-cloud");
-                element.classList.toggle("on-cloud",light>(onCloud ? .3 : .42));
-            }
+                const span=Math.max(1,Math.min(SKY_SPAN,Math.floor(box.width*pixel)));
+                if(x<0 || y<0 || x+span>canvas.width || y>=canvas.height) return;
+                const offset=index*4*SKY_SPAN;
+                gl.readPixels(x,y,span,1,gl.RGBA,gl.UNSIGNED_BYTE,offset);
+                skyPending.push({element,span,offset});
+            });
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
+            if(skyPending.length>0) skyFence=gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE,0);
         }
         // Upscaling the low-resolution mobile buffer already softens it.
         // Avoid filtering a full-screen canvas on every scroll frame there.
@@ -1095,6 +1121,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         if (!contextLost) {
             gl.deleteTexture(texture);gl.deleteBuffer(buffer);
             gl.deleteTexture(sceneTexture);gl.deleteFramebuffer(sceneBuffer);
+            gl.deleteBuffer(skyBuffer);if(skyFence) gl.deleteSync(skyFence);
             burst?.dispose();
             shaders.forEach(s=>gl.deleteShader(s));programs.forEach(p=>gl.deleteProgram(p));
         }

@@ -23,6 +23,7 @@ export default function TechMarquee() {
         blob.style.left = `${x}px`;
         blob.style.top = "50%";
         blob.style.opacity = "0.55";
+        blob.style.animationPlayState = "running";
         blob.style.background =
             `radial-gradient(ellipse at 40% 45%, rgba(${rgb},0.5) 0%, rgba(${rgb},0.15) 35%, transparent 60%)`;
     };
@@ -31,9 +32,18 @@ export default function TechMarquee() {
         if (blobRef.current) blobRef.current.style.opacity = "0";
     };
 
+    // The morph animates border-radius, which the browser repaints on the
+    // main thread every frame. Held still once the blob has faded out, and
+    // picked up where it stopped on the next pass, so it is never seen still.
+    const onFaded = (e: React.TransitionEvent<HTMLDivElement>) => {
+        if (e.propertyName === "opacity" && e.currentTarget.style.opacity === "0") {
+            e.currentTarget.style.animationPlayState = "paused";
+        }
+    };
+
     return (
         <div className="tech-marquee relative" aria-hidden="true" onMouseMove={onMove} onMouseLeave={onLeave}>
-            <div ref={blobRef} className="icon-blob" />
+            <div ref={blobRef} className="icon-blob" style={{ animationPlayState: "paused" }} onTransitionEnd={onFaded} />
             <div data-marquee-track>
                 {items.map(({ icon: Icon, name, mono }, i) => (
                     <div key={`${name}-${i}`} className="group relative z-10 flex items-center gap-3 cursor-default">
