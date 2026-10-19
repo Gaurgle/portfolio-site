@@ -156,7 +156,7 @@ export const projects = [
       "/pictures/todoz-local.webp",
       "/pictures/todoz-global.webp",
     ],
-    link: "https://github.com/Gaurgle/notez2",
+    link: "https://github.com/Gaurgle/notez",
     details: {
       long:
         "I wanted project notes without having to choose between scattering them everywhere and committing everything to the repo. notez separates private, shared, scratch, and global notes, then brings them into one searchable view. It also includes a todo manager. The same core supports epoz, its companion desktop app.",

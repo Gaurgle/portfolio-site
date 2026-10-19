@@ -14,8 +14,8 @@ A personal developer portfolio built with an **Astro** frontend and deployed on 
 ---
 ## 📖 Documentation
 
-- [Frontend README →](https://github.com/Gaurgle/DevOps_Portfolio/blob/main/portfolio_FE/README.md)
-- [Backend README →](https://github.com/Gaurgle/DevOps_Portfolio/blob/main/portfolio_BE/README.md)
+- [Frontend README →](https://github.com/Gaurgle/portfolio-site/blob/main/portfolio_FE/README.md)
+- [Backend README →](https://github.com/Gaurgle/portfolio-site/blob/main/portfolio_BE/README.md)
 
 ---
 
