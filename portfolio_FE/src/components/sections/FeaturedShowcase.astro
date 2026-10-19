@@ -55,8 +55,16 @@ const allImages = (p: (typeof projects)[number]) =>
                                         data-lightbox
                                         data-images={JSON.stringify(allImages(p))}
                                         data-title={p.projectTitle}>
-                                    <img src={firstImage(p)} {...imageSize(firstImage(p)!)} alt={`${p.projectTitle} screenshot`} loading="lazy" decoding="async"
-                                         class="h-full w-full object-contain transition-all duration-500 cursor-zoom-in" />
+                                    {"mockup" in p ? (
+                                        <span class="shot-frame" style={`--shot-ratio: ${imageSize(firstImage(p)!).width ?? 16} / ${imageSize(firstImage(p)!).height ?? 9}`}>
+                                            <img src={firstImage(p)} {...imageSize(firstImage(p)!)} alt={`${p.projectTitle} screenshot`} loading="lazy" decoding="async"
+                                                 class="h-full w-full object-contain transition-all duration-500 cursor-zoom-in" />
+                                            <span class="wip-pill wip-pill-over absolute top-2 right-2">Mockup</span>
+                                        </span>
+                                    ) : (
+                                        <img src={firstImage(p)} {...imageSize(firstImage(p)!)} alt={`${p.projectTitle} screenshot`} loading="lazy" decoding="async"
+                                             class="h-full w-full object-contain transition-all duration-500 cursor-zoom-in" />
+                                    )}
                                 </button>
                             </div>
                         ) : (
@@ -84,12 +92,7 @@ const allImages = (p: (typeof projects)[number]) =>
                                                 <><span class="whitespace-nowrap">{tag.toLowerCase()}{i < all.length - 1 && " ·"}</span>{" "}</>
                                             ))}
                                         </p>
-                                        {(p.wip || "mockup" in p) && (
-                                            <span class="ml-auto flex shrink-0 gap-1.5">
-                                                {"mockup" in p && <span class="wip-pill">Mockup</span>}
-                                                {p.wip && <span class="wip-pill">WIP</span>}
-                                            </span>
-                                        )}
+                                        {p.wip && <span class="wip-pill ml-auto shrink-0">WIP</span>}
                                     </div>
                                     {p.link && p.link !== "#" && (
                                         <a href={p.link} target="_blank" rel="noopener noreferrer"

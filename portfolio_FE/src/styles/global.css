@@ -2327,3 +2327,15 @@ html.shot-transition::view-transition {
 .wip-pill-over {
     background: rgb(0 0 0 / 0.6);
 }
+/* A screenshot box shrunk to the picture itself (contain, left-anchored like
+   the others), so a pill pinned to its corner sits on the image, not on the
+   empty band beside it. */
+.edit-media {
+    container-type: size;
+}
+.shot-frame {
+    position: relative;
+    display: block;
+    aspect-ratio: var(--shot-ratio);
+    width: min(100cqw, 100cqh * var(--shot-ratio));
+}
