@@ -84,7 +84,12 @@ const allImages = (p: (typeof projects)[number]) =>
                                                 <><span class="whitespace-nowrap">{tag.toLowerCase()}{i < all.length - 1 && " ·"}</span>{" "}</>
                                             ))}
                                         </p>
-                                        {p.wip && <span class="wip-pill ml-auto shrink-0">WIP</span>}
+                                        {(p.wip || "mockup" in p) && (
+                                            <span class="ml-auto flex shrink-0 gap-1.5">
+                                                {"mockup" in p && <span class="wip-pill">Mockup</span>}
+                                                {p.wip && <span class="wip-pill">WIP</span>}
+                                            </span>
+                                        )}
                                     </div>
                                     {p.link && p.link !== "#" && (
                                         <a href={p.link} target="_blank" rel="noopener noreferrer"

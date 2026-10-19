@@ -52,6 +52,8 @@ export const projects = [
     image: "/pictures/release-pipeline.webp",
     link: "#",
     wip: true,
+    // The screenshot is a mockup, not the live tool.
+    mockup: true,
     featured: true,
     featuredOrder: 3,
     details: {
