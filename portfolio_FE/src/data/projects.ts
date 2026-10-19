@@ -49,8 +49,7 @@ export const projects = [
     description:
       "Internal software for IMRSV Music, helping colleagues find information and reducing repetitive production work. Part of my wider responsibility for the studio's tools, services, and IT.",
     tags: ["Kotlin", "API integrations", "Automation", "Internal tools"],
-    // Hidden until the screenshot has had a confidentiality review.
-    image: null,
+    image: "/pictures/release-pipeline.webp",
     link: "#",
     wip: true,
     featured: true,
