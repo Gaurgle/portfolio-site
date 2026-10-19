@@ -1,7 +1,8 @@
 ---
 /**
- * About: the chapter mark (01 ABOUT + hook) sticks on the right and rides
- * with the story flowing past on the left. The story has no surface: each
+ * About: the chapter mark (01 ABOUT + hook) sticks on the left and rides
+ * with the story flowing past on the right, the way the journey sets its
+ * mark beside its stops; the story reads over the darker space there. The story has no surface: each
  * passage is loose text the sky clears and bends around (data-lens,
  * clouds.ts), and its words converge out of a chromatic split as it arrives. The tech stack lives in
  * the marquee band further down (TechMarquee).
@@ -10,40 +11,38 @@ import ChapterMark from "./ChapterMark.astro";
 ---
 
 <section id="about" data-section="about"
-         data-hue="#9d8cff"
          class="relative max-w-6xl mx-auto px-4">
 
-    <div class="lg:flex lg:flex-row-reverse lg:gap-10">
-        <!-- Chapter mark: sticky on the right for the whole section. Pulled
+    <div class="lg:flex lg:flex-row lg:gap-10">
+        <!-- Chapter mark: sticky on the left for the whole section. Pulled
              up 40vh on desktop so it rises into the emptied hero screen and
              is already in place when the first passage arrives under it. -->
-        <div class="lg:w-[42%] shrink-0 lg:sticky lg:top-0 lg:h-screen lg:-mt-[40vh] flex flex-col justify-center items-center lg:items-end lg:text-right pt-24 lg:pt-0 z-0">
+        <div class="lg:w-[42%] shrink-0 lg:sticky lg:top-0 lg:h-screen lg:-mt-[40vh] flex flex-col justify-center items-center lg:items-start lg:text-left pt-24 lg:pt-0 z-0">
             <ChapterMark n="01" label="ABOUT"
-                         line1="Backend. Android." accent="Audio" color="#9d8cff" />
+                         line1="Hello," line2="I'm Andreas" />
         </div>
 
-        <!-- Story passages on the left, with a small entry hold (little pin) -->
+        <!-- Story passages on the right, with a small entry hold (little pin) -->
         <!-- Extra tail: about keeps the frame a while before journey arrives -->
         <div data-hold="0.2" class="lg:w-[58%] relative z-10 pt-16 pb-8 lg:pt-[18vh] lg:pb-[18vh]">
             <!-- Big gaps on desktop (each passage owns the frame); compact on
                  mobile where there is no focus effect to justify them -->
             <div data-hold-content class="space-y-14 lg:space-y-[16vh]">
 
-            <div data-reveal data-focus data-lens="soft" class="signal" data-rn-card>
-                <h3 class="passage-head text-ctp-mauve">Hello</h3>
-                <p data-word-reveal class="signal-copy">I'm Andreas, a <span class="text-white" data-rn="underline">backend</span> and <span class="text-white" data-rn="underline">Android</span> developer in <span class="text-white" data-rn="underline">Stockholm</span>.
-                        I mainly write <span class="text-white" data-rn="underline">Kotlin</span> and <span class="text-white" data-rn="underline">Java</span>:
-                        backend services, Android apps and tools that take repetitive work out of the day.
-                        I have a particular interest in <span class="text-white" data-rn="underline">Bluetooth LE</span> and <span class="text-white" data-rn="underline">LE Audio</span>, following hands-on work at <span class="text-white" data-rn="underline">Sigma Connectivity</span>.
-                        Before software, I worked in music and <span class="text-white" data-rn="underline">live production</span>, which I still do alongside development.</p>
+            <div data-reveal data-focus data-lens class="signal" data-rn-card>
+                <h3 class="passage-head" data-depth="0.05">Software developer. Kotlin person.</h3>
+                <p data-word-reveal class="signal-copy">I'm Andreas, a <span class="text-white" data-rn="underline">software developer</span> in <span class="text-white" data-rn="underline">Stockholm</span>.
+                        I work mainly in <span class="text-white" data-rn="underline">Kotlin</span> and <span class="text-white" data-rn="underline">Java</span>, building <span class="text-white" data-rn="underline">backend services</span>, <span class="text-white" data-rn="underline">Android</span> apps, and tools.
+                        I like getting into the details of how software works, and having a say in how it's put together.
+                        Audio and Bluetooth are particular interests, alongside a growing collection of projects of my own.</p>
             </div>
 
-            <div data-reveal data-focus data-lens="soft" class="signal" data-rn-card>
-                <h3 class="passage-head text-ctp-mauve">At IMRSV</h3>
-                <p data-word-reveal class="signal-copy">At <span class="text-white" data-rn="underline">IMRSV Music</span>, I <span class="text-white" data-rn="underline">master records</span> and build internal <span class="text-white" data-rn="underline">Kotlin tools</span>.
-                        The technical work grew out of the studio's needs: preparing <span class="text-white" data-rn="underline">release files</span>,
-                        connecting external platforms, and looking after storage, <span class="text-white" data-rn="underline">backups</span> and networking.
-                        I work with the same files and delivery requirements as the people using the tools.</p>
+            <div data-reveal data-focus data-lens class="signal" data-rn-card>
+                <h3 class="passage-head" data-depth="0.05">At IMRSV, and outside it</h3>
+                <p data-word-reveal class="signal-copy">I'm <span class="text-white" data-rn="underline">Head of Technology</span> at <span class="text-white" data-rn="underline">IMRSV Music</span>, where I also mix and master records.
+                        I design and build <span class="text-white" data-rn="underline">internal software</span>, automate workflows, connect services, and develop the <span class="text-white" data-rn="underline">infrastructure</span> they run on.
+                        The work takes me from writing Kotlin to deploying services and planning storage and backups.
+                        Outside work, I build <span class="text-white" data-rn="underline">CLI and TUI</span> tools in <span class="text-white" data-rn="underline">Rust</span> for my own workflow. One makes rain sounds.</p>
             </div>
 
             </div>
@@ -54,8 +53,8 @@ import ChapterMark from "./ChapterMark.astro";
 <script>
     import { annotate, annotationGroup } from "rough-notation";
 
-    // The spectrum, cycled across the annotations
-    const PALETTE = ["#9d8cff", "#46beff", "#3fe8d2", "#8dffb0", "#ffb84d", "#ff465a"];
+    // One ink for every annotation: the cloud-shade accent.
+    const INK = "rgb(184 197 214)";
 
     function paddingFor(type) {
         if (type === "circle") return 5;
@@ -64,18 +63,18 @@ import ChapterMark from "./ChapterMark.astro";
     }
 
     // Wire one card: build its annotation group, reveal on hover, clear on leave
-    function setupCard(card, colorOffset) {
+    function setupCard(card) {
         const els = Array.from(card.querySelectorAll("[data-rn]"));
         if (els.length === 0) return;
 
         // Build the annotations statically (animate: false). rough-notation just
         // renders the rough strokes; WE drive the draw via stroke-dashoffset so it
         // can play forward on hover and in reverse on leave.
-        const annotations = els.map((el, i) => {
+        const annotations = els.map((el) => {
             const type = el.dataset.rn || "underline";
             return annotate(el, {
                 type,
-                color: PALETTE[(colorOffset + i) % PALETTE.length],
+                color: INK,
                 strokeWidth: 1.4,
                 padding: paddingFor(type),
                 multiline: type === "underline",
@@ -195,8 +194,7 @@ import ChapterMark from "./ChapterMark.astro";
 
     function setupAnnotations() {
         const cards = Array.from(document.querySelectorAll("[data-rn-card]"));
-        // Offset each card's color start so adjacent cards don't open on the same hue
-        cards.forEach((card, i) => setupCard(card, i * 2));
+        cards.forEach((card) => setupCard(card));
     }
 
     // Run on first load and after every View Transitions navigation

@@ -2,8 +2,8 @@
 /**
  * Featured projects as a pinned strip (desktop): the chapter mark enters
  * centered, the first project flies in and pushes it out, each project
- * leaves left as the next arrives, and the last one exits - leaving the MORE
- * PROJECTS arrow (smoothScroll.ts measureShowcases drives all transforms).
+ * leaves left as the next arrives, and the last one exits as the listing
+ * below climbs in (smoothScroll.ts measureShowcases drives all transforms).
  * Projects have no surface, so nothing piles. On mobile the same markup
  * flies through in depth like the journey (the engine's focus stack).
  */
@@ -19,9 +19,6 @@ const firstImage = (p: (typeof projects)[number]) =>
 // Every shot of a project, so the lightbox can page through them all
 const allImages = (p: (typeof projects)[number]) =>
     (Array.isArray(p.image) ? p.image : [p.image]).filter(Boolean) as string[];
-
-// Accent per card (rgb triplets for the CSS var): green, mauve, blue, peach
-const accents = ["141,255,176", "157,140,255", "70,190,255", "255,184,77"];
 ---
 
 <div data-hscroll data-hscroll-mode="strip" data-cardstack data-stack-mode="focus" class="hscroll-pin relative">
@@ -31,7 +28,7 @@ const accents = ["141,255,176", "157,140,255", "70,190,255", "255,184,77"];
         <div class="absolute inset-0 hidden lg:flex items-center justify-center z-0">
             <div data-cover-content class="will-change-transform">
                 <ChapterMark n="03" label="PROJECTS"
-                             pre="Things I've " accent="built" color="#46beff" />
+                             line1="Selected" line2="work" />
             </div>
         </div>
 
@@ -39,38 +36,37 @@ const accents = ["141,255,176", "157,140,255", "70,190,255", "255,184,77"];
              the deck (the mark is slimmed via .hscroll-pin .chapter-mark) -->
         <div class="lg:hidden px-4 pb-5 text-center">
             <ChapterMark n="03" label="PROJECTS"
-                         pre="Things I've " accent="built" color="#46beff" />
-            <h3 class="mt-3 font-bold uppercase tracking-[0.3em] text-sm text-white/80 select-none">
-                featured projects<span class="text-ctp-blue">.</span>
+                         line1="Selected" line2="work" />
+            <h3 class="section-head mt-3 uppercase tracking-[0.12em] text-sm text-white/90 select-none">
+                A closer look
             </h3>
         </div>
 
         <div data-hscroll-track class="relative z-10 px-4" style="--deck-n: 0">
             {featured.map((p, i) => (
                 <div class="featured-card" data-spotlight data-stack-card
-                     style={`--fc: ${accents[i % accents.length]}; --f: ${i === 0 ? 0 : -1}`}>
+                     style={`--f: ${i === 0 ? 0 : -1}`}>
                     <div class="edit-card h-full">
                         {firstImage(p) ? (
                             <div class="edit-media">
                                 <button type="button"
-                                        class="group contents cursor-zoom-in"
+                                        class="flex h-full w-full items-center cursor-zoom-in"
                                         aria-label={`Open ${p.projectTitle} screenshots`}
                                         data-lightbox
                                         data-images={JSON.stringify(allImages(p))}
                                         data-title={p.projectTitle}>
-                                    <img src={firstImage(p)} {...imageSize(firstImage(p)!)} alt={p.projectTitle} loading="lazy" decoding="async"
-                                         class="h-full w-full object-contain transition-all duration-500 cursor-zoom-in
-                                                group-focus-visible:ring-2 group-focus-visible:ring-ctp-blue" />
+                                    <img src={firstImage(p)} {...imageSize(firstImage(p)!)} alt={`${p.projectTitle} screenshot`} loading="lazy" decoding="async"
+                                         class="h-full w-full object-contain transition-all duration-500 cursor-zoom-in" />
                                 </button>
                             </div>
                         ) : (
                             <div class="edit-media flex items-center justify-center font-mono text-xs text-zinc-600">
-                                <span>no screenshot yet</span>
+                                <span>No preview yet</span>
                             </div>
                         )}
-                        <div class="edit-body">
+                        <div class="edit-body" data-lens>
                             <h3 class="text-2xl md:text-4xl font-bold leading-[1.05] text-white mb-4 md:mb-5">
-                                {p.projectTitle}<span style={`color: rgb(${accents[i % accents.length]})`}>.</span>
+                                {p.projectTitle}.
                             </h3>
                             <div class="edit-cols">
                                 <p class="edit-desc">{p.details?.long}</p>
@@ -78,18 +74,27 @@ const accents = ["141,255,176", "157,140,255", "70,190,255", "255,184,77"];
                                     <ul class="space-y-1.5">
                                         {p.details?.highlights.slice(0, 3).map((h) => (
                                             <li>
-                                                <span class="mr-1.5" style={`color: rgb(${accents[i % accents.length]})`}>▸</span>{h}
+                                                <span class="mr-1.5 text-zinc-500">▸</span>{h}
                                             </li>
                                         ))}
                                     </ul>
-                                    <p class="project-stack text-zinc-500">
-                                        {p.wip && <span class="text-ctp-yellow">in development · </span>}
-                                        {p.tags?.join(" · ").toLowerCase()}
-                                    </p>
+                                    <div class="flex items-start gap-4">
+                                        <p class="project-stack text-zinc-400">
+                                            {p.tags?.map((tag, i, all) => (
+                                                <><span class="whitespace-nowrap">{tag.toLowerCase()}{i < all.length - 1 && " ·"}</span>{" "}</>
+                                            ))}
+                                        </p>
+                                        {(p.wip || "mockup" in p) && (
+                                            <span class="ml-auto flex shrink-0 gap-1.5">
+                                                {"mockup" in p && <span class="wip-pill">Mockup</span>}
+                                                {p.wip && <span class="wip-pill">WIP</span>}
+                                            </span>
+                                        )}
+                                    </div>
                                     {p.link && p.link !== "#" && (
                                         <a href={p.link} target="_blank" rel="noopener noreferrer"
                                            class="inline-block text-sm text-zinc-400 hover:text-white transition-colors duration-200">
-                                            github &rarr;
+                                            Code &rarr;
                                         </a>
                                     )}
                                 </div>
@@ -100,68 +105,28 @@ const accents = ["141,255,176", "157,140,255", "70,190,255", "255,184,77"];
             ))}
 
         </div>
-
-        <!-- Finale: a huge arrow, detached from the track (engine-driven).
-             It rides in behind the last card, docks aligned under the
-             headline, and stays while the last card clears out left. -->
-        <!-- Centered on the stage; pt matches the viewport's padding-top so
-             the arrow shares the pile's vertical frame -->
-        <div class="absolute inset-0 hidden lg:flex items-center justify-center pt-[10vh] z-10 pointer-events-none">
-            <div data-hscroll-arrow class="flex items-center select-none will-change-transform">
-                <!-- Massive elbow arrow; the label bends with it: MORE runs
-                     along the top shaft, PROJECTS turns and runs down the leg -->
-                <svg class="w-[clamp(22rem,42vw,38rem)] h-auto text-ctp-blue drop-shadow-[0_0_40px_rgba(70,190,255,0.5)]"
-                     viewBox="0 0 100 100" aria-hidden="true">
-                    <!-- A hair of softness for the silhouette only (applied to
-                         the path in global.css, with the chromatic fringe it
-                         gives an edge to bleed into); the label stays crisp.
-                         A native filter, because WebKit does not reliably
-                         apply CSS blur() to elements inside an svg. -->
-                    <defs>
-                        <filter id="arrow-soft" x="-10%" y="-10%" width="120%" height="120%"
-                                color-interpolation-filters="sRGB">
-                            <feGaussianBlur stdDeviation="0.22" />
-                        </filter>
-                    </defs>
-                    <!-- The engine scrubs the assembly: outline draws itself
-                         (dashoffset), the fill floods, the label stamps in.
-                         The closing run back to the start is written out as an
-                         explicit L instead of leaning on Z: getTotalLength()
-                         does not reliably count Z's implied segment, and when
-                         it comes up short the dash never reaches the start
-                         point and the top-left corner stays open. Round joins
-                         keep that corner clean while the outline is drawing. -->
-                    <path fill="currentColor" stroke="currentColor" stroke-width="1.2"
-                          stroke-linejoin="round" stroke-linecap="round"
-                          d="M2,10 H78 V68 H94 L61,99 L28,68 H44 V44 H2 L2,10 Z" />
-                    <!-- Letters are individual tspans: the engine stamps
-                         them on one at a time, typewriter-style. PROJECTS
-                         translates to y=14.6 so its P's ink top sits level
-                         with MORE's cap line (12 rode ~2.5 units high). -->
-                    <text x="4" y="38.5" font-size="33" font-weight="800" fill="#0b0b12"
-                          textLength="38" lengthAdjust="spacingAndGlyphs"
-                          style="font-family: 'Archivo Black', 'Schibsted Grotesk', sans-serif;"><tspan>M</tspan><tspan>O</tspan><tspan>R</tspan><tspan>E</tspan></text>
-                    <text transform="translate(52,14.6) rotate(90)" x="0" y="0" font-size="30" font-weight="800" fill="#0b0b12"
-                          textLength="55" lengthAdjust="spacingAndGlyphs"
-                          style="font-family: 'Archivo Black', 'Schibsted Grotesk', sans-serif;"><tspan>P</tspan><tspan>R</tspan><tspan>O</tspan><tspan>J</tspan><tspan>E</tspan><tspan>C</tspan><tspan>T</tspan><tspan>S</tspan></text>
-                </svg>
-            </div>
-        </div>
     </div>
 </div>
 
 <script>
+    import { lightboxPair, swapShot } from "../../lib/shotTransition";
+
+    /** True from the click that opens a lightbox until it is asked to close. */
+    let lightboxOpen = false;
+
     /**
      * Featured shots expand on click. The grid below uses the React Lightbox;
      * this strip is server-rendered with no island, so it gets a small vanilla
-     * twin that matches it (terminal bar, backdrop, arrow + Esc keys).
+     * twin that matches it (terminal bar, backdrop, arrow + Esc keys). The
+     * card's picture grows into it and goes back on close (shotTransition).
      */
     function openLightbox(images: string[], title: string, opener: HTMLElement) {
         let index = 0;
 
         const overlay = document.createElement("div");
         overlay.className =
-            "fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm";
+            "fixed inset-0 z-[100] flex items-center justify-center bg-black/80";
+        overlay.dataset.shotScrim = "";
         overlay.setAttribute("role", "dialog");
         overlay.setAttribute("aria-modal", "true");
         overlay.setAttribute("aria-label", title);
@@ -184,7 +149,7 @@ const accents = ["141,255,176", "157,140,255", "70,190,255", "255,184,77"];
             "w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-400 transition-colors " +
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
             "focus-visible:outline-white";
-        closeBtn.setAttribute("aria-label", "Close");
+        closeBtn.setAttribute("aria-label", "Close screenshots");
         bar.appendChild(closeBtn);
         bar.insertAdjacentHTML(
             "beforeend",
@@ -201,11 +166,17 @@ const accents = ["141,255,176", "157,140,255", "70,190,255", "255,184,77"];
         img.className = "w-full max-h-[75vh] object-contain bg-black";
         img.src = images[0];
         img.alt = title;
+        img.dataset.shot = "";
 
         const close = () => {
+            if (!lightboxOpen) return;
+            lightboxOpen = false;
             document.removeEventListener("keydown", onKey);
-            overlay.remove();
-            opener.focus();
+            swapShot(lightboxPair(), () => {
+                overlay.remove();
+                opener.focus();
+                return { shot: opener.querySelector("img") };
+            });
         };
 
         const step = (delta: number) => {
@@ -238,8 +209,8 @@ const accents = ["141,255,176", "157,140,255", "70,190,255", "255,184,77"];
 
         if (images.length > 1) {
             for (const [dir, glyph, side, name] of [
-                [-1, "‹", "left-4", "Previous image"],
-                [1, "›", "right-4", "Next image"],
+                [-1, "‹", "left-4", "Previous screenshot"],
+                [1, "›", "right-4", "Next screenshot"],
             ] as const) {
                 const btn = document.createElement("button");
                 btn.type = "button";
@@ -275,28 +246,17 @@ const accents = ["141,255,176", "157,140,255", "70,190,255", "255,184,77"];
                 } catch {
                     images = [];
                 }
-                const shot = el.querySelector("img")?.src;
-                if (images.length === 0 && shot) images = [shot];
-                if (images.length > 0) openLightbox(images, el.dataset.title ?? "", el);
+                const shot = el.querySelector("img");
+                if (images.length === 0 && shot) images = [shot.src];
+                if (images.length === 0 || lightboxOpen) return;
+                lightboxOpen = true;
+                swapShot({ shot }, () => {
+                    openLightbox(images, el.dataset.title ?? "", el);
+                    return lightboxPair();
+                });
             });
         }
     }
-
-    // Point a title's prism split away from its centre, toward the pointer
-    // (global.css reads --tx/--ty). Same scheme as the chapter marks: one
-    // document listener survives page swaps, and the direction keeps a floor
-    // near the centre so the split never collapses to nothing.
-    document.addEventListener("pointermove", (event) => {
-        if (event.pointerType === "touch") return;
-        const title = (event.target as Element | null)?.closest?.<HTMLElement>(".featured-card h3");
-        if (!title) return;
-        const box = title.getBoundingClientRect();
-        const x = (event.clientX - box.left) / box.width * 2 - 1;
-        const y = (event.clientY - box.top) / box.height * 2 - 1;
-        const length = Math.max(Math.hypot(x, y), 0.35);
-        title.style.setProperty("--tx", (x / length).toFixed(3));
-        title.style.setProperty("--ty", (y / length).toFixed(3));
-    }, { passive: true });
 
     document.addEventListener("astro:page-load", wireLightboxes);
 </script>

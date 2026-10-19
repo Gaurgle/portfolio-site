@@ -8,14 +8,14 @@
  */
 import ChapterMark from "./ChapterMark.astro";
 
-const { n, label, line1, pre = "", accent, post = ".", color, accentStyle } = Astro.props;
+const { n, label, line1, line2 } = Astro.props;
 const flipped = parseInt(n, 10) % 2 === 0;
 ---
 
 <div data-pin="1" data-cover class="relative">
     <div class:list={["pin-viewport relative min-h-[70vh] flex items-center justify-center", flipped ? "md:justify-end md:pr-[7vw]" : "md:justify-start md:pl-[7vw]"]}>
         <div data-cover-content class="will-change-transform">
-            <ChapterMark {n} {label} {line1} {pre} {accent} {post} {color} {accentStyle}
+            <ChapterMark {n} {label} {line1} {line2}
                          width="w-[min(40rem,48vw)]" />
         </div>
     </div>

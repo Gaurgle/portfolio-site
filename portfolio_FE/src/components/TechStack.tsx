@@ -31,18 +31,18 @@ export type TechEntry = {
 export const stack: TechEntry[] = [
     {icon: KotlinIcon, name: "Kotlin"},
     {icon: Java, name: "Java"},
-    {icon: SpringIcon, name: "Spring"},
+    {icon: SpringIcon, name: "Spring Boot"},
     {icon: KtorIcon, name: "Ktor"},
     {icon: DiDatabase, name: "Exposed", mono: true},
     {icon: Android, name: "Android"},
-    {icon: Bluetooth, name: "BLE"},
+    {icon: Bluetooth, name: "Bluetooth LE"},
     {icon: DockerIcon, name: "Docker"},
     {icon: Python, name: "Python"},
     {icon: Mysql, name: "MySQL"},
     {icon: Postgresql, name: "PostgreSQL"},
     {icon: AstroMonoIcon, name: "Astro", mono: true, monoHover: "group-hover:text-[#FF5D01]"},
     {icon: SvelteIcon, name: "Svelte"},
-    {icon: TailwindIcon, name: "Tailwind"},
+    {icon: TailwindIcon, name: "Tailwind CSS"},
     {icon: ClaudeCode, name: "Claude Code"},
 ];
 

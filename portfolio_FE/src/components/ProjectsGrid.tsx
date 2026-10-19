@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import type { CSSProperties } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { createPortal, flushSync } from "react-dom";
+import { lightboxPair, swapShot } from "../lib/shotTransition";
 import { projects } from "../data/projects";
 import { imageSize } from "../data/imageSizes";
 import { ProjectCard, Lightbox } from "./CardProjects";
@@ -16,9 +16,6 @@ function presentability(p: Project): number {
 
 const firstImage = (p: Project) =>
     (Array.isArray(p.image) ? p.image[0] : p.image) || null;
-
-/** Catppuccin accent per row, cycled. */
-const ACCENTS = ["#8dffb0", "#46beff", "#9d8cff", "#ffb84d", "#3fe8d2", "#ff6b8b"];
 
 /** The rest of the projects (flagships live in the FeaturedShowcase above).
  *  Desktop: a directory listing - monospace rows, a docked screenshot
@@ -36,6 +33,16 @@ export default function ProjectsGrid() {
     // The desktop preview opens full size on click, same lightbox the mobile
     // cards use, so every project picture on the page expands.
     const [lightboxOpen, setLightboxOpen] = useState(false);
+    // The viewer's picture grows into the lightbox and goes back on close.
+    const viewerShotRef = useRef<HTMLImageElement>(null);
+    const openLightbox = () => swapShot({ shot: viewerShotRef.current }, () => {
+        flushSync(() => setLightboxOpen(true));
+        return lightboxPair();
+    });
+    const closeLightbox = () => swapShot(lightboxPair(), () => {
+        flushSync(() => setLightboxOpen(false));
+        return { shot: viewerShotRef.current };
+    });
 
     /* ------------------------- mobile carousel ------------------------- */
     const trackRef = useRef<HTMLDivElement>(null);
@@ -98,9 +105,10 @@ export default function ProjectsGrid() {
                             key={tag}
                             type="button"
                             onClick={() => setFilter(filter === tag ? null : tag)}
-                            className={`px-2.5 py-0.5 text-[11px] font-mono rounded-sm border transition-colors duration-200
+                            aria-pressed={filter === tag}
+                            className={`press px-2.5 py-0.5 text-xs font-mono rounded-sm border
                                 ${filter === tag
-                                    ? "bg-ctp-blue/15 text-ctp-blue border-ctp-blue/40"
+                                    ? "bg-white/10 text-white border-white/40"
                                     : "bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:border-zinc-600 hover:text-zinc-200"}`}
                         >
                             {tag.toLowerCase()}
@@ -114,6 +122,9 @@ export default function ProjectsGrid() {
                         padding instead. Fixed min-height: filtering must not shrink the
                         page (a shorter document would drop the reader into
                         the contact reveal band mid-interaction). */}
+                    {/* No data-lens here: the open row's pane inverts the
+                        closing cloud behind it (global.css, .ls-row), and
+                        it needs that cloud at full brightness to invert. */}
                     <div
                         className="flex-1 border-t border-zinc-800/70 self-start"
                         style={{ minHeight: `${rest.length * 3.75}rem` }}
@@ -123,8 +134,7 @@ export default function ProjectsGrid() {
                                 no projects match
                             </div>
                         )}
-                        {listed.map((p, i) => {
-                            const accent = ACCENTS[i % ACCENTS.length];
+                        {listed.map((p) => {
                             const href = p.link && p.link !== "#" ? p.link : null;
                             const selected = shown === p;
                             return (
@@ -134,20 +144,17 @@ export default function ProjectsGrid() {
                                     onKeyDown={(e) => { if (e.key === "Enter") { setActive(p); setLightboxOpen(false); } }}
                                     role="button"
                                     tabIndex={0}
-                                    style={{ "--rc": accent } as CSSProperties}
                                     className={`ls-row group flex items-baseline gap-5 py-4 pl-2 pr-12 border-b border-zinc-800/70
-                                               font-mono cursor-pointer transition-colors duration-200
+                                               font-mono cursor-pointer
                                                ${selected ? "ls-row-active bg-white/[0.03]" : ""}`}
                                 >
                                     <span className="ls-name whitespace-nowrap text-lg text-zinc-200 transition-colors duration-200">
                                         {p.projectTitle.toLowerCase().replaceAll(" ", "-")}
                                     </span>
-                                    {p.wip && (
-                                        <span className="px-1.5 py-0.5 text-[10px] bg-ctp-yellow/15 text-ctp-yellow border border-ctp-yellow/30 shrink-0 whitespace-nowrap">
-                                            under construction
-                                        </span>
-                                    )}
                                     <span className="ml-auto" aria-hidden="true"></span>
+                                    {/* Right-aligned beside the fixed-width link
+                                        cell, so the pills line up down the list. */}
+                                    {p.wip && <span className="wip-pill shrink-0 self-center">WIP</span>}
                                     {href ? (
                                         <a
                                             href={href}
@@ -155,7 +162,7 @@ export default function ProjectsGrid() {
                                             rel="noopener noreferrer"
                                             onClick={(e) => e.stopPropagation()}
                                             aria-label={`${p.projectTitle} on GitHub`}
-                                            className="text-zinc-300 hover:text-white transition-colors duration-200 shrink-0"
+                                            className="w-5 text-zinc-300 hover:text-white transition-colors duration-200 shrink-0"
                                         >
                                             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor"
                                                  strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -163,7 +170,7 @@ export default function ProjectsGrid() {
                                             </svg>
                                         </a>
                                     ) : (
-                                        <span className="text-zinc-700 shrink-0">·</span>
+                                        <span className="w-5 text-center text-zinc-700 shrink-0">·</span>
                                     )}
                                 </div>
                             );
@@ -179,7 +186,7 @@ export default function ProjectsGrid() {
                         {shown && (
                             <p className="absolute bottom-full left-0 mb-1 font-mono text-base text-white">
                                 {shown.projectTitle.toLowerCase().replaceAll(" ", "-")}
-                                <span className="text-ctp-blue">.</span>
+                                .
                             </p>
                         )}
                         {!shown ? (
@@ -187,7 +194,7 @@ export default function ProjectsGrid() {
                                 <p className="text-3xl font-bold leading-tight text-white/90 mb-4">
                                     {rest.length} more
                                     <br />
-                                    projects<span className="text-ctp-blue">.</span>
+                                    projects.
                                 </p>
                                 <p className="font-mono text-xs text-zinc-500">
                                     click a row to open it here
@@ -196,11 +203,12 @@ export default function ProjectsGrid() {
                         ) : firstImage(shown) ? (
                             <button
                                 type="button"
-                                aria-label="Open screenshots"
-                                onClick={() => setLightboxOpen(true)}
+                                aria-label={`Open ${shown.projectTitle} screenshots`}
+                                onClick={openLightbox}
                                 className="block w-full cursor-zoom-in"
                             >
                                 <img
+                                    ref={viewerShotRef}
                                     key={shown.projectTitle}
                                     src={firstImage(shown)!}
                                     {...imageSize(firstImage(shown)!)}
@@ -211,28 +219,37 @@ export default function ProjectsGrid() {
                             </button>
                         ) : (
                             <div className="w-full aspect-[17/14] flex items-center justify-center bg-zinc-900/30 border border-zinc-800 rounded-md font-mono text-xs text-zinc-600">
-                                <span>no screenshot yet</span>
+                                <span>No preview yet</span>
                             </div>
                         )}
                         {shown && (
-                            <div className="flex-none mt-3 h-64 overflow-hidden space-y-2">
+                            <div className="flex-none mt-3 h-64 overflow-hidden space-y-2 pl-5">
                                 <p className="text-base 2xl:text-lg text-zinc-300 leading-relaxed line-clamp-6">
                                     {shown.description}
                                 </p>
-                                <p className="font-mono text-xs text-zinc-500 truncate">
-                                    {(shown.tags ?? []).join(" · ").toLowerCase()}
+                                {/* Each tag holds together with the dot after it, so a
+                                    long list wraps between tags, never inside one or
+                                    before a dot. */}
+                                <p className="font-mono text-xs text-zinc-400">
+                                    {(shown.tags ?? []).map((tag, i, all) => (
+                                        <Fragment key={tag}>
+                                            <span className="whitespace-nowrap">
+                                                {tag.toLowerCase()}{i < all.length - 1 && " ·"}
+                                            </span>{" "}
+                                        </Fragment>
+                                    ))}
                                 </p>
                                 <div className="flex items-center gap-5 pt-1 font-mono text-xs">
                                     {shown.link && shown.link !== "#" && (
                                         <a href={shown.link} target="_blank" rel="noopener noreferrer"
                                            className="text-zinc-400 hover:text-white transition-colors duration-200">
-                                            github &rarr;
+                                            Code &rarr;
                                         </a>
                                     )}
                                     {shown.demoUrl && (
                                         <a href={shown.demoUrl} target="_blank" rel="noopener noreferrer"
                                            className="text-zinc-400 hover:text-white transition-colors duration-200">
-                                            live &rarr;
+                                            Visit site &rarr;
                                         </a>
                                     )}
                                 </div>
@@ -247,7 +264,7 @@ export default function ProjectsGrid() {
                     images={(Array.isArray(shown.image) ? shown.image : [shown.image]).filter(Boolean) as string[]}
                     startIndex={0}
                     title={shown.projectTitle}
-                    onClose={() => setLightboxOpen(false)}
+                    onClose={closeLightbox}
                 />,
                 document.body,
             )}
@@ -271,15 +288,15 @@ export default function ProjectsGrid() {
 
                 {/* Swipe indicator: counter + progress bar + hint */}
                 <div className="mt-4 flex items-center gap-3 px-1" aria-hidden="true">
-                    <span className="font-mono text-[10px] tracking-widest text-zinc-400 select-none">
+                    <span className="font-mono text-[11px] tracking-widest text-zinc-400 select-none">
                         <span ref={countRef}>01</span>
-                        <span className="text-zinc-600"> / {String(rest.length).padStart(2, "0")}</span>
+                        <span className="text-zinc-500"> / {String(rest.length).padStart(2, "0")}</span>
                     </span>
                     <div className="flex-1 h-0.5 rounded bg-zinc-800 overflow-hidden">
                         <div ref={barRef} className="carousel-progress-bar" />
                     </div>
-                    <span className="font-mono text-[10px] tracking-widest text-zinc-500 select-none">
-                        swipe &rarr;
+                    <span className="font-mono text-[11px] tracking-widest text-zinc-400 select-none">
+                        Swipe for more &rarr;
                     </span>
                 </div>
             </div>

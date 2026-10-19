@@ -1,70 +1,46 @@
+/* Two self-hosted families, latin subsets under the SIL Open Font License
+   (the licence texts sit next to the files in /fonts; the ROOS mark
+   borrows its drawing glyphs, see below). No third-party font host on the
+   critical path, so first paint never waits on an external stylesheet and
+   DNS round trip. */
+
+/* Anybody: one variable file with a width axis (50-150%) as well as weight.
+   The page speaks in it throughout: running copy near its normal width,
+   headlines opened out wide and light, the chapter marks wide and heavy.
+   The extended cuts are what make it read as air and distance. */
 @font-face {
-    font-family: "Ramose";
-    src: url("/fonts/Ramose-Regular.woff2") format("woff2"),
-         url("/fonts/Ramose-Regular.woff") format("woff");
-    font-weight: normal;
+    font-family: "Anybody";
+    src: url("/fonts/anybody-latin-var.woff2") format("woff2");
+    font-weight: 100 900;
+    font-stretch: 50% 150%;
     font-style: normal;
     font-display: swap;
 }
 
-/* Self-hosted latin subsets: no third-party font host on the critical path,
-   so first paint never waits on an external stylesheet and DNS round trip. */
-
-/* Body face: Schibsted Grotesk, a Nordic grotesk with more edge than the
-   usual interface sans (angled terminals, a narrow-ish set). One variable
-   file covers every weight the site uses, 400 for copy to 800 for the
-   chapter numerals and titles. */
+/* Victor Mono: a slim, light monospace for the chrome (nav, listing, small
+   print) and the ROOS mark. */
 @font-face {
-    font-family: "Schibsted Grotesk";
-    src: url("/fonts/schibsted-grotesk-latin-wght-normal.woff2") format("woff2");
-    font-weight: 400 900;
+    font-family: "Victor Mono";
+    src: url("/fonts/victor-mono-latin-var.woff2") format("woff2");
+    font-weight: 100 700;
     font-style: normal;
     font-display: swap;
 }
 
-@font-face {
-    font-family: "Noto Sans Mono";
-    src: url("/fonts/noto-sans-mono-latin-400-normal.woff2") format("woff2");
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-
-/* Box drawing and block elements for the ROOS mark, cut from the full Noto
-   Sans Mono (the latin file lacks them). Without it each phone fills those
+/* The box drawing and block glyphs the ROOS mark is drawn with. Not text:
+   drawing material, so they come from a 3KB cut of Noto Sans Mono (also
+   OFL), slotted into the Victor Mono family by unicode-range. The mark's
+   rows are tuned to these glyphs' one-row height; Victor's own blocks are
+   1.75em tall and fuse the letters. Without a webfont each phone fills the
    glyphs from whatever system font it has, at other widths, and the mark
    shears apart. Blocking briefly on 3KB beats showing the sheared mark. */
 @font-face {
-    font-family: "Noto Sans Mono";
-    src: url("/fonts/noto-sans-mono-box-400-normal.woff2") format("woff2");
-    font-weight: 400;
+    font-family: "Victor Mono";
+    src: url("/fonts/roos-box-noto-sans-mono.woff2") format("woff2");
+    font-weight: 100 700;
     font-style: normal;
     font-display: block;
     unicode-range: U+2500-259F;
-}
-
-@font-face {
-    font-family: "Noto Sans Mono";
-    src: url("/fonts/noto-sans-mono-latin-500-normal.woff2") format("woff2");
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Noto Sans Mono";
-    src: url("/fonts/noto-sans-mono-latin-700-normal.woff2") format("woff2");
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Archivo Black";
-    src: url("/fonts/archivo-black-latin-400-normal.woff2") format("woff2");
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
 }
 
 /* One size for running prose wherever the page tells its story (about
@@ -73,11 +49,56 @@
 :root {
     --copy-size: clamp(1.0625rem, 1.55vw, 1.4rem);
     --copy-leading: 1.6;
+    /* One palette, taken from the sky: space black, cloud white, and the
+       grey-blue of a cloud's shadow side as the single quiet accent (focus,
+       selection, the current item). The prism's spectral fringes are the
+       only other colour on the page. */
+    --cloud: rgb(240 243 247);
+    --cloud-shade: rgb(184 197 214);
+    /* The halo that holds loose text against a passing cloud. */
+    --halo: 0 0 4px rgb(0 0 0 / 0.95), 0 0 16px rgb(0 0 0 / 0.85);
+    /* The prism's light, as channels for rgb(... / alpha). Never a fill for
+       type or labels: only fringes, glows and tints where light refracts,
+       paired cool against warm and paired differently in each place. */
+    --prism-violet: 157 140 255;
+    --prism-blue: 70 190 255;
+    --prism-teal: 63 232 210;
+    --prism-amber: 255 184 77;
+    --prism-rose: 255 110 140;
+    /* Focus: a cloud-white ring whose edges disperse, teal to one side and
+       rose to the other. */
+    --focus-fringe:
+        -3px 0 10px -2px rgb(var(--prism-teal) / 0.6),
+        3px 0 10px -2px rgb(var(--prism-rose) / 0.5);
+}
+
+/* Selected text is lit, not painted: a faint violet wash with its letters'
+   edges dispersed. */
+::selection {
+    background: rgb(var(--prism-violet) / 0.3);
+    color: #fff;
+    text-shadow:
+        -1px 0 2px rgb(var(--prism-teal) / 0.6),
+        1px 0 2px rgb(var(--prism-amber) / 0.55);
+}
+
+/* Running copy sits a touch wider than the face's normal width, with a
+   hair of extra tracking: open, unhurried, never cramped against the sky. */
+body {
+    font-stretch: 104%;
+    letter-spacing: 0.005em;
+    font-optical-sizing: auto;
 }
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:focus-visible {
+    outline: 1.5px solid rgb(240 243 247 / 0.9);
+    outline-offset: 3px;
+    box-shadow: var(--focus-fringe);
+}
 
 /* The site scrolls vertically only: clip sideways overflow (wide marks,
    filmstrip tracks). overflow-x: clip does NOT create a scroll container,
@@ -119,6 +140,13 @@ html.is-revealing :is(body > header, #sidebar, #scroll-progress,
     .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
     #sidebar-toggle, main > :not(#home)) {
     transition: opacity 1.4s ease;
+}
+/* Skipped (the visitor scrolled during the loading screen, index.astro): the
+   same fade-in, compressed to a quick cross-fade. */
+html.is-skipping :is(body > header, #sidebar, #scroll-progress,
+    .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
+    #sidebar-toggle, main > :not(#home), .hero-mark-ghost) {
+    transition: opacity 0.25s ease-out;
 }
 /* ROOS arrives while the loading screen stands: its ghost draws itself in
    dark grey from the ground up, then the white mark rises over it the same
@@ -455,7 +483,7 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     font-size: var(--copy-size);
     line-height: var(--copy-leading);
     color: rgb(244 244 245); /* zinc-100 */
-    text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 16px rgb(0 0 0 / 0.85);
+    text-shadow: var(--halo);
 }
 /* Words arrive the way the prism's light does: split into a red and a blue
    copy far apart, converging into one white word. Two shadows on both ends
@@ -469,11 +497,13 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     transition-delay: calc(var(--wi, 0) * 16ms);
 }
 .signal[data-reveal].is-visible .wr-w {
-    text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 16px rgb(0 0 0 / 0.85);
+    text-shadow: var(--halo);
 }
 
-/* Desktop sidebar: the blur that keeps nav text legible over clouds fades
-   out past the column instead of ending in a vertical line. */
+/* Desktop sidebar: one fixed dark shade along the left edge keeps the nav
+   legible when a cloud drifts behind it, fading out past the column instead
+   of ending in a vertical line. A plain gradient, not a backdrop blur: it
+   costs nothing over the animated sky. */
 @media (min-width: 1024px) {
     #sidebar {
         isolation: isolate;
@@ -481,14 +511,35 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     #sidebar::before {
         content: "";
         position: absolute;
-        inset: 0 -4rem 0 0;
+        inset: 0 -9rem 0 0;
         z-index: -1;
         pointer-events: none;
-        -webkit-backdrop-filter: blur(6px);
-        backdrop-filter: blur(6px);
-        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 6rem), transparent);
-        mask-image: linear-gradient(to right, #000 calc(100% - 6rem), transparent);
+        /* An eased falloff (close to a smoothstep), so over a bright cloud
+           the shade never shows where it ends as a vertical line. */
+        background: linear-gradient(to right,
+            rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.55) 25%, rgb(0 0 0 / 0.42) 45%,
+            rgb(0 0 0 / 0.25) 62%, rgb(0 0 0 / 0.11) 78%, rgb(0 0 0 / 0.03) 91%, transparent);
     }
+}
+
+/* Phone drawer scrim: fades to half black in step with the drawer's slide
+   (same duration and curve as #sidebar in Sidebar.astro), and only leaves
+   the hit-testing and the compositor once it has fully faded. */
+.sidebar-overlay {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+        opacity 350ms cubic-bezier(0.32, 0.72, 0, 1),
+        visibility 0s linear 350ms;
+}
+.sidebar-overlay.is-open {
+    opacity: 0.5;
+    visibility: visible;
+    pointer-events: auto;
+    transition:
+        opacity 350ms cubic-bezier(0.32, 0.72, 0, 1),
+        visibility 0s;
 }
 
 /* Terminal card chrome (compose window, mini terminal): sharp, flat */
@@ -519,7 +570,7 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
    wherever the body runs out (content length varies per project) */
 .featured-card .edit-desc {
     display: -webkit-box;
-    -webkit-line-clamp: 9;
+    -webkit-line-clamp: 12;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -778,7 +829,12 @@ html.lenis, html.lenis body { height: auto; }
     height: 2px;
     transform-origin: 0 50%;
     transform: scaleX(0);
-    background: linear-gradient(90deg, #8dffb0, #46beff, #9d8cff, #ffb84d);
+    /* Cloud light thinning into the dark it has not reached yet, its tip
+       refracting: a hue that drifts from violet to amber over the page
+       (--p, the progress, smoothScroll.ts). */
+    --tip: color-mix(in srgb, rgb(var(--prism-violet)) calc(100% - var(--p, 0) * 100%), rgb(var(--prism-amber)));
+    background: linear-gradient(90deg, rgb(184 197 214 / 0.5), var(--cloud) 92%, var(--tip));
+    box-shadow: 0 0 8px color-mix(in srgb, var(--tip) 45%, transparent);
     z-index: 60;
     pointer-events: none;
 }
@@ -809,7 +865,7 @@ html.lenis, html.lenis body { height: auto; }
 .hero-tagline {
     position: relative;
     z-index: 0;
-    text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 14px rgb(0 0 0 / 0.8);
+    text-shadow: var(--halo);
 }
 /* Scroll controls both effects so they reverse cleanly. Diffuse and recede
    first, then glitch. Independent scale preserves the jitter translations. */
@@ -833,7 +889,7 @@ html.lenis, html.lenis body { height: auto; }
         opacity: 1;
         filter: blur(0);
         scale: 1;
-        text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 14px rgb(0 0 0 / 0.8);
+        text-shadow: var(--halo);
     }
     4% {
         opacity: 0.95;
@@ -849,7 +905,7 @@ html.lenis, html.lenis body { height: auto; }
         opacity: 0.8;
         filter: blur(2px);
         scale: 0.96;
-        text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 14px rgb(0 0 0 / 0.8);
+        text-shadow: var(--halo);
     }
     18% {
         opacity: 0.75;
@@ -889,15 +945,52 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
-/* Chapter mark: boxy display font for the hook lines, slashed-zero mono for
-   the numerals, Ramose for the colored keyword */
+/* Chapter mark: one voice, Anybody opened out wide. The numeral is the
+   heaviest weight on the page, the title lines a step lighter, both in
+   cloud white. (The svg stretches each line to the mark's width, so the
+   width axis sets the letters' proportions, not the line's length.) */
+/* Width axis: the letters ease open from a condensed cut to their resting
+   width as the chapter settles (--settle, smoothScroll.ts). The svg holds
+   every line to the mark's width (textLength), so only the letterforms
+   breathe; nothing around the mark reflows. */
 .chapter-mark text {
-    font-family: "Archivo Black", "Schibsted Grotesk", system-ui, sans-serif;
-    fill: #ffffff; /* numerals + hook lines fully opaque */
+    font-family: "Anybody", system-ui, sans-serif;
+    font-weight: 700;
+    font-stretch: calc(100% + var(--settle, 1) * 25%);
+    fill: var(--cloud);
 }
 .chapter-mark text.cm-num {
-    font-family: "Schibsted Grotesk", system-ui, sans-serif;
-    font-weight: 800;
+    font-weight: 850;
+    font-stretch: calc(112% + var(--settle, 1) * 28%);
+}
+html.reduced-motion .chapter-mark text {
+    font-stretch: 125%;
+}
+html.reduced-motion .chapter-mark text.cm-num {
+    font-stretch: 140%;
+}
+/* The light a settled mark catches: its letters drawn again behind it,
+   dispersed into a violet and an amber copy (ChapterMark.astro) and
+   blurred as one layer, so a soft spectral fringe spills past the glyph
+   edges. The blur is fixed; only the layer's opacity follows the settle and
+   the pointer's light (--lit), and it is not drawn at all without either. */
+.cm-fringe {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    filter: blur(3px);
+    opacity: calc(var(--settle, 0) * 0.5 + var(--lit, 0) * 0.35);
+    visibility: hidden;
+}
+.chapter-mark.has-light .cm-fringe {
+    visibility: visible;
+}
+.cm-fringe .cm-cool {
+    fill: rgb(var(--prism-violet));
+}
+.cm-fringe .cm-warm {
+    fill: rgb(var(--prism-amber));
 }
 /* Hover: a chromatic split, the clouds' effect in miniature. Red and blue
    copies part along the pointer's direction from the mark's centre
@@ -941,36 +1034,15 @@ html.lenis, html.lenis body { height: auto; }
         /* Caps how far the speckle can thin the glyphs: a light texture. */
         --cm-grain: 0.3;
         filter:
-            drop-shadow(calc(var(--cm-x, 0.7) * 1.5px) calc(var(--cm-y, 0.7) * 1.5px) 0 rgb(255 70 90 / 0.45))
-            drop-shadow(calc(var(--cm-x, 0.7) * -1.5px) calc(var(--cm-y, 0.7) * -1.5px) 0 rgb(70 190 255 / 0.45));
+            drop-shadow(calc(var(--cm-x, 0.7) * 1.5px) calc(var(--cm-y, 0.7) * 1.5px) 2px rgb(255 70 90 / 0.45))
+            drop-shadow(calc(var(--cm-x, 0.7) * -1.5px) calc(var(--cm-y, 0.7) * -1.5px) 2px rgb(70 190 255 / 0.45));
     }
     .chapter-mark:hover .cm-split.cm-num-box {
         filter:
-            drop-shadow(calc(var(--cm-x, 0.7) * 1.1cqw) calc(var(--cm-y, 0.7) * 1.1cqw) 0 rgb(255 60 90 / 0.7))
-            drop-shadow(calc(var(--cm-x, 0.7) * -1.1cqw) calc(var(--cm-y, 0.7) * -1.1cqw) 0 rgb(60 190 255 / 0.7));
+            drop-shadow(calc(var(--cm-x, 0.7) * 1.1cqw) calc(var(--cm-y, 0.7) * 1.1cqw) 0.8cqw rgb(255 60 90 / 0.6))
+            drop-shadow(calc(var(--cm-x, 0.7) * -1.1cqw) calc(var(--cm-y, 0.7) * -1.1cqw) 0.8cqw rgb(60 190 255 / 0.6));
     }
 }
-/* The MORE PROJECTS arrow wears the clouds' own split, not a lookalike:
-   clouds.ts hands it the direction and strength its chromatic pass is using
-   that frame (--sky-split-x/y), so the fringe follows the pointer, swells
-   with mouse movement and scroll speed, eases back, and wanders at rest,
-   exactly as the sky does. The fallback is the sky's resting level. The glow is restated because
-   this filter replaces the svg's utility-class one. */
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-    [data-hscroll-arrow] svg {
-        filter:
-            drop-shadow(0 0 40px rgb(70 190 255 / 0.5))
-            drop-shadow(calc(var(--sky-split-x, 0.1) * 16px) calc(var(--sky-split-y, 0.1) * 16px) 0 rgb(255 70 90 / 0.55))
-            drop-shadow(calc(var(--sky-split-x, 0.1) * -16px) calc(var(--sky-split-y, 0.1) * -16px) 0 rgb(70 190 255 / 0.55));
-    }
-    /* The silhouette alone goes a touch soft (#arrow-soft, FeaturedShowcase),
-       so the fringe has an edge to bleed into. The label is not filtered. */
-    [data-hscroll-arrow] svg path {
-        filter: url(#arrow-soft);
-    }
-}
-/* The single special word's font comes per-section via the accentStyle prop */
-
 /* Pinned dwell pages: the viewport-sized child sticks while the section's
    extra height (set by smoothScroll.ts from data-pin) scrolls by */
 @media (min-width: 1024px) {
@@ -991,7 +1063,15 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
-/* Static particle layers (painted once, moved by scroll parallax) */
+/* Static particle layers (painted once, moved by scroll parallax). The two
+   far layers also lean with the sky's slow bend (--sky-bend-x/y, about
+   2px, written by clouds.ts on .particle-layers). The individual translate
+   property composes with the parallax transform the engine writes. */
+@media (prefers-reduced-motion: no-preference) {
+    .particle-layer:nth-child(-n + 2) {
+        translate: var(--sky-bend-x, 0px) var(--sky-bend-y, 0px);
+    }
+}
 .particle-layers {
     position: fixed;
     inset: 0;
@@ -1034,13 +1114,12 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
-/* Sidebar nav: each link carries its chapter colour as --ink. Hovered, or
-   while its section is active (.spy-active, set by the scroll spy), the
-   word takes that colour and glows softly with it - the site diffused
-   light, not a marker or a rail - and eases a step to the right. */
+/* Sidebar nav: links rest in a soft grey. Hovered, or while its section is
+   active (.spy-active, set by the scroll spy), the word brightens to cloud
+   white and glows softly - the site's diffused light, not a marker or a
+   rail - and eases a step to the right. Pressed, it dims at once. */
 .nav-link {
-    --ink: #fff;
-    color: rgb(244 244 245); /* zinc-100 */
+    color: rgb(161 161 170); /* zinc-400 */
     transition:
         color 0.25s ease,
         text-shadow 0.45s ease,
@@ -1049,15 +1128,41 @@ html.lenis, html.lenis body { height: auto; }
 .nav-link:hover,
 .nav-link:focus-visible,
 .nav-link.spy-active {
-    color: var(--ink);
+    color: var(--cloud);
     text-shadow:
-        0 0 10px color-mix(in srgb, var(--ink) 55%, transparent),
-        0 0 28px color-mix(in srgb, var(--ink) 30%, transparent);
+        0 0 10px rgb(240 243 247 / 0.45),
+        0 0 28px rgb(184 197 214 / 0.3);
 }
+/* Under the pointer (or focus) the glow refracts a little: blue one side,
+   amber the other. */
 .nav-link:hover,
 .nav-link:focus-visible {
     outline: none;
+    box-shadow: none;
     transform: translateX(4px);
+    text-shadow:
+        -1.5px 0 8px rgb(var(--prism-blue) / 0.45),
+        1.5px 0 8px rgb(var(--prism-amber) / 0.4),
+        0 0 10px rgb(240 243 247 / 0.45),
+        0 0 28px rgb(184 197 214 / 0.3);
+}
+.nav-link:active {
+    opacity: 0.6;
+}
+
+/* Press feedback: a pressed control gives a little the instant it is
+   pressed (scale, not transform, so it composes with any transform the
+   control already carries). Text rows dim instead (their own :active). */
+.press {
+    transition:
+        scale 100ms ease-out,
+        color 0.2s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.3s ease;
+}
+.press:active {
+    scale: 0.97;
 }
 
 /* Pinned horizontal filmstrip (featured projects): full-bleed - it escapes
@@ -1139,25 +1244,32 @@ html.lenis, html.lenis body { height: auto; }
         padding: 2.5rem;
         margin: -2.5rem -2.5rem -0.5rem calc(-32% - 2.5rem);
         font-size: clamp(2.75rem, 4.6vw, 6.5rem);
-        font-weight: 800;
+        font-weight: 760;
+        font-stretch: 112%;
         line-height: 0.94;
-        letter-spacing: -0.035em;
+        letter-spacing: -0.03em;
         /* A distorted prism, like the clouds: the title's light disperses
            into a soft smear of the spectrum, violet and blue to one side,
            amber and red to the other. No movement of the letters at all.
            Motion opens it (--drift, arriving or leaving); so does the
            pointer, a little (--touch), along its direction from the title's
-           centre (--tx/--ty, FeaturedShowcase.astro), easing in and out on
-           the chapter marks' long curve so it never switches. At rest every
-           copy sits exactly under the glyphs and nothing shows. */
+           centre (--lx/--ly, smoothScroll.ts setupPointerLight), easing in
+           and out on the chapter marks' long curve so it never switches. At
+           rest every copy sits exactly under the glyphs and nothing shows.
+           Seated, the title catches the light instead (--settle, and the
+           pointer's --lit): a soft violet and amber glow either side of the
+           letters, along the same direction, never split apart. */
         --split: max(var(--drift, 0), var(--touch) * 0.35);
-        --sx: calc(var(--tx, 1) * var(--split));
-        --sy: calc(var(--ty, 0) * var(--split));
+        --sx: calc(var(--lx, -1) * -1 * var(--split));
+        --sy: calc(var(--ly, 0) * -1 * var(--split));
+        --glow: calc(var(--settle, 0) * 0.3 + var(--lit, 0) * 0.25);
         text-shadow:
-            calc(var(--sx) * -24px) calc(var(--sy) * -24px) calc(var(--split) * 12px) rgb(var(--prism-far-a, 157 140 255) / 0.5),
-            calc(var(--sx) * -12px) calc(var(--sy) * -12px) calc(var(--split) * 6px) rgb(var(--prism-near-a, 70 190 255) / 0.7),
-            calc(var(--sx) * 12px) calc(var(--sy) * 12px) calc(var(--split) * 6px) rgb(var(--prism-near-b, 255 184 77) / 0.6),
-            calc(var(--sx) * 24px) calc(var(--sy) * 24px) calc(var(--split) * 12px) rgb(var(--prism-far-b, 255 70 90) / 0.55),
+            calc(var(--sx) * -24px) calc(var(--sy) * -24px) calc(var(--split) * 12px) rgb(var(--prism-violet) / 0.5),
+            calc(var(--sx) * -12px) calc(var(--sy) * -12px) calc(var(--split) * 6px) rgb(var(--prism-blue) / 0.7),
+            calc(var(--sx) * 12px) calc(var(--sy) * 12px) calc(var(--split) * 6px) rgb(var(--prism-amber) / 0.6),
+            calc(var(--sx) * 24px) calc(var(--sy) * 24px) calc(var(--split) * 12px) rgb(255 70 90 / 0.55),
+            calc(var(--lx, -1) * -2px) calc(var(--ly, 0) * -2px) 16px rgb(var(--prism-violet) / var(--glow)),
+            calc(var(--lx, -1) * 2px) calc(var(--ly, 0) * 2px) 16px rgb(var(--prism-amber) / var(--glow)),
             0 0 6px rgb(0 0 0),
             0 4px 40px rgb(0 0 0 / 0.95);
         transition: --touch 1.1s cubic-bezier(0.37, 0, 0.2, 1);
@@ -1173,26 +1285,6 @@ html.lenis, html.lenis body { height: auto; }
         mask-size: 180px 180px, 100% 100%;
         -webkit-mask-composite: source-over;
         mask-composite: add;
-    }
-    /* Each project disperses differently: a prism turned to another angle
-       throws another part of the spectrum to either side. */
-    .hscroll-pin .featured-card:nth-child(4n + 2) h3 {
-        --prism-far-a: 63 232 210;
-        --prism-near-a: 141 255 176;
-        --prism-near-b: 255 107 139;
-        --prism-far-b: 157 140 255;
-    }
-    .hscroll-pin .featured-card:nth-child(4n + 3) h3 {
-        --prism-far-a: 255 70 90;
-        --prism-near-a: 255 184 77;
-        --prism-near-b: 63 232 210;
-        --prism-far-b: 70 190 255;
-    }
-    .hscroll-pin .featured-card:nth-child(4n + 4) h3 {
-        --prism-far-a: 255 224 102;
-        --prism-near-a: 141 255 176;
-        --prism-near-b: 157 140 255;
-        --prism-far-b: 255 107 139;
     }
     html:not(.reduced-motion) .hscroll-pin .featured-card h3:is(:hover, :active) {
         --touch: 1;
@@ -1443,28 +1535,51 @@ html.lenis, html.lenis body { height: auto; }
 .beam-stop.is-active {
     pointer-events: auto;
 }
-/* Passage heads (about passages, journey stops) borrow the chapter marks'
-   accent voice: the italic serif of "Audio" and "stack trace", in the mark's
-   own colour. One face doing one job, instead of a separate label style. */
+/* Passage heads (about passages, journey stops): the same face as
+   everything else, opened out to its widest and set light, in a soft cloud
+   grey. Distance and air instead of a second typeface. */
 .passage-head {
     margin-bottom: 0.6rem;
-    font-family: Georgia, "Times New Roman", serif;
-    font-style: italic;
+    text-wrap: balance;
     font-size: clamp(1.25rem, 1.9vw, 1.7rem);
+    font-weight: 380;
+    font-stretch: 140%;
     line-height: 1.1;
-    text-shadow: 0 0 14px rgb(0 0 0 / 0.9);
+    letter-spacing: 0.01em;
+    color: rgb(228 228 231); /* zinc-200 */
+    /* Near the pointer it catches a faint teal and rose edge (--lit). */
+    text-shadow:
+        calc(var(--lx, -1) * -1.5px) calc(var(--ly, 0) * -1.5px) 10px rgb(var(--prism-teal) / calc(var(--lit, 0) * 0.45)),
+        calc(var(--lx, -1) * 1.5px) calc(var(--ly, 0) * 1.5px) 10px rgb(var(--prism-rose) / calc(var(--lit, 0) * 0.4)),
+        var(--halo);
 }
 .passage-head::first-letter {
     text-transform: uppercase;
 }
+/* Large display type: heavy, a little wide, tracked in as it grows. */
 .beam-title {
     margin-bottom: 1.5rem;
-    font-size: clamp(2rem, 4.6vw, 4.25rem);
-    font-weight: 800;
+    font-size: clamp(2rem, 3.9vw, 3.75rem);
+    text-wrap: balance;
+    font-weight: 760;
+    font-stretch: 112%;
     line-height: 0.98;
-    letter-spacing: -0.02em;
-    color: #fff;
-    text-shadow: 0 0 18px rgb(0 0 0 / 0.9);
+    letter-spacing: -0.025em;
+    color: var(--cloud);
+    /* The stop in focus catches the light as it settles (--settle, set on
+       its card) and from the pointer (--lit): violet one side, amber the
+       other, soft enough that the halo still holds the letters. */
+    --glow: calc(var(--settle, 0) * 0.3 + var(--lit, 0) * 0.25);
+    text-shadow:
+        calc(var(--lx, -1) * -2px) calc(var(--ly, 0) * -2px) 16px rgb(var(--prism-violet) / var(--glow)),
+        calc(var(--lx, -1) * 2px) calc(var(--ly, 0) * 2px) 16px rgb(var(--prism-amber) / var(--glow)),
+        0 0 6px rgb(0 0 0 / 0.9),
+        0 0 18px rgb(0 0 0 / 0.9);
+}
+/* Small headlines (the listing's): the passage heads' wide voice at weight. */
+.section-head {
+    font-weight: 620;
+    font-stretch: 130%;
 }
 .beam-copy {
     display: grid;
@@ -1472,17 +1587,17 @@ html.lenis, html.lenis body { height: auto; }
     font-size: var(--copy-size);
     line-height: var(--copy-leading);
     color: rgb(228 228 231); /* zinc-200 */
-    text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 16px rgb(0 0 0 / 0.85);
+    text-shadow: var(--halo);
 }
 /* Contents of the journey, set under the chapter mark like a book's: the
-   five stops in plain type, the current one lit. Desktop only; the phone
+   four stops in plain type, the current one lit. Desktop only; the phone
    stage has no room beside the mark. */
 .stop-contents {
     display: none;
     margin-top: 2.25rem;
     font-size: 0.95rem;
     line-height: 1.9;
-    color: rgb(113 113 122); /* zinc-500 */
+    color: rgb(161 161 170); /* zinc-400 */
 }
 .stop-contents li {
     transition: color 0.4s ease, text-shadow 0.4s ease;
@@ -1501,7 +1616,7 @@ html.lenis, html.lenis body { height: auto; }
     text-transform: uppercase;
 }
 .stop-contents .is-current {
-    color: #fff;
+    color: var(--cloud);
 }
 @media (min-width: 1024px) {
     .journey-stack .journey-viewport {
@@ -1586,6 +1701,48 @@ html.reduced-motion .beam-stop {
     transform: none;
     pointer-events: auto;
 }
+/* ...and the featured projects as plain entries: screenshot, then title,
+   then copy, in one column. The desktop composition (title cutting across
+   the screenshot, copy beside it, both shifted by the arrival scrub) only
+   works with the engine flying the cards. */
+@media (min-width: 1024px) {
+    html.reduced-motion .hscroll-pin .hscroll-viewport {
+        padding-top: 0;
+    }
+    html.reduced-motion .hscroll-pin [data-cover-content] {
+        margin-bottom: 3rem;
+    }
+    /* The listing normally climbs over the strip's exit; in flow it simply
+       follows the last project. */
+    html.reduced-motion .more-projects-stage {
+        margin-top: 8rem;
+    }
+    html.reduced-motion .hscroll-pin [data-hscroll-track] {
+        gap: 5rem;
+    }
+    html.reduced-motion .hscroll-pin .featured-card .edit-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1.75rem;
+    }
+    html.reduced-motion .hscroll-pin .featured-card .edit-media {
+        flex: none;
+        height: auto;
+        transform: none;
+    }
+    html.reduced-motion .hscroll-pin .featured-card .edit-media img {
+        max-height: 70vh;
+    }
+    html.reduced-motion .hscroll-pin .featured-card .edit-body {
+        max-width: 48rem;
+        padding: 0;
+        transform: none;
+    }
+    html.reduced-motion .hscroll-pin .featured-card h3 {
+        margin: 0 0 1.25rem;
+        padding: 0;
+    }
+}
 
 /* Mobile decks stay fixed while the page scrolls. Only transforms change;
    on unusually short screens the card body itself remains reachable. */
@@ -1640,12 +1797,25 @@ html.reduced-motion .beam-stop {
     from { opacity: 0; }
 }
 
-/* Desktop projects listing: each row's name adopts its accent on hover,
-   and keeps it while the row is open in the viewer */
+/* Desktop projects listing: a row's name brightens to cloud white on hover
+   and stays lit while the row is open in the viewer. Pressed, the row dims
+   at once. The listing has no lens (the open row's pane needs the cloud at
+   full brightness to invert), so a resting name holds against a passing
+   cloud with the page's black halo. */
+.ls-name {
+    text-shadow: var(--halo);
+}
 .ls-row:hover .ls-name,
 .ls-row:focus-visible .ls-name,
 .ls-row-active .ls-name {
-    color: var(--rc, #46beff);
+    color: var(--cloud);
+    text-shadow:
+        -1px 0 7px rgb(var(--prism-violet) / 0.45),
+        1px 0 7px rgb(var(--prism-teal) / 0.35),
+        0 0 12px rgb(240 243 247 / 0.35);
+}
+.ls-row:active {
+    opacity: 0.7;
 }
 /* Selected: an inverted pane. What lies behind the open row is inverted,
    then dimmed to a graphite grey. The stars turn to dark motes, the cloud
@@ -1704,8 +1874,8 @@ html.reduced-motion .beam-stop {
     height: 100%;
     transform-origin: 0 50%;
     transform: scaleX(0);
-    /* Same gradient as the page's top scroll bar */
-    background: linear-gradient(90deg, #8dffb0, #46beff, #9d8cff, #ffb84d);
+    /* Same light as the page's top scroll bar */
+    background: linear-gradient(90deg, rgb(184 197 214 / 0.5), var(--cloud));
 }
 
 /* Velocity marquee */
@@ -1723,14 +1893,12 @@ html.reduced-motion .beam-stop {
     will-change: transform;
 }
 
-/* Bottom hue: tinted by the ACTIVE chapter's accent (the scroll spy sets
-   --hue-color from each section's data-hue), cross-fading as you
-   move through the site - green, mauve, teal, blue, and finally the
-   contact orange, where the journey ends. Opacity is engine-driven. */
+/* Bottom hue: a faint cloud-shade glow along the bottom edge, teasing the
+   contact panel. One tone for the whole page; opacity is engine-driven. */
 @property --hue-color {
     syntax: "<color>";
     inherits: false;
-    initial-value: #07080d;
+    initial-value: rgb(184 197 214);
 }
 #bottom-hue {
     position: fixed;
@@ -1738,8 +1906,8 @@ html.reduced-motion .beam-stop {
     right: 0;
     bottom: 0;
     height: 18vh;
-    /* Above the contact panel (z-5), below the page (z-10): the final
-       orange stays present on the revealed contact view */
+    /* Above the contact panel (z-5), below the page (z-10): the glow
+       stays present on the revealed contact view */
     z-index: 6;
     pointer-events: none;
     background: linear-gradient(
@@ -1837,18 +2005,18 @@ html.reduced-motion .beam-stop {
     }
 }
 
-/* Contact form: loose text on the panel black. Labels speak in the italic
-   serif of the passage heads, in the chapter peach; a field is one hairline
-   that takes the peach while it has focus. The caret, the selection and the
-   autofill fill are themed too, so the browser leaves no default behind. */
+/* Contact form: loose text on the panel black. Labels speak in the passage
+   heads' wide, light voice; a field is one hairline that brightens while it
+   has focus. The caret, the selection and the autofill fill are themed too,
+   so the browser leaves no default behind. */
 .field-label {
     display: block;
     margin-bottom: 0.1rem;
-    font-family: Georgia, "Times New Roman", serif;
-    font-style: italic;
     font-size: clamp(1.05rem, 1.4vw, 1.35rem);
+    font-weight: 330;
+    font-stretch: 140%;
     line-height: 1.2;
-    color: #ffb84d;
+    color: rgb(212 212 216); /* zinc-300 */
 }
 .contact-field {
     display: block;
@@ -1861,24 +2029,54 @@ html.reduced-motion .beam-stop {
     font-size: 1.125rem;
     line-height: 1.5;
     color: #fff;
-    caret-color: #ffb84d;
+    caret-color: var(--cloud);
     transition: border-color 0.3s ease;
 }
 .contact-field::placeholder {
-    color: rgb(113 113 122); /* zinc-500 */
+    color: rgb(130 130 140);
 }
 .contact-field:focus {
     outline: none;
-    border-bottom-color: #ffb84d;
+    box-shadow: none;
+    border-bottom-color: var(--cloud);
+}
+/* Checked on leaving the field (ContactForm.tsx): the hairline and the
+   note under it say what is wrong, while there is still time to fix it. */
+.contact-field[aria-invalid="true"] {
+    border-bottom-color: rgb(255 110 110);
+}
+.field-error {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.875rem;
+    color: rgb(255 110 110);
 }
 .contact-field:-webkit-autofill {
     -webkit-text-fill-color: #fff;
     box-shadow: 0 0 0 1000px #000 inset;
     transition: background-color 9999s;
 }
-.contact-panel ::selection {
-    background: rgb(255 184 77 / 0.35);
-    color: #fff;
+/* "Sending..." while the message is in flight: the dots brighten in turn.
+   Still, all three lit, under reduced motion. */
+.sending-dots span {
+    opacity: 0.25;
+    animation: sending-dot 1.2s ease-in-out infinite;
+}
+.sending-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.sending-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+@keyframes sending-dot {
+    0%, 100% { opacity: 0.25; }
+    40% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sending-dots span {
+        opacity: 1;
+        animation: none;
+    }
 }
 @media (min-width: 1024px) {
     .contact-field {
@@ -1916,6 +2114,9 @@ html.reduced-motion .beam-stop {
 }
 .contact-links a:hover {
     color: #fff;
+    text-shadow:
+        -1px 0 7px rgb(var(--prism-teal) / 0.4),
+        1px 0 7px rgb(var(--prism-amber) / 0.35);
 }
 @media (min-width: 1024px) {
     .contact-links {
@@ -2027,4 +2228,102 @@ svg.rough-annotation.rn-primed {
     #projects .chapter-mark {
         width: min(8.5rem, 40vw);
     }
+}
+
+/* Phones: the journey and featured stacks seat each card with the browser's
+   own proximity snapping, one stop per card (smoothScroll.ts
+   placeSnapStops). Proximity, never mandatory: it only pulls a scroll that
+   already comes to rest near a card, so nothing holds the page. Off under
+   reduced motion, where the stacks are plain documents. */
+.snap-stop {
+    position: absolute;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+@media (max-width: 1023px) {
+    html:not(.reduced-motion) {
+        scroll-snap-type: y proximity;
+    }
+    .snap-stop {
+        scroll-snap-align: start;
+    }
+}
+
+/* Phone drawer: it springs (SidebarToggle.tsx) and may overshoot open by a
+   few pixels, so its material runs on past its left edge. */
+@media (max-width: 1023px) {
+    #sidebar::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 100%;
+        width: 3rem;
+        background: inherit;
+    }
+}
+
+/* The featured shots' opener fills the picture's frame, which can be wider
+   than the picture itself, so the focus ring sits on the picture. */
+.edit-media button:focus-visible {
+    outline: none;
+    box-shadow: none;
+}
+.edit-media button:focus-visible img {
+    outline: 1.5px solid rgb(240 243 247 / 0.9);
+    outline-offset: 3px;
+    box-shadow: var(--focus-fringe);
+}
+
+/* Shared-element lightbox (shotTransition.ts): the screenshot grows out of
+   its card into the lightbox and back. Only the shot and the lightbox's
+   scrim take part; the root is left out (shot-transition), so the rest of
+   the page, sky and all, stays live underneath and takes clicks. The shot
+   travels on a critically damped spring (response 0.42s). */
+html.shot-transition {
+    view-transition-name: none;
+}
+html.shot-transition::view-transition {
+    pointer-events: none;
+}
+::view-transition-group(shot) {
+    animation-duration: 0.5s;
+    animation-timing-function: linear(0, 0.081, 0.24, 0.409, 0.558, 0.678, 0.77, 0.838, 0.887,
+        0.922, 0.947, 0.964, 0.976, 0.984, 0.989, 0.993, 1);
+}
+/* The card shows its shot cropped and the lightbox shows it whole, so the
+   two pictures differ: the old one hands over quickly, before they can read
+   as a double image. */
+::view-transition-old(shot) {
+    animation-duration: 0.16s;
+}
+::view-transition-new(shot) {
+    animation-duration: 0.24s;
+}
+::view-transition-old(shot-scrim),
+::view-transition-new(shot-scrim) {
+    animation-duration: 0.35s;
+}
+
+/* Work in progress: a small, quiet pill, right-aligned on its row or card.
+   A hairline and a breath of fill in the page's own greys, plain type. */
+.wip-pill {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid rgb(255 255 255 / 0.16);
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.03);
+    font-family: theme("fontFamily.sans");
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: rgb(212 212 216 / 0.75);
+    text-transform: none;
+}
+/* Over a screenshot (phone cards) it needs a darker ground to read. */
+.wip-pill-over {
+    background: rgb(0 0 0 / 0.6);
 }

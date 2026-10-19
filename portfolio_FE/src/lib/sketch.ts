@@ -24,8 +24,8 @@ export interface SketchOptions {
   types?: SketchType[];
 }
 
-// Catppuccin Mocha accents
-const CATPPUCCIN = ["#9d8cff", "#46beff", "#8dffb0", "#ffb84d", "#ff6b8b", "#3fe8d2"];
+// The sky's own two inks: cloud white and the cloud-shade accent
+const SKY_INKS = ["rgb(240 243 247)", "rgb(184 197 214)"];
 const TYPES: SketchType[] = ["underline", "box", "circle", "bracket"];
 
 const reducedMotion = () =>
@@ -65,7 +65,7 @@ export function sketchOnHover(el: HTMLElement, opts: SketchOptions = {}): () => 
     padding = 4,
     drawMs = 500,
     undrawMs = 260,
-    palette = CATPPUCCIN,
+    palette = SKY_INKS,
     types = TYPES,
   } = opts;
 

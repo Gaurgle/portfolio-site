@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from "react";
-import {createPortal} from "react-dom";
+import {createPortal, flushSync} from "react-dom";
+import {lightboxPair, swapShot} from "../lib/shotTransition";
 import {projects} from "../data/projects.ts";
 import {imageSize} from "../data/imageSizes.ts";
 
@@ -58,7 +59,8 @@ export function Lightbox({images, startIndex, title, onClose}: {
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+            data-shot-scrim=""
             onClick={onClose}
             role="dialog"
             aria-modal="true"
@@ -72,7 +74,7 @@ export function Lightbox({images, startIndex, title, onClose}: {
             >
                 {/* Terminal bar */}
                 <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900/80 border-b border-zinc-800">
-                    <button ref={closeRef} type="button" onClick={onClose} className="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-400 transition-colors" aria-label="Close"/>
+                    <button ref={closeRef} type="button" onClick={onClose} className="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-400 transition-colors" aria-label="Close screenshots"/>
                     <span className="w-3 h-3 rounded-full bg-yellow-500/80"/>
                     <span className="w-3 h-3 rounded-full bg-green-500/80"/>
                     <span className="ml-3 font-mono text-xs text-zinc-400">{title}</span>
@@ -85,8 +87,9 @@ export function Lightbox({images, startIndex, title, onClose}: {
                             key={src}
                             src={src}
                             {...imageSize(src)}
-                            alt={`${title}${hasMultiple ? ` slide ${i + 1}` : ""}`}
+                            alt={`${title} screenshot${hasMultiple ? ` ${i + 1}` : ""}`}
                             decoding="async"
+                            data-shot={i === currentIndex ? "" : undefined}
                             className={`w-full max-h-[75vh] object-contain transition-opacity duration-700
                                        ${i === currentIndex ? "opacity-100" : "opacity-0 absolute inset-0"}`}
                         />
@@ -96,7 +99,7 @@ export function Lightbox({images, startIndex, title, onClose}: {
                         <>
                             <button
                                 onClick={goPrev}
-                                aria-label="Previous image"
+                                aria-label="Previous screenshot"
                                 className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center
                                            rounded-full bg-black/50 text-white/80 hover:bg-black/70 hover:text-white
                                            transition-all duration-200 text-2xl"
@@ -105,7 +108,7 @@ export function Lightbox({images, startIndex, title, onClose}: {
                             </button>
                             <button
                                 onClick={goNext}
-                                aria-label="Next image"
+                                aria-label="Next screenshot"
                                 className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center
                                            rounded-full bg-black/50 text-white/80 hover:bg-black/70 hover:text-white
                                            transition-all duration-200 text-2xl"
@@ -136,6 +139,17 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
     const [currentIndex, setCurrentIndex] = useState(0);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const shotsRef = useRef<HTMLButtonElement>(null);
+    // The shown picture grows into the lightbox and goes back on close.
+    const cardShot = () => shotsRef.current?.querySelectorAll("img")[currentIndex] ?? null;
+    const openLightbox = () => swapShot({shot: cardShot()}, () => {
+        flushSync(() => setLightboxOpen(true));
+        return lightboxPair();
+    });
+    const closeLightbox = () => swapShot(lightboxPair(), () => {
+        flushSync(() => setLightboxOpen(false));
+        return {shot: cardShot()};
+    });
 
     const handleMouseEnter = () => {
         if (!hasMultiple) return;
@@ -160,8 +174,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
 
     return (
         <div
-            className="relative group w-full h-full bg-[rgb(8_8_11_/_0.9)] border border-zinc-700 rounded-xl overflow-hidden
-                       transition-colors duration-500
+            className="press relative group w-full h-full bg-[rgb(8_8_11_/_0.9)] border border-zinc-700 rounded-xl overflow-hidden
                        opacity-0 animate-fade-up flex flex-col"
             style={{animationDelay: `${idx * 100 + 100}ms`}}
             onMouseEnter={handleMouseEnter}
@@ -173,14 +186,15 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                     type="button"
                     aria-label={`Open ${project.projectTitle} screenshots`}
                     className="h-44 w-full overflow-hidden flex-shrink-0 relative cursor-zoom-in text-left"
-                    onClick={() => setLightboxOpen(true)}
+                    ref={shotsRef}
+                    onClick={openLightbox}
                 >
                     {images.map((src, i) => (
                         <img
                             key={src}
                             src={src}
                             {...imageSize(src)}
-                            alt={`${project.projectTitle}${hasMultiple ? ` slide ${i + 1}` : ""}`}
+                            alt={`${project.projectTitle} screenshot${hasMultiple ? ` ${i + 1}` : ""}`}
                             loading="lazy"
                             decoding="async"
                             className={`absolute inset-0 h-full w-full object-contain transition-all duration-700
@@ -205,7 +219,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                 <div className="h-44 w-full flex-shrink-0 relative flex items-center justify-center
                                 bg-zinc-900/30 border-b border-zinc-800/50 overflow-hidden select-none">
                     <div className="font-mono text-xs text-zinc-600 text-center leading-relaxed">
-                        <span className="text-zinc-500">no screenshot yet</span>
+                        <span className="text-zinc-500">No preview yet</span>
                     </div>
                 </div>
             )}
@@ -215,16 +229,13 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                     images={images}
                     startIndex={currentIndex}
                     title={project.projectTitle}
-                    onClose={() => setLightboxOpen(false)}
+                    onClose={closeLightbox}
                 />,
                 document.body
             )}
 
             {project.wip && (
-                <span className="absolute top-2 left-2 z-20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider
-                                 bg-ctp-yellow/15 text-ctp-yellow border border-ctp-yellow/30">
-                    in development
-                </span>
+                <span className="wip-pill wip-pill-over absolute top-3 right-3 z-20">WIP</span>
             )}
 
             {/* Content: title below the image (editorial order), info + links */}
@@ -243,8 +254,8 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                         {project.tags.map((tag: string) => (
                             <span
                                 key={tag}
-                                className="px-2 py-0.5 text-[10px] font-mono
-                                           bg-zinc-800/80 text-zinc-400 border border-zinc-800"
+                                className="px-2 py-0.5 text-[11px] font-mono
+                                           bg-zinc-800/80 text-zinc-300 border border-zinc-800"
                             >
                                 {tag}
                             </span>
@@ -261,7 +272,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                             rel="noopener noreferrer"
                             className="text-sm text-zinc-400 hover:text-white transition-colors duration-200"
                         >
-                            live &rarr;
+                            Visit site &rarr;
                         </a>
                     )}
                     {project.link && project.link !== "#" && (
@@ -271,7 +282,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                             rel="noopener noreferrer"
                             className="text-sm text-zinc-400 hover:text-white transition-colors duration-200"
                         >
-                            github &rarr;
+                            Code &rarr;
                         </a>
                     )}
                 </div>

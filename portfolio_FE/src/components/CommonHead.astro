@@ -4,8 +4,8 @@ const {title, description} = Astro.props;
 
 const SITE_URL = "https://andreasroos.vercel.app/";
 const OG_IMAGE = "https://andreasroos.vercel.app/og.jpg";
-const DEFAULT_TITLE = "Andreas Roos";
-const DEFAULT_DESCRIPTION = "Andreas Roos, backend and Android developer in Stockholm. Kotlin, Java, Bluetooth LE and LE Audio. Internal tools and mastering at IMRSV Music.";
+const DEFAULT_TITLE = "Andreas Roos | Software Developer";
+const DEFAULT_DESCRIPTION = "Software developer in Stockholm. Kotlin, backend services, Android, and Bluetooth. Selected work and a little background in music.";
 
 const pageTitle = title ?? DEFAULT_TITLE;
 const pageDescription = description ?? DEFAULT_DESCRIPTION;
@@ -14,7 +14,7 @@ const personSchema = {
     "@context": "https://schema.org",
     "@type": "Person",
     name: "Andreas Roos",
-    jobTitle: "Backend & Android developer",
+    jobTitle: "Software Developer",
     url: SITE_URL,
     description: DEFAULT_DESCRIPTION,
     sameAs: [
@@ -32,20 +32,19 @@ const personSchema = {
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#000000"/>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
 <meta name="generator" content={Astro.generator}/>
 
 <title>{pageTitle}</title>
 <meta name="description" content={pageDescription}/>
 <link rel="canonical" href={SITE_URL}/>
 
-<!-- Only the faces painted above the fold are preloaded: the hero path line
-     and nav (mono 400), the ROOS mark's box glyphs, and the chapter marks
-     (Schibsted Grotesk 800, Archivo Black).
-     The rest load on demand from the @font-face rules in global.css. -->
-<link rel="preload" as="font" type="font/woff2" href="/fonts/noto-sans-mono-latin-400-normal.woff2" crossorigin/>
-<link rel="preload" as="font" type="font/woff2" href="/fonts/noto-sans-mono-box-400-normal.woff2" crossorigin/>
-<link rel="preload" as="font" type="font/woff2" href="/fonts/schibsted-grotesk-latin-wght-normal.woff2" crossorigin/>
-<link rel="preload" as="font" type="font/woff2" href="/fonts/archivo-black-latin-400-normal.woff2" crossorigin/>
+<!-- All three files are painted above the fold: the nav (Victor Mono), the
+     ROOS mark's box glyphs, and the tagline and chapter marks (Anybody).
+     The @font-face rules live in global.css. -->
+<link rel="preload" as="font" type="font/woff2" href="/fonts/victor-mono-latin-var.woff2" crossorigin/>
+<link rel="preload" as="font" type="font/woff2" href="/fonts/roos-box-noto-sans-mono.woff2" crossorigin/>
+<link rel="preload" as="font" type="font/woff2" href="/fonts/anybody-latin-var.woff2" crossorigin/>
 
 <meta property="og:type" content="website"/>
 <meta property="og:url" content={SITE_URL}/>

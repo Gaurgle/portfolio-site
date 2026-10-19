@@ -67,6 +67,8 @@ vec3 opticalLight(vec3 p, float cloud, float glint) {
             float width=(.012+max(along,0.)*.018)*mix(.35,1.,grown);
             profile=exp(-.5*across*across/(width*width));
             profile+=.11*grown*exp(-.5*across*across/.012);
+            // Forward scattering: a soft skirt, far wider than the beam.
+            profile+=.05*grown*exp(-.5*across*across/.07);
             gate*=1.-smoothstep(gleamHead-gleamLead,gleamHead-gleamLead+.09,along);
         } else {
             // Open space shows the glow along the whole body, run-in included
@@ -90,7 +92,23 @@ vec3 opticalLight(vec3 p, float cloud, float glint) {
             *smoothstep(-.02,.055,trail)*(1.-smoothstep(gleamHead-.02,gleamHead+.07,run))
             *pow(clamp(trail/max(gleamHead,.001),0.,1.),2.6);
         float white=exp(-.5*side*side/.00004)+.11*exp(-.5*side*side/.012);
-        return sum+vec3(1.)*white*pre*depth;
+        // Entering: until the head reaches the prism it drives into the
+        // cloud as a soft, warm bulb of scattered light that travels with
+        // it, and the path behind it glows from within. The bulb's flanks
+        // part faintly, warm to one side and cool to the other: the cloud
+        // already bends the light a little before the prism splits it.
+        // Scattered light fills a volume, not the thin sheet the core runs
+        // in, so the bulb and the glow have depth of their own.
+        float entering=1.-smoothstep(gleamLead-.15,gleamLead+.05,gleamHead);
+        float front=exp(-pow((run-gleamHead)/.28,2.))*smoothstep(-.02,.055,trail);
+        float bulb=front*exp(-.5*side*side/.015)*exp(-pow((p.z-.27)/.35,2.))*entering;
+        vec3 flank=mix(vec3(1.),side>0. ? vec3(1.1,.95,.8) : vec3(.82,.95,1.12),smoothstep(.02,.12,abs(side)));
+        // The path behind the head stays lit from within, brightest near it.
+        float path=smoothstep(-.02,.055,trail)*(1.-smoothstep(gleamHead-.02,gleamHead+.07,run))
+            *(1.-smoothstep(gleamLead-.06,gleamLead+.02,run))
+            *(.35+.65*clamp(trail/max(gleamHead,.001),0.,1.));
+        float glow=.35*exp(-.5*side*side/.004)*exp(-pow((p.z-.27)/.26,2.))*path*entering;
+        return sum+vec3(1.)*white*pre*depth+vec3(1.,.82,.58)*flank*bulb*.32+vec3(1.,.9,.75)*glow;
     }
     // Every wavelength shares the ray's centre line, so the core is white.
     // Never finer than a pixel of the low-resolution sky: below that the
@@ -133,28 +151,34 @@ float offBeam(vec2 uv) {
     float to=mix(gleamOffset+gleamHead+.7,gleamTail+(gleamHead+.7)/gleamStretch,gleamFree);
     float along=smoothstep(from-.5,from,run)*(1.-smoothstep(to,to+.5,run));
     float corridor=(1.-smoothstep(.14,.6,side))*along*smoothstep(0.,.3,gleamHead+.12);
+    // While the light is still entering its cloud (before the prism) its
+    // glow is cloud lit from within, and behind settled text it is toned
+    // down like any other cloud; the corridor opens as it reaches the prism.
+    corridor*=smoothstep(gleamLead-.15,gleamLead+.05,gleamHead);
     return 1.-corridor;
 }
 `;
 
-// Lenses: where loose text floats with no panel behind it (data-lens). Centre
-// and half size in canvas pixels; the shape is a superellipse, so it never
-// reads as a card. Each lens carries three strengths. lensPower bends the sky
-// at its rim. lensDim darkens the cloud behind the text: clouds still pass
-// behind and overlap everything, which is where the page's depth comes from.
-// lensErode (data-lens="soft", the about passages) also thins the cloud
-// itself a little in the volume pass, so that lens can dim far less and
-// leave no visible patch.
+// Lenses: where loose text floats with no panel behind it (data-lens). One
+// treatment for every text block on the page. Centre and half size in canvas
+// pixels (the text's box plus a margin). lensPower bends the sky at the rim;
+// lensDim is how far the text has settled (0..1), and with it how firmly the
+// cloud behind it is held under a brightness ceiling (see the chromatic
+// pass). Clouds still pass behind and overlap everything, which is where the
+// page's depth comes from.
+// A lens only ever acts on the finished sky (the chromatic pass). It must not
+// reshape the cloud in the volume pass: carving density along the lens's
+// near-straight sides cut clouds off in hard vertical edges. For the same
+// reason the shape is an ellipse with a wide feather: a superellipse has flat
+// sides, and on a tall text block its fade and its refracting rim become
+// straight vertical seams in the cloud.
 const lensShape = `
 uniform vec4 lenses[4];
 uniform float lensPower[4];
 uniform float lensDim[4];
-uniform float lensErode[4];
 // 0 at a lens's centre, 1 on its outline.
 float lensRadius(int k, vec2 at) {
-    vec2 q=(at-lenses[k].xy)/lenses[k].zw;
-    vec2 q2=q*q;
-    return sqrt(sqrt(dot(q2,q2)));
+    return length((at-lenses[k].xy)/lenses[k].zw);
 }
 `;
 
@@ -178,21 +202,7 @@ uniform int steps;
 uniform float flash;
 uniform vec3 flashAt;
 ${opticalField}
-${lensShape}
 out vec4 color;
-// How strongly this pixel's line of sight passes a soft lens (set once in
-// main). The cloud thins there with the same erosion that makes it form and
-// disperse: haze and thin parts go, the body stays, so the cloud still
-// passes behind the text and only loses its glare.
-float erosion;
-float lensErosion(vec2 at) {
-    float thin=0.;
-    for(int k=0;k<4;k++) {
-        if(lensErode[k]<=0.) continue;
-        thin=max(thin,(1.-smoothstep(.45,1.1,lensRadius(k,at)))*lensErode[k]);
-    }
-    return thin;
-}
 float noise(vec3 p) { return texture(noiseVolume, p).r; }
 float field(vec3 p) {
     vec3 wind = vec3(time * .003, time * .001, 0.) + seed;
@@ -207,7 +217,7 @@ float field(vec3 p) {
                       .62-length((v-vec3(.75,-.14,-.1))*vec3(1.3,1.7,1.6))));
     // Condensation grows from dense cores into lobes and wisps. The volume's
     // opacity stays physical; birth and dispersal change its shape instead.
-    float density = shape + (n-.52)*1.3 - (1.-formation)*1.6 - erosion*.6;
+    float density = shape + (n-.52)*1.3 - (1.-formation)*1.6;
     return smoothstep(0.,.12,density) * max(0.,density) * 9.;
 }
 vec2 intersectBox(vec3 ro, vec3 rd) {
@@ -223,7 +233,6 @@ void main() {
     vec3 ro = (transpose(rotation)*(vec3(0.,0.,6.)-center))/scale;
     vec3 rd = (transpose(rotation)*direction)/scale;
     vec2 hit = intersectBox(ro,rd);
-    erosion = lensErosion(gl_FragCoord.xy)*offBeam(gl_FragCoord.xy/resolution);
     float start = max(0.,hit.x);
     if(hit.y <= start) { color=vec4(0.); return; }
     float dt = (hit.y-start)/float(steps);
@@ -264,7 +273,21 @@ void main() {
                     +field(p+towardSource*.34)*.18;
                 vec3 world=center+rotation*(p*scale);
                 vec3 beam=lightResponse(opticalLight(beamLocal(world),1.,0.)*exp(-blocked*1.7));
-                lighting+=beam*gleam*3.;
+                // Inside the cloud, past the prism, light only shows where
+                // the cloud scatters it, and how depends on how thick the
+                // cloud is there. A dense core scatters every wavelength
+                // alike and burns near white and bright; thin cloud passes
+                // only a faint glow that keeps its spectral split. Cloud
+                // between this point and the source (blocked, above) shades
+                // it. So along its path the light swells, breaks up, fades
+                // and changes colour with the cloud's own density, slowly
+                // and continuously as the cloud drifts across it. The entry
+                // (before the prism) keeps its own look.
+                float passage=smoothstep(gleamLead-.15,gleamLead+.05,gleamHead);
+                float thick=smoothstep(.25,2.6,d);
+                vec3 white=vec3(dot(beam,vec3(.3333)))*1.2;
+                beam=mix(beam,mix(beam,white,thick*.35),passage);
+                lighting+=beam*gleam*3.*mix(1.,mix(.7,1.9,thick),passage);
             }
             radiance+=transmittance*alpha*lighting;
             transmittance*=1.-alpha;
@@ -292,21 +315,49 @@ uniform vec3 cover;
 uniform float coverAmount;
 ${opticalField}
 uniform int layer;
+// 0..1: how far the night cap holds the hero fly-through down (see render).
+uniform float nightCap;
+// The sky's quiet hue for this stretch of the weather: a near-white multiplier
+// (indigo, deep teal, a bruised violet), never a colour of its own.
+uniform vec3 skyTint;
+// Seconds of sky time: advances only while motion is allowed.
+uniform float skyTime;
+// The pointer as a soft light: xy in uv, z its eased strength (0 when off).
+uniform vec3 pointerLight;
+// How far the copy in front of the page leads the cloud while scrolling, uv.
+uniform float frontLead;
 ${lensShape}
 out vec4 color;
 const float zoom=.2, displacement=.05, chromatic=.01;
+// Behind settled text a cloud is toned down with this knee (luminance over
+// black): the brightest glare lands near .3, the body of the cloud a little
+// under it. White type keeps its own black halo (global.css), which carries
+// the contrast right at the glyphs; the cloud only loses its glare.
+const float TEXT_KNEE=.45;
+// Thin-film colour: the slow interference sheen of an oil film, one cosine
+// per channel, so it drifts through the spectrum without ever stepping.
+vec3 film(float phase) {
+    return .5+.5*cos(6.2832*(phase+vec3(0.,.33,.67)));
+}
 // x: how clear the sky is here (0..1). yz: refraction offset, in uv.
 vec3 lensField(vec2 at) {
-    float clear=0.;
+    float clear=0., weight=0.;
     vec2 bend=vec2(0.);
     for(int k=0;k<4;k++) {
         if(lensPower[k]<=0.) continue;
         float r=lensRadius(k,at);
-        clear=max(clear,(1.-smoothstep(.5,1.,r))*lensDim[k]);
-        float rim=smoothstep(.4,.82,r)*(1.-smoothstep(.82,1.12,r))*lensPower[k];
-        bend+=normalize(at-lenses[k].xy+vec2(.0001))*rim;
+        // Full over the text itself, feathered out past it.
+        clear=max(clear,(1.-smoothstep(.7,1.25,r))*lensDim[k]);
+        // Overlapping rims are blended, not summed: summed, neighbouring
+        // lenses (a chapter mark beside two passages) stacked their warp and
+        // chromatic split. Weighting each rim by its own strength keeps the
+        // result no stronger than the strongest rim, and continuous where
+        // one rim takes over from another (picking the strongest switched).
+        float rim=smoothstep(.8,1.1,r)*(1.-smoothstep(1.1,1.45,r))*lensPower[k];
+        bend+=normalize(at-lenses[k].xy+vec2(.0001))*rim*rim;
+        weight+=rim;
     }
-    return vec3(clear,bend);
+    return vec3(clear,bend/max(weight,.001));
 }
 // split is the sky's own chromatic offset, so the light takes the same red
 // and blue fringing as the clouds around it. A ray this fine needs a wider
@@ -354,15 +405,27 @@ vec3 clearSpaceLight(vec2 uv, vec2 split) {
 }
 void main() {
     vec2 uv=gl_FragCoord.xy/resolution;
-    vec2 movement=(pointer-.5)*vec2(resolution.x/resolution.y,1.);
+    float aspect=resolution.x/resolution.y;
+    vec2 movement=(pointer-.5)*vec2(aspect,1.);
     vec2 direction=movement/max(length(movement),.2);
     vec2 base=mix(uv,vec2(.5),zoom*progress*.28);
+    // Space has a little curvature: a slow, low-frequency field from the
+    // clouds' own noise bends the sky by a few pixels, drifting over tens of
+    // seconds. Below the threshold of motion, at the edge of noticing.
+    vec3 q=vec3(uv*vec2(aspect,1.)*.55,skyTime*.0045);
+    vec2 curve=vec2(texture(noiseVolume,q).r,texture(noiseVolume,q+.37).r)-.5;
+    base+=curve*.007;
+    // The copy in front of the page is nearer, so it leads the cloud a
+    // little while the page moves and settles back onto it at rest.
+    if(layer==1) base.y-=frontLead;
     float band=sin(uv.y*24.+pointer.x*5.);
     float fineBand=sin(uv.y*71.-pointer.y*4.);
     base.x+=(band*.72+fineBand*.28)*displacement*progress*.16;
     base.y+=direction.y*displacement*progress*.12;
     vec2 split=direction*chromatic*progress;
     split.x+=band*chromatic*progress*.35;
+    // The separation breathes with the curvature instead of holding still.
+    split*=1.+.3*sin(skyTime*.19+curve.x*4.);
     // The rim draws its sky from nearer the lens centre and disperses it.
     // The prism's light keeps the unbent view: only the clouds refract.
     vec2 beamBase=base, beamSplit=split;
@@ -374,28 +437,65 @@ void main() {
     split+=lens.yz*vec2(resolution.y/resolution.x,1.)*.006;
     vec4 red=texture(scene,base+split), green=texture(scene,base), blue=texture(scene,base-split);
     vec4 raw=vec4(red.r,green.g,blue.b,max(green.a,max(red.a,blue.a)));
-    // The sky's overall opacity lives here, not in CSS, so the front copy
-    // and the sky behind it always share one look.
-    vec4 sky=raw*.85*(1.-lens.x);
     // Layer 1 is the copy passed in front of the page, at full strength like
     // the original cover. It follows the cloud's own density (thin haze is
     // never lifted) under a wide, soft reach, so the thickened cloud has no
     // geometric edge - an even copy inside a firm round mask read as a disc.
+    // Settled text is never covered: the copy stands aside wherever a lens is.
     float reach=1.-smoothstep(cover.z*.3,cover.z*1.4,distance(gl_FragCoord.xy,cover.xy));
-    float lift=coverAmount*reach*smoothstep(.15,.7,raw.a)*(1.-lens.x*.85);
+    float lift=coverAmount*reach*smoothstep(.15,.7,raw.a)*(1.-lens.x);
+    vec3 beam=vec3(0.);
+    float beamAlpha=0.;
     if(layer==0 && gleam>0.) {
         // Resample at the same warped coordinate as the cloud. Cloud opacity
         // occludes the clear-space view per channel, run-in included; the
         // volume already supplies the scattered view of this light.
         vec3 light=clearSpaceLight(beamBase,beamSplit);
-        vec3 beam=light*(1.-vec3(red.a,green.a,blue.a));
+        beam=light*(1.-vec3(red.a,green.a,blue.a));
         // A fixed per-pixel offset breaks 8-bit steps in the dim falloff.
         float grain=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-.5;
-        beam=max(beam+grain/255.*smoothstep(0.,.004,max(beam.r,max(beam.g,beam.b))),0.);
-        sky.rgb+=beam*.85;
-        sky.a=max(sky.a,max(beam.r,max(beam.g,beam.b))*.85);
+        beam=max(beam+grain/255.*smoothstep(0.,.004,max(beam.r,max(beam.g,beam.b))),0.)*.85;
+        beamAlpha=max(beam.r,max(beam.g,beam.b));
     }
-    color=layer==1 ? raw*lift : sky;
+    // Hue, sheen and pointer light, computed once from the cloud itself and
+    // carried by both layers so the copy in front stays the same cloud.
+    // Hue: the shadowed body takes the stretch's tint most, the lit tops
+    // least, so the cloud reads as lit by something not quite white.
+    float body=dot(raw.rgb,vec3(.2126,.7152,.0722))/max(raw.a,.001);
+    vec3 tint=mix(vec3(1.),skyTint,.15+.6*(1.-smoothstep(.2,.75,body)));
+    // A cloud's rim: where the volume thins out into open space.
+    float rim=smoothstep(.03,.22,raw.a)*(1.-smoothstep(.3,.7,raw.a));
+    // Thin-film sheen on the rim, shifting with where it sits on screen
+    // (the view angle), the curvature and the scroll.
+    vec3 sheen=film(dot(uv,vec2(.9,1.3))+curve.y*2.+progress*.6+skyTime*.012)*rim*.05;
+    // The pointer: cloud near it brightens, its rim catches a spectral edge
+    // that turns with the angle to the light. Not inside a lens: the light
+    // never lifts the cloud back up behind text that is in place.
+    vec2 toLight=(uv-pointerLight.xy)*vec2(aspect,1.);
+    float glow=pointerLight.z*exp(-dot(toLight,toLight)/.05)*(1.-lens.x);
+    vec3 lit=vec3(.92,.95,1.)*glow*raw.a*.2
+        +film(atan(toLight.y,toLight.x)*.159+skyTime*.02)*glow*rim*.14;
+    vec4 shaded=vec4(raw.rgb*tint+(sheen+lit)*raw.a,raw.a);
+    // Text over the sky: the cloud behind a settled text block is toned
+    // down with a soft knee instead of being blacked out or carved away.
+    // Bright parts are pressed down hardest and dim parts least, so its
+    // shapes, shadows and edges all stay; only its glare goes, and nothing
+    // behind the text runs much above a third of white. The lens eases in
+    // with the text settling, so nothing switches.
+    vec3 cloud=shaded.rgb*.85;
+    float glare=dot(cloud,vec3(.2126,.7152,.0722));
+    cloud*=mix(1.,1./(1.+glare/TEXT_KNEE),lens.x);
+    vec4 sky=vec4(cloud+beam,max(raw.a*.85,beamAlpha));
+    // Deep space keeps a breath of the same hue: a faint, slow nebular
+    // wash, three or four levels above black at most.
+    float wash=texture(noiseVolume,vec3(uv*vec2(aspect,1.)*.3,skyTime*.003+.5)).r;
+    sky.rgb+=(skyTint-.86)*.035*(.4+.6*wash)*(1.-sky.a);
+    color=layer==1 ? shaded*lift : sky;
+    // Night: no part of the frame may run brighter than a grey-blue 0.6, so
+    // flying through the hero cloud is a dim fog, not a flash. min() scales
+    // only what exceeds the cap, so nothing switches at the limit.
+    float luma=dot(color.rgb,vec3(.2126,.7152,.0722));
+    color.rgb=mix(color.rgb,color.rgb*min(1.,.6/max(luma,1e-4))*vec3(.84,.91,1.),nightCap);
 }
 `;
 
@@ -405,6 +505,22 @@ type CloudPass = {
     finale: boolean; distance: number;
 };
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+/** World units an ambient cloud rises over one pass (see cloudPose). */
+const CLOUD_RISE = 1.6;
+/** The sky's hue per stretch of the weather, as near-white multipliers:
+ *  indigo, deep teal, bruised violet, a cold blue-grey. Low saturation on
+ *  purpose: we are in space, and the hue is felt more than seen. */
+const SKY_TINTS = [[.88,.9,1.12],[.86,1.03,1.05],[1.04,.88,1.08],[.92,.95,1.06]];
+/** Screens of weather per hue: it changes across stretches of the journey,
+ *  never in step with the chapters. */
+const TINT_SPAN = 4.5;
+const skyTintAt = (weather: number) => {
+    const t = weather/TINT_SPAN, i = Math.floor(t), f = t-i;
+    const a = SKY_TINTS[((i%4)+4)%4], b = SKY_TINTS[(((i+1)%4)+4)%4];
+    // Eased between the two, so the hue never turns at a corner.
+    const e = f*f*(3-2*f);
+    return a.map((v,k)=>v+(b[k]-v)*e);
+};
 const smooth = (v: number) => { const s = clamp01(v); return s * s * (3 - 2 * s); };
 
 // One transform implementation for both the weather and the launch frame.
@@ -430,7 +546,12 @@ function cloudPose(pass: CloudPass, desktop: boolean, aspect: number, life: numb
         : desktop ? paths[(cycle+i)%paths.length]
         : [-1.35+progress*3.6,-1.35];
     const worldX=path[0]+.25*variation+.14*Math.sin(life*.045+phase);
-    const worldY=path[1]+.4*Math.sin(progress*Math.PI+phase)+.12*Math.sin(life*.06+phase);
+    // Parallax: an ambient cloud rises through the frame over its life, as
+    // anything between the stars and the page would while the page scrolls
+    // up. Centred on mid-life, so where it meets its chapter is unchanged;
+    // a fixed world offset reads faster on screen the nearer the cloud is.
+    const rise=hero || finale ? 0 : (progress-.5)*CLOUD_RISE;
+    const worldY=path[1]+rise+.4*Math.sin(progress*Math.PI+phase)+.12*Math.sin(life*.06+phase);
     const yaw=progress*.26+i*.8+.056*Math.sin(life*.06+phase);
     const pitch=Math.sin(progress*Math.PI)*.076+.036*Math.sin(life*.047+phase);
     const roll=.02*Math.sin(life*.039+phase);
@@ -448,6 +569,24 @@ function cloudPose(pass: CloudPass, desktop: boolean, aspect: number, life: numb
 /** Scroll, in screens, by which the hero and its opening cloud are gone;
  *  the gleam's run-in never begins before it. */
 const HERO_CLEAR = 1.3;
+
+/** Screens of scroll the light takes from the left edge to the prism. */
+const RUN_IN = .35;
+/** Screens over which the flight makes up a run-in that started late. */
+const CATCH_UP = 1.85;
+
+/** Run-in progress at t (0..1 of the run-in) for a run-in `length` long: the
+ * light crosses open sky fast, brakes as it enters the cloud, and meets the
+ * prism at `exit` (the flight's own pace, in progress per unit t), so the
+ * hand-over into the flight has no seam. A cubic with those three ends. */
+function runIn(t: number, length: number, exit: number) {
+    const pace=Math.min(exit,length);
+    return 1.5*length*t-pace*t*t+(pace-.5*length)*t*t*t;
+}
+
+/** Reduced motion: one still frame with the light already inside its cloud,
+ * just past the prism, the spectrum beginning to open. */
+const frozenGleam = (runInLength: number) => runInLength+.12;
 
 /** A scattering-angle cosine no ray can have: the glare lobe never lights. */
 const NO_GLARE = 9;
@@ -558,7 +697,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     gl.enableVertexAttribArray(attribute);
     gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
     const opticalUniformNames=["gleamLead","gleam","gleamProgress","gleamHead","gleamOffset","gleamTail","gleamStretch","gleamFree","gleamTime","gleamPixel","gleamGlint","beamCenter","beamScale","beamRotation","spectralRays[0]"];
-    const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps","flash","flashAt","lenses[0]","lensErode[0]",...opticalUniformNames].map(n => [n,gl.getUniformLocation(program,n)]));
+    const uniforms = Object.fromEntries(["resolution","center","scale","rotation","time","seed","strength","formation","steps","flash","flashAt",...opticalUniformNames].map(n => [n,gl.getUniformLocation(program,n)]));
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_3D, texture);
     // Seeded noise makes visual checks repeatable and avoids a new sky per visit.
@@ -585,7 +724,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     gl.bindFramebuffer(gl.FRAMEBUFFER,sceneBuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,sceneTexture,0);
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer","lenses[0]","lensPower[0]","lensDim[0]",...opticalUniformNames].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
+    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer","nightCap","skyTint","skyTime","pointerLight","frontLead","lenses[0]","lensPower[0]","lensDim[0]",...opticalUniformNames].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
     gl.useProgram(chromaticProgram);
     gl.uniform1i(chromaticUniforms.scene,1);
     // The clear-space haze reads the clouds' noise volume, already on unit 0.
@@ -594,6 +733,13 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     // A faint split always drifts around the sky; mouse movement and scroll
     // speed each add a little more, and both ease back to the ambient level.
     const chroma={x:.5,y:.5,targetX:.5,targetY:.5,progress:0,mouse:0,scroll:0,time:0,moved:-Infinity};
+    // The pointer's light (eased strength) and how far the front copy leads,
+    // signed with the scroll direction (eased).
+    const sky={light:0,lead:0};
+    // The starfield is DOM; it hears the sky's curvature and hue through
+    // custom properties on its container (only written when they change).
+    const starfield=document.querySelector<HTMLElement>(".particle-layers");
+    let starfieldKey="";
     // Where the pointer rests, for the ROOS light: unlike the split's
     // direction it holds still with the mouse and never wanders on its own.
     let pointerAt: { x: number; y: number } | null=null;
@@ -629,10 +775,14 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     // leaving the sky empty behind it. Inside the strip (calmFrom..calmTo, in
     // screens of scroll) the weather moves at a fraction of its pace, so that
     // cloud stays through all the projects. The stage is cleared again for
-    // the arrow: the last CALM_TAIL screens of the pin run at full pace.
+    // the listing: over the last calmTail screens of the pin (the settle
+    // beat and the pile's exit) the weather catches up, so that the whole
+    // pin spends PIN_WEATHER screens of weather. That is what the clouds
+    // after the strip (listing, contact) were composed against, whatever
+    // the strip's own length.
     const showcase=document.querySelector<HTMLElement>("#projects [data-hscroll]");
-    const CALM_PACE=.3, CALM_TAIL=1.5;
-    let calmFrom=Infinity, calmTo=Infinity;
+    const CALM_PACE=.3, PIN_WEATHER=3.1;
+    let calmFrom=Infinity, calmTo=Infinity, calmTail=1.5, tailPace=1;
     // The weather, and the cloud the journey's light is launched from, were
     // composed against the page with the hero pinned for half a screen. The
     // hero now holds longer for its curtain; the weather waits out the extra
@@ -640,10 +790,25 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const WEATHER_HERO_PIN=.5;
     const heroPin=parseFloat(document.querySelector<HTMLElement>("#home")?.dataset.pin ?? "");
     const heroHold=Number.isFinite(heroPin) ? Math.max(0,heroPin-WEATHER_HERO_PIN) : 0;
-    /** Scroll as the weather experiences it: continuous, slowed in the strip,
-     *  and started once the hero has let go of the page. */
+    // The weather after the journey was composed against five journey
+    // stops. With fewer, the journey's pin is shorter, and everything after
+    // it would meet the weather early. The missing stops' worth of weather
+    // is made up while the journey's stops are on stage (stopsFrom..stopsTo,
+    // in screens of scroll), after the light's passage through its cloud at
+    // the journey's top, so that passage and everything downstream meet the
+    // clouds they were composed with.
+    const journeyStack=document.querySelector<HTMLElement>("#journey [data-cardstack]");
+    const journeyStops=journeyStack?.querySelectorAll("[data-stack-card]").length ?? 0;
+    const COMPOSED_STOPS=5;
+    let stopsFrom=Infinity, stopsTo=Infinity, stopsExtra=0;
+    const journeyCatchUp=(at: number)=>stopsExtra*clamp01((at-stopsFrom)/Math.max(stopsTo-stopsFrom,1e-3));
+    /** Scroll as the weather experiences it: continuous, made up over the
+     *  journey's stops, slowed in the strip, hurried over its tail, and
+     *  started once the hero has let go of the page. */
     const weatherScroll=(at: number)=>Math.max(0,
-        (at<=calmFrom ? at : calmFrom+(Math.min(at,calmTo)-calmFrom)*CALM_PACE+Math.max(0,at-calmTo))-heroHold);
+        (at<=calmFrom ? at : calmFrom+(Math.min(at,calmTo)-calmFrom)*CALM_PACE
+            +Math.min(Math.max(0,at-calmTo),calmTail)*tailPace+Math.max(0,at-calmTo-calmTail))
+        +journeyCatchUp(at)-heroHold);
     let width=0, height=0, frame=0, last=0, elapsed=0, disposed=false;
     const resize = () => {
         const w=canvas.clientWidth, h=canvas.clientHeight;
@@ -660,7 +825,11 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         if(foreground) { foreground.width=canvas.width; foreground.height=canvas.height; }
         last=0;
     };
-    let previousScroll=-1;
+    let previousScroll=-1, previousPageScroll=-1;
+    // Night (before 08:00 or from 21:00, the visitor's own clock) caps the
+    // hero fly-through's brightness. Read once, so it never changes mid-visit.
+    const hour=new Date().getHours();
+    const night=hour<8 || hour>=21;
     const projects=document.querySelector<HTMLElement>("#projects");
     const listingEl=document.querySelector<HTMLElement>(".more-projects-stage");
     // Lightning inside the cloud over the projects chapter. Seeded, like the
@@ -669,10 +838,9 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         spots:[[0,0,0],[0,0,0]],seed:9157};
     const stormRandom=()=> { storm.seed=(Math.imul(storm.seed,1664525)+1013904223)|0; return (storm.seed>>>8)/16777216; };
     const journey=document.querySelector<HTMLElement>("#journey");
-    // The MORE PROJECTS arrow wears the sky's chromatic split (global.css).
-    const splitWearer=document.querySelector<HTMLElement>("#projects [data-hscroll-arrow]");
     const journeyCards=journey?.querySelector<HTMLElement>(".stack-area");
     const lensElements=Array.from(document.querySelectorAll<HTMLElement>("[data-lens]"));
+    const contactPanel=document.querySelector<HTMLElement>(".contact-panel");
     // Small text that sits over the sky with no clearing of its own
     // (data-sky-adapt) is told when a bright cloud is behind it, so it can
     // switch to dark ink instead of the cloud having to make way.
@@ -689,7 +857,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     let skyFence: WebGLSync | null=null;
     let skyTick=0;
     const lensRects=new Float32Array(16), lensPowers=new Float32Array(4);
-    const lensDims=new Float32Array(4), lensErodes=new Float32Array(4);
+    const lensDims=new Float32Array(4);
     // Reduced motion freezes this canvas while the page still scrolls, so
     // light pinned to a scrolling element would be left behind: no burst.
     const roos=document.querySelector<HTMLElement>("[data-roos]");
@@ -700,6 +868,9 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     // The launch frame is fixed, so this is a constant of the layout. It is
     // measured where that frame is built and used by the clock a frame later.
     let gleamLead=0;
+    // The lead the light's clock last ran on. Reduced motion draws only on
+    // change, so a lead measured after its first frame must still redraw.
+    let leadInUse=0;
     const render = (now: number) => {
         if(disposed) return;
         frame=requestAnimationFrame(render);
@@ -721,6 +892,14 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             ? Math.abs(scroll-previousScroll)/Math.max(step,1/60) : 0;
         chroma.mouse=approach(chroma.mouse,mouseActive ? 1 : 0);
         chroma.scroll=approach(chroma.scroll,clamp01(scrollSpeed/1.5));
+        // Signed: positive while the page scrolls down.
+        const scrollVelocity=last!==0 && previousScroll>=0 ? (scroll-previousScroll)/Math.max(step,1/60) : 0;
+        sky.lead+=(Math.max(-1,Math.min(1,scrollVelocity/1.5))-sky.lead)*(1-Math.exp(-step*4));
+        // The pointer lights the sky softly while it is on the page and a
+        // little more while it moves; fine pointers only, and never under
+        // reduced motion.
+        const lightTarget=desktop.matches && motion && pointerAt ? .35+.65*chroma.mouse : 0;
+        sky.light+=(lightTarget-sky.light)*(1-Math.exp(-step*(lightTarget>sky.light ? 5 : 1.5)));
         if(motion) chroma.time+=step;
         if(!mouseActive) {
             // At rest the split direction wanders on a slow orbit.
@@ -732,41 +911,49 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         chroma.y+=(chroma.targetY-chroma.y)*follow;
         chroma.progress=motion
             ? .12+.05*Math.sin(chroma.time*.37)+chroma.mouse*.15+chroma.scroll*.1 : 0;
-        // Hand the arrow the very split the chromatic pass uses below (same
-        // direction, strength and easing), so the pointer and scroll speed
-        // move its fringe exactly as they move the clouds'. Only while the
-        // arrow is on stage; y flips because CSS runs downward.
-        const arrowLife=splitWearer ? parseFloat(splitWearer.style.getPropertyValue("--arrow-life")) : 0;
-        if(splitWearer && arrowLife>0 && arrowLife<1) {
-            const movementX=(chroma.x-.5)*width/height,movementY=chroma.y-.5;
-            const reach=chroma.progress/Math.max(Math.hypot(movementX,movementY),.2);
-            splitWearer.style.setProperty("--sky-split-x",(movementX*reach).toFixed(4));
-            splitWearer.style.setProperty("--sky-split-y",(-movementY*reach).toFixed(4));
-        }
-        if(!motion && scroll===previousScroll && last!==0) return;
+        // Reduced motion freezes the weather, but the lenses still follow
+        // their text down the page: only a page scroll redraws (the frozen
+        // clouds are resampled, not ray-marched again).
+        const pageScroll=window.scrollY;
+        if(!motion && scroll===previousScroll && pageScroll===previousPageScroll
+            && gleamLead===leadInUse && last!==0) return;
+        previousPageScroll=pageScroll;
         // The ambient shimmer keeps mobile drawing, but between scroll changes
         // it only resamples the cached clouds instead of ray-marching again.
         const journeyTop=journey ? journey.getBoundingClientRect().top/height : Infinity;
-        // A fixed scroll position, so the launch frame below and the clock
-        // cannot drift apart between reloads, fast scrolling or resizing.
-        const launchScroll=Math.max(0,scroll+journeyTop-.6);
-        // The head reaches the prism as the journey's top passes 1.4 screens.
-        // The run-in starts ahead of that by its own length at the flight's
-        // pace, but never while the hero is still on screen: on a phone the
-        // journey sits close under the hero, and the light would otherwise
-        // be lit at the very top, alone, where its cloud is not yet. Where
-        // the hero cuts the run-in short it runs faster instead, so the
-        // light still meets the prism at the same moment.
-        const prismAt=launchScroll+.6-1.4;
-        const runInStart=Math.max(prismAt-2*gleamLead/GLEAM_PACE,HERO_CLEAR);
-        const opticalTarget=!motion ? 0 : scroll<prismAt
-            ? Math.max(0,(scroll-runInStart)/Math.max(prismAt-runInStart,1e-3))*gleamLead/GLEAM_PACE
-            : gleamLead/GLEAM_PACE+(scroll-prismAt)/2;
+        // The flight was composed with the head reaching the prism as the
+        // journey's top passes 1.4 screens (composedPrism). The light enters
+        // a cloud that is already there: the run-in waits until the ambient
+        // weather has fully formed (the ramp in the volume loop below), then
+        // crosses from the left edge in RUN_IN screens, braking as it enters
+        // the cloud. Where that pushes the prism past its composed moment,
+        // the flight makes the lag up over CATCH_UP screens, so the journey
+        // downstream sees the light where it was composed.
+        const composedPrism=Math.max(0,scroll+journeyTop-.6)+.6-1.4;
+        const cloudReady=heroHold+(desktop.matches ? .85 : 1.1)+.5;
+        const runInStart=Math.max(cloudReady+.05,HERO_CLEAR);
+        const prismAt=Math.max(composedPrism,runInStart+RUN_IN);
+        // The light's world frame is the carrier cloud's pose in the middle
+        // of the light's passage through it (the journey's top 0.6 screens
+        // up). The light is fixed in the world while the cloud drifts on, so
+        // posing it at the prism moment instead left the passage running
+        // beside the cloud rather than through it. A fixed scroll position,
+        // so the frame and the clock cannot drift apart between reloads,
+        // fast scrolling or resizing. Reduced motion launches from the frozen
+        // frame itself (weather 0), so its still light sits in a cloud that
+        // is on screen.
+        const launchScroll=motion ? composedPrism+.8 : 0;
+        const lag=prismAt-composedPrism;
+        const runInLength=gleamLead/GLEAM_PACE;
+        leadInUse=gleamLead;
+        const opticalTarget=!motion ? frozenGleam(runInLength) : scroll<prismAt
+            ? runIn(clamp01((scroll-runInStart)/(prismAt-runInStart)),runInLength,(prismAt-runInStart)/2)
+            : runInLength+(scroll-composedPrism)/2-lag/2*(1-smooth((scroll-prismAt)/CATCH_UP));
         const opticalMoving=Math.abs(opticalTarget-opticalProgress)>.0005;
         opticalProgress=last===0 || !motion ? opticalTarget
             : opticalProgress+(opticalTarget-opticalProgress)*(1-Math.exp(-step*10));
         const flight=gleamFlight(opticalProgress,gleamLead);
-        const opticalActive=motion && opticalProgress>.02;
+        const opticalActive=opticalProgress>.02;
         const sceneDirty=idleAnimate || opticalMoving || scroll!==previousScroll || last===0;
         if(idleAnimate) elapsed+=step;
         const life=idleAnimate ? elapsed : 0;
@@ -776,10 +963,23 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                 return top>.15 && top<.9 ? Math.sin((top-.15)/.75*Math.PI)**2 : 0;
             })) : 0;
             pageEnd=(document.documentElement.scrollHeight-window.innerHeight)/height;
+            if(journeyStack && journeyStops>0) {
+                // Stops are ~0.65 screens each on desktop, 0.6 on phones
+                // (smoothScroll.ts measureCardStacks).
+                const box=journeyStack.getBoundingClientRect();
+                stopsFrom=scroll+box.top/height+.45;
+                stopsTo=Math.max(stopsFrom,scroll+box.bottom/height-1);
+                stopsExtra=Math.max(0,COMPOSED_STOPS-journeyStops)*(desktop.matches ? .65 : .6);
+            }
             if(showcase) {
                 const box=showcase.getBoundingClientRect();
                 calmFrom=scroll+box.top/height;
-                calmTo=Math.max(calmFrom,calmFrom+box.height/height-1-CALM_TAIL);
+                // Phones keep their deck's own weather: a full-pace tail of
+                // 1.5 screens, as composed.
+                calmTail=desktop.matches ? .8 : 1.5;
+                calmTo=Math.max(calmFrom,calmFrom+box.height/height-1-calmTail);
+                tailPace=desktop.matches
+                    ? Math.max(1,(PIN_WEATHER-(calmTo-calmFrom)*CALM_PACE)/calmTail) : 1;
             }
         }
         const opening=motion ? Math.min(1,scroll/1.15) : 1;
@@ -797,33 +997,47 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // Up to four lenses at once: the clearing opens as its text nears the
         // middle of the screen and closes again as it leaves.
         const pixel=canvas.width/width;
-        lensPowers.fill(0);lensDims.fill(0);lensErodes.fill(0);
+        lensPowers.fill(0);lensDims.fill(0);
+        // The contact panel is fixed under the page, so its box is always on
+        // screen: its lenses open only as the page lifts off it.
+        const panelReveal=contactPanel
+            ? clamp01((window.scrollY-(document.documentElement.scrollHeight-window.innerHeight-contactPanel.offsetHeight))
+                /Math.max(1,contactPanel.offsetHeight)) : 0;
         let lensCount=0;
         for(const element of lensElements) {
             if(lensCount===4) break;
+            const inPanel=contactPanel?.contains(element) ?? false;
+            if(inPanel && panelReveal<=0) continue;
             const box=element.getBoundingClientRect();
             if(box.width===0 || box.bottom<0 || box.top>height || box.right<0 || box.left>width) continue;
             const middle=box.top+box.height/2, centre=box.left+box.width/2;
+            // The lens covers only what of the block is on screen, so a tall
+            // block (a whole column of copy under reduced motion) still gets
+            // a lens of screen size, centred where its text actually is.
+            const top=Math.max(0,box.top), bottom=Math.min(height,box.bottom);
+            const left=Math.max(0,box.left), right=Math.min(width,box.right);
             // Measured from the screen's edges, not its middle: the lens is
             // exactly zero as its text crosses an edge, whatever the text's
             // size, and full once it is well inside. Nothing can switch.
             const inside=(far: number, half: number, size: number, ramp: number)=>
                 smooth((size/2+half-far)/(size*ramp));
-            const power=inside(Math.abs(middle-height/2),box.height/2,height,.4)
-                *inside(Math.abs(centre-width/2),box.width/2,width,.25);
+            // Under reduced motion nothing is in transit: whatever of a block
+            // is on screen is in place, so the visible part sets the power.
+            const rampMiddle=motion ? middle : (top+bottom)/2, rampHalf=motion ? box.height/2 : (bottom-top)/2;
+            const power=inside(Math.abs(rampMiddle-height/2),rampHalf,height,.4)
+                *inside(Math.abs(centre-width/2),box.width/2,width,.25)*(inPanel ? smooth(panelReveal) : 1);
             if(power<=0) continue;
-            lensRects.set([centre*pixel,canvas.height-middle*pixel,
-                (box.width*.62+80)*pixel,(box.height*.7+80)*pixel],lensCount*4);
-            // Soft lenses thin the cloud and so need only half the dimming.
-            const soft=element.dataset.lens==="soft", strength=motion ? power : 1;
-            lensDims[lensCount]=strength*(soft ? .5 : .9);
-            lensErodes[lensCount]=soft ? strength : 0;
-            lensPowers[lensCount++]=strength;
+            // An ellipse just reaching past the corners of the visible block.
+            lensRects.set([(left+right)/2*pixel,canvas.height-(top+bottom)/2*pixel,
+                ((right-left)*.6+70)*pixel,((bottom-top)*.6+70)*pixel],lensCount*4);
+            // Power reaches 1 only once the text is well inside the screen, so
+            // the ceiling settles in with the text and text in transit still
+            // passes behind the weather. Every text block gets the same.
+            lensDims[lensCount]=power;
+            lensPowers[lensCount++]=power;
         }
         gl.bindFramebuffer(gl.FRAMEBUFFER,sceneBuffer);
         gl.useProgram(program);
-        gl.uniform4fv(uniforms["lenses[0]"],lensRects);
-        gl.uniform1fv(uniforms["lensErode[0]"],lensErodes);
         gl.enable(gl.BLEND);
         gl.uniform2f(uniforms.resolution,canvas.width,canvas.height);
         gl.uniform1i(uniforms.steps,desktop.matches?64:32);
@@ -1041,6 +1255,26 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         gl.uniform3f(chromaticUniforms.cover,cover.x,canvas.height-cover.y,
             Math.max(1,cover.radius*Math.sqrt(Math.max(veil,curtain,.05))));
         gl.uniform1f(chromaticUniforms.coverAmount,cover.amount);
+        const tint=skyTintAt(weatherScroll(scroll));
+        gl.uniform3f(chromaticUniforms.skyTint,tint[0],tint[1],tint[2]);
+        gl.uniform1f(chromaticUniforms.skyTime,chroma.time);
+        gl.uniform3f(chromaticUniforms.pointerLight,pointerAt?.x ?? .5,pointerAt?.y ?? .5,sky.light);
+        gl.uniform1f(chromaticUniforms.frontLead,motion ? sky.lead*.012 : 0);
+        if(starfield) {
+            // The same slow curvature the sky is bent by, at the screen's
+            // centre, in px (a pixel or two), plus the hue as an rgb colour.
+            const bendX=(Math.sin(chroma.time*.031)+Math.sin(chroma.time*.017+1.3))*.9;
+            const bendY=(Math.sin(chroma.time*.023+.7)+Math.sin(chroma.time*.013+2.1))*.9;
+            const key=`${bendX.toFixed(2)} ${bendY.toFixed(2)} ${tint.map(v=>v.toFixed(3)).join(" ")}`;
+            if(key!==starfieldKey) {
+                starfieldKey=key;
+                starfield.style.setProperty("--sky-bend-x",`${bendX.toFixed(2)}px`);
+                starfield.style.setProperty("--sky-bend-y",`${bendY.toFixed(2)}px`);
+                starfield.style.setProperty("--sky-hue",`rgb(${tint.map(v=>Math.round(Math.min(1,v/1.12)*255)).join(" ")})`);
+            }
+        }
+        // Eased in with the curtain and out as the camera leaves the cloud.
+        gl.uniform1f(chromaticUniforms.nightCap,night ? curtain*(1-smooth((opening-.9)/.1)) : 0);
         uploadLight(chromaticUniforms);
         gl.uniform4fv(chromaticUniforms["lenses[0]"],lensRects);
         gl.uniform1fv(chromaticUniforms["lensPower[0]"],lensPowers);

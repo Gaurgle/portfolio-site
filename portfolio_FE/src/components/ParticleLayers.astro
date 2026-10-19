@@ -10,9 +10,9 @@
 const layers = [
     // back -> front: denser + dimmer + slower behind, sparser + brighter + faster in front
     { speed: 0.04, density: 60, size: 1.0, alpha: 0.35, glow: 0, colors: "108,112,134|127,132,156" },          // overlay grays
-    { speed: 0.09, density: 35, size: 1.4, alpha: 0.45, glow: 0, colors: "70,190,255|63,232,210" },          // blue / teal
-    { speed: 0.16, density: 18, size: 1.9, alpha: 0.5,  glow: 3, colors: "157,140,255|255,107,139" },          // mauve / pink
-    { speed: 0.26, density: 7, size: 2.6, alpha: 0.6,  glow: 6, colors: "141,255,176|255,184,77" },          // green / peach
+    { speed: 0.09, density: 35, size: 1.4, alpha: 0.45, glow: 0, colors: "176,190,212|150,162,184" },          // cloud-shade greys
+    { speed: 0.16, density: 18, size: 1.9, alpha: 0.5,  glow: 3, colors: "214,222,236|190,204,226" },          // blue-white stars
+    { speed: 0.26, density: 7, size: 2.6, alpha: 0.6,  glow: 6, colors: "240,243,247|236,228,214" },          // white and warm-white stars
 ];
 ---
 
@@ -37,6 +37,19 @@ const layers = [
 
 <script>
     import { measureViewportHeight } from "../lib/smoothScroll";
+
+    /** Star temperatures, as "r,g,b": a blue-violet and an amber. */
+    const COOL = "150,135,255";
+    const WARM = "255,180,110";
+
+    /** A layer colour leaned most of the way toward `tone` (or left as it
+     *  is): tinted, but never a full saturated hue. */
+    function warmth(color: string, tone: string | null): string {
+        if (!tone) return color;
+        const a = color.split(",").map(Number);
+        const b = tone.split(",").map(Number);
+        return a.map((v, i) => Math.round(v + (b[i] - v) * 0.6)).join(",");
+    }
     function paintLayer(layer: HTMLElement) {
         const base = layer.querySelector<HTMLCanvasElement>("canvas:not([data-bright])");
         const bright = layer.querySelector<HTMLCanvasElement>("canvas[data-bright]");
@@ -60,13 +73,25 @@ const layers = [
         const count = Math.round(density * ((w * h) / (1920 * 1080)) + density * 0.3);
 
         // Random points generated once, drawn onto every copy -> identical.
-        const points = Array.from({ length: count }, (_, i) => ({
-            x: Math.random() * w,
-            y: Math.random() * h,
-            r: size * (0.5 + Math.random()),
-            a: alpha * (0.4 + Math.random() * 0.6),
-            color: colors[i % colors.length],
-        }));
+        // Each star gets its own colour temperature, baked in here rather
+        // than tinted live: most stay the layer's near-white, some lean
+        // faintly blue-violet, a few faintly amber.
+        const points = Array.from({ length: count }, (_, i) => {
+            const r = size * (0.5 + Math.random());
+            const temperature = Math.random();
+            return {
+                x: Math.random() * w,
+                y: Math.random() * h,
+                r,
+                a: alpha * (0.4 + Math.random() * 0.6),
+                color: warmth(colors[i % colors.length],
+                    temperature < 0.2 ? COOL : temperature < 0.28 ? WARM : null),
+                // The largest stars of the glowing layers, now and then,
+                // carry a soft prism split: a violet and an amber ghost
+                // either side of the core.
+                prism: glow > 0 && r > size * 1.15 && Math.random() < 0.4,
+            };
+        });
 
         // Two stacked copies of the same pattern -> seamless modulo wrap.
         const draw = (canvas: HTMLCanvasElement, alphaBoost: number, glowBoost: number) => {
@@ -87,6 +112,15 @@ const layers = [
                     if (g > 0) {
                         ctx.shadowBlur = g;
                         ctx.shadowColor = `rgba(${p.color},0.8)`;
+                    }
+                    if (p.prism) {
+                        const ghost = Math.min(1, p.a * alphaBoost * 0.45).toFixed(3);
+                        for (const [dx, tone] of [[-0.75, COOL], [0.75, WARM]] as const) {
+                            ctx.beginPath();
+                            ctx.fillStyle = `rgba(${tone},${ghost})`;
+                            ctx.arc(p.x + dx * p.r, p.y + yOffset, p.r, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
                     }
                     ctx.beginPath();
                     ctx.fillStyle = `rgba(${p.color},${Math.min(1, p.a * alphaBoost).toFixed(3)})`;
