@@ -1,13 +1,21 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeEvent, FormEvent} from "react";
+import type {ChangeEvent, FocusEvent, FormEvent} from "react";
 import {sketchOnHover} from "../lib/sketch";
 
 const WEB3FORMS_KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY;
 
-/** Contact form as loose text: italic serif labels in the chapter's peach,
- *  fields that are a single hairline, and a big bold "Send." in the voice of
- *  the project titles. No card, no chrome (global.css: .field-label,
- *  .contact-field). */
+/** Something@something.tld: catches typos, leaves real validation to the
+ *  reply actually arriving. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Shown for any failed send, instead of whatever the provider or the
+ *  network reported. The form keeps its values, so a retry is one press. */
+const SEND_FAILED = "That didn't send. Please try again, or email larsnilsandreas@pm.me.";
+
+/** Contact form as loose text: wide, light labels, fields that are a single
+ *  hairline, and a big bold "Send" in the voice of the project titles. No
+ *  card, no chrome (global.css: .field-label, .contact-field). The email is
+ *  checked as the visitor leaves the field, not on submit. */
 export default function ContactForm() {
     const [form, setForm] = useState({name: "", email: "", message: ""});
     const [status, setStatus] = useState<{loading: boolean; ok: boolean | null; error: string}>({
@@ -18,14 +26,17 @@ export default function ContactForm() {
     // reply is going to.
     const [sentTo, setSentTo] = useState("");
     const sendRef = useRef<HTMLButtonElement>(null);
+    // Shown once the email field has been left with a malformed address;
+    // cleared as soon as the address takes a valid shape.
+    const [emailError, setEmailError] = useState("");
 
     // The send button gets the same rough underline the nav links draw on
-    // hover, in the chapter's peach. Re-wired whenever the form (re)appears.
+    // hover. Re-wired whenever the form (re)appears.
     useEffect(() => {
         const el = sendRef.current;
         if (!el) return;
         return sketchOnHover(el, {
-            color: "#ffb84d",
+            color: "rgb(184 197 214)",
             type: "underline",
             strokeWidth: 2,
             padding: 4,
@@ -34,8 +45,18 @@ export default function ContactForm() {
         });
     }, [status.ok]);
 
-    const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-        setForm((f) => ({...f, [e.target.name]: e.target.value}));
+    const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const {name, value} = e.target;
+        setForm((f) => ({...f, [name]: value}));
+        if (name === "email" && emailError && EMAIL_SHAPE.test(value.trim())) setEmailError("");
+    };
+
+    const onEmailBlur = (e: FocusEvent<HTMLInputElement>) => {
+        const value = e.target.value.trim();
+        setEmailError(value && !EMAIL_SHAPE.test(value)
+            ? "That address looks incomplete. Check for a typo?"
+            : "");
+    };
 
     const reset = () => {
         setStatus({loading: false, ok: null, error: ""});
@@ -45,13 +66,17 @@ export default function ContactForm() {
     const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (robot) return;
+        if (!EMAIL_SHAPE.test(form.email.trim())) {
+            setEmailError("That address looks incomplete. Check for a typo?");
+            return;
+        }
         // Fail loudly rather than posting to web3forms without an access key
         // and surfacing whatever HTTP error comes back.
         if (!WEB3FORMS_KEY) {
             setStatus({
                 loading: false,
                 ok: false,
-                error: "The form is not wired up yet. Mail larsnilsandreas@pm.me instead.",
+                error: "The form is unavailable. Email me at larsnilsandreas@pm.me instead.",
             });
             return;
         }
@@ -65,22 +90,17 @@ export default function ContactForm() {
                     name: form.name,
                     email: form.email,
                     message: form.message,
-                    subject: `Portfolio contact from ${form.name}`,
-                    from_name: "Portfolio Contact Form",
+                    subject: `Portfolio message from ${form.name}`,
+                    from_name: "Andreas Roos Portfolio",
                 }),
             });
             const data = await res.json();
-            if (!data.success) {
-                throw new Error(data.message || `HTTP error ${res.status}`);
-            }
+            if (!data.success) throw new Error(data.message || `HTTP error ${res.status}`);
             setSentTo(form.email);
             setStatus({loading: false, ok: true, error: ""});
             setForm({name: "", email: "", message: ""});
-        } catch (err: any) {
-            const msg = err.message === "Failed to fetch"
-                ? "The message did not go through. Try larsnilsandreas@pm.me instead."
-                : err.message || "Something went wrong.";
-            setStatus({loading: false, ok: false, error: msg});
+        } catch {
+            setStatus({loading: false, ok: false, error: SEND_FAILED});
         }
     };
 
@@ -92,17 +112,17 @@ export default function ContactForm() {
             {status.ok ? (
             <div className="space-y-3">
                 <p className="font-bold text-3xl lg:text-4xl leading-none text-white">
-                    Message sent<span className="text-ctp-peach">.</span>
+                    Thanks for the message
                 </p>
                 <p className="text-base text-zinc-300">
-                    I&apos;ll get back to you at {sentTo}
+                    Reply address: {sentTo}
                 </p>
                 <button
                     type="button"
                     onClick={reset}
-                    className="pt-2 font-mono text-sm text-zinc-400 hover:text-white transition-colors duration-200"
+                    className="press pt-2 font-mono text-sm text-zinc-400 hover:text-white"
                 >
-                    write another
+                    Send another message
                 </button>
             </div>
             ) : (
@@ -140,9 +160,15 @@ export default function ContactForm() {
                         maxLength={120}
                         value={form.email}
                         onChange={onChange}
+                        onBlur={onEmailBlur}
+                        aria-invalid={emailError ? true : undefined}
+                        aria-describedby={emailError ? "email-error" : undefined}
                         className="contact-field"
-                        placeholder="your@email.com"
+                        placeholder="Your email address"
                     />
+                    {emailError && (
+                        <span id="email-error" className="field-error">{emailError}</span>
+                    )}
                 </label>
 
                 <label className="block">
@@ -155,7 +181,7 @@ export default function ContactForm() {
                         value={form.message}
                         onChange={onChange}
                         className="contact-field resize-none h-20 lg:h-auto"
-                        placeholder="What's on your mind?"
+                        placeholder="A role, a question, or just a hello."
                     />
                 </label>
 
@@ -164,15 +190,16 @@ export default function ContactForm() {
                         ref={sendRef}
                         type="submit"
                         disabled={status.loading}
-                        className="font-bold text-3xl lg:text-4xl leading-none text-white
-                                   disabled:opacity-50 disabled:cursor-not-allowed
-                                   transition-transform duration-300 hover:translate-x-1"
+                        className="press font-bold text-3xl lg:text-4xl leading-none text-white
+                                   disabled:opacity-50 disabled:cursor-not-allowed hover:translate-x-1"
                     >
-                        {status.loading ? "Sending" : "Send"}<span className="text-ctp-peach">.</span>
+                        {status.loading
+                            ? <>Sending<span className="sending-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></>
+                            : "Send"}
                     </button>
 
                     {status.ok === false && (
-                        <p className="text-sm text-ctp-red">{status.error}</p>
+                        <p className="field-error">{status.error}</p>
                     )}
                 </div>
             </form>

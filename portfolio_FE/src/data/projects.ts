@@ -1,9 +1,9 @@
 export const projects = [
   /* ============================ featured ============================ */
   {
-    projectTitle: "Wireless Testing App",
+    projectTitle: "Bluetooth Test App",
     description:
-      "Android app for testing Bluetooth LE and LE Audio devices. Lua scripting for custom test sequences, live GATT discovery, and real-time device communication.",
+      "An Android workbench for inspecting Bluetooth LE devices and testing how they behave. Engineers can explore services, read LE Audio capabilities, and write repeatable tests in Lua without changing the app.",
     tags: ["Kotlin", "Jetpack Compose", "BLE", "Lua", "MVVM"],
     image: ["/pictures/ble-app-1.webp", "/pictures/ble-app-2.webp"],
     link: "#",
@@ -11,19 +11,19 @@ export const projects = [
     featuredOrder: 1,
     details: {
       long:
-        "Android app developed during my internship at Sigma Connectivity. It scans for Bluetooth devices, inspects GATT services and characteristics, and runs test sequences through Lua scripts.",
+        "Built at Sigma Connectivity for engineers testing Bluetooth devices. The app brings device discovery, GATT inspection, live data, and scripted tests into one place. I designed the Lua API so testers could define their own sequences, and implemented LE Audio capability parsing to make the device's advertised audio support readable.",
       highlights: [
-        "Lua scripts for repeatable test sequences",
-        "GATT discovery, reads, writes, and notifications",
-        "A queue to sequence device operations",
-        "Kotlin and Jetpack Compose"
+        "Write new tests without a new app release",
+        "Inspect services and read live device data",
+        "Decode LE Audio capabilities",
+        "Run repeatable Lua test sequences"
       ],
     },
   },
   {
-    projectTitle: "Wireless Test Platform",
+    projectTitle: "Bluetooth Test Platform",
     description:
-      "Ktor backend for wireless test sessions, with PostgreSQL result storage and a Svelte dashboard for live progress.",
+      "A shared view of devices, test scripts, and results from the Bluetooth Test App. Follow a running test in the browser and return to its results afterwards.",
     tags: ["Kotlin", "Ktor", "PostgreSQL", "Docker", "Svelte", "TypeScript"],
     image: [
       "/pictures/wtp-1.webp",
@@ -35,41 +35,42 @@ export const projects = [
     featuredOrder: 2,
     details: {
       long:
-        "A Ktor API for managing wireless test sessions and storing results in PostgreSQL. A Svelte dashboard receives progress updates through server-sent events.",
+        "Testing doesn't end on the phone. The platform keeps sessions and results together, associates scripts with devices, and lets engineers follow progress from a web dashboard. I worked on the Ktor backend and Svelte interface, with PostgreSQL for test history and server-sent events for live updates.",
       highlights: [
-        "Test-session API in Kotlin",
-        "Progress updates through server-sent events",
-        "PostgreSQL result storage",
-        "Docker setup and Svelte dashboard"
+        "Follow test activity from the browser",
+        "Keep results linked to devices and sessions",
+        "Manage and assign test scripts",
+        "Revisit results after a run"
       ],
     },
   },
   {
-    projectTitle: "Internal Release Pipeline",
+    projectTitle: "Studio Tools",
     description:
-      "Kotlin tool for preparing music releases. It locates masters, Atmos mixes, and artwork, checks a batch, and stages the files for upload. In development.",
-    tags: ["Kotlin", "Gradle", "SQLite", "Compose Multiplatform", "TDD"],
-    image: "/pictures/release-pipeline.webp",
+      "Internal software for IMRSV Music, helping colleagues find information and reducing repetitive production work. Part of my wider responsibility for the studio's tools, services, and IT.",
+    tags: ["Kotlin", "API integrations", "Automation", "Internal tools"],
+    // Hidden until the screenshot has had a confidentiality review.
+    image: null,
     link: "#",
     wip: true,
     featured: true,
     featuredOrder: 3,
     details: {
       long:
-        "I'm building this to reduce manual copying and renaming during release preparation. It reads a batch from the studio database, locates the required files, and validates the plan before copying them.",
+        "At IMRSV, I can see where software would help because I work with the same systems as the people using it. I build tools and integrations to make information easier to reach and reduce manual work. Some services are running today; the production-automation tooling is still being developed.",
       highlights: [
-        "Validate the batch before copying files",
-        "Locate masters, Atmos mixes, and artwork",
-        "Tests for planning and file handling",
-        "Desktop review interface in development"
+        "Easier access to information across systems",
+        "Automation of repetitive production work",
+        "Integrations with existing tools",
+        "Internal services and ongoing development"
       ],
     },
   },
   {
     projectTitle: "Audio Watermarking",
     description:
-      "Experimental C++ audio watermarking engine. I'm exploring how to embed keyed data in audio while balancing audibility, capacity, and recovery after processing.",
-    tags: ["C++20", "JUCE", "DSP", "CMake", "ATDD"],
+      "Experimental watermarking for tracing copies of unreleased music. The aim is to identify which copy a recording came from, even after processing, without changing what a listener hears.",
+    tags: ["DSP", "Psychoacoustics", "JUCE / C++"],
     image: [
       "/pictures/wm-1.webp",
       "/pictures/wm-2.webp",
@@ -80,12 +81,12 @@ export const projects = [
     featuredOrder: 4,
     details: {
       long:
-        "A C++ project exploring audio watermarking. It uses a psychoacoustic model to guide embedding strength, with tests for payload recovery after audio processing. Audibility and robustness are things to measure as the work develops.",
+        "Once an audio file has been shared, a filename or metadata tag can disappear. This project explores putting an identifier in the sound itself, with a different mark for each recipient. I defined the threat model, signal design, and psychoacoustic requirements; coding agents implement the C++/JUCE application. Recovery after trimming and compression remains part of the research.",
       highlights: [
-        "Audio-dependent embedding strength",
-        "Keyed payload embedding and recovery",
-        "Tests for recovery after processing",
-        "Comparing capacity and robustness"
+        "Recipient-specific identifiers carried in the audio",
+        "Embedding strength guided by the sound",
+        "Listening and recovery tests",
+        "Experimental leak-tracing application"
       ],
     },
   },
@@ -94,8 +95,8 @@ export const projects = [
   {
     projectTitle: "airwavez",
     description:
-      "Auracast tooling in development. I'm exploring broadcast testing, coverage measurement, and transmitter tools using Zephyr, Kotlin, and Android.",
-    tags: ["Zephyr", "C", "Kotlin", "Android", "LE Audio", "Auracast"],
+      "Designing tools for putting Auracast into practice: checking broadcasts, mapping their coverage, and managing shared audio in a venue. An early LE Audio project connecting my interests in sound, devices, and systems.",
+    tags: ["LE Audio", "Auracast", "System design"],
     image: null,
     link: "#",
     wip: true,
@@ -103,7 +104,7 @@ export const projects = [
   {
     projectTitle: "noiz-kmp",
     description:
-      "A mobile version of noiz in development. A draggable control adjusts the sound, with a Rust DSP core shared through UniFFI and a Compose Multiplatform interface.",
+      "Exploring a touch-controlled soundscape: move a single control to change the character of the sound. An Android prototype with a Rust audio engine, bringing noiz's noise and binaural tones to a different kind of interface.",
     tags: ["Kotlin Multiplatform", "Compose", "Rust", "UniFFI", "Android", "DSP"],
     image: null,
     link: "#",
@@ -112,7 +113,7 @@ export const projects = [
   {
     projectTitle: "fleetz",
     description:
-      "A terminal dashboard for checking several Git repositories at once: local changes, commits ahead or behind, pull requests, CI, worktrees, and stashes.",
+      "Keep track of work spread across repositories and machines. A live terminal dashboard for uncommitted changes, incoming commits, pull requests, and CI, with branches and worktrees close at hand.",
     tags: ["Rust", "ratatui", "GitHub API", "TUI", "Git"],
     image: "/pictures/fleetz.webp",
     link: "#",
@@ -120,7 +121,7 @@ export const projects = [
   {
     projectTitle: "repoz",
     description:
-      "A Bash tool for checking recently updated GitHub repositories. It fetches them in parallel and reports incoming commits, local commits, and uncommitted files.",
+      "Pick up where you left off, even on another machine. One command shows which repositories need pulling, which have unpushed commits, and where you've left unfinished changes.",
     tags: ["Bash", "GitHub CLI", "jq", "Git"],
     image: "/pictures/repoz.webp",
     link: "https://github.com/Gaurgle/repoz",
@@ -128,26 +129,26 @@ export const projects = [
   {
     projectTitle: "noiz",
     description:
-      "A terminal sound generator with white, pink, and brown noise, binaural beats, and procedural rain. Written in Rust with live audio controls.",
+      "Rain in your terminal. Mix it with white, pink, or brown noise and optional binaural tones, then set a timer and leave it playing while you work.",
     tags: ["Rust", "cpal", "ratatui", "DSP", "Audio"],
     image: "/pictures/noiz.webp",
     link: "https://github.com/Gaurgle/noiz",
     details: {
       long:
-        "A Rust application that generates noise and rain sounds in real time. A terminal interface controls the sound layers and binaural beat settings.",
+        "A small sound mixer that stays in the terminal. Adjust noise, rain, and binaural tones independently, and use a timer to fade out when you're done. Noise and tones are synthesised live; the rain comes from recordings.",
       highlights: [
-        "Real-time stereo audio through cpal",
-        "Adjustable binaural beat settings",
-        "Procedurally generated rain",
-        "Terminal controls built with ratatui"
+        "Independently adjustable sound layers",
+        "White, pink, and brown noise",
+        "Rain recordings and optional binaural tones",
+        "Timed playback with a fade-out"
       ],
     },
   },
   {
     projectTitle: "notez",
     description:
-      "Notes and todos stored alongside project work, with a shared global location. I use v1 daily; notez2 adds cross-machine support and a desktop interface.",
-    tags: ["Rust", "ratatui", "CLI", "Tauri", "SvelteKit"],
+      "Keep notes close to a project without making every note part of its repository. Private notes, shared notes, scratch work, and todos, searchable from the terminal and portable across machines.",
+    tags: ["Rust", "CLI", "TUI", "Local-first"],
     image: [
       "/pictures/notez-local.webp",
       "/pictures/notez-global.webp",
@@ -157,19 +158,19 @@ export const projects = [
     link: "https://github.com/Gaurgle/notez2",
     details: {
       long:
-        "Project-local notes with a global copy, plus a terminal todo list with subtasks, priorities, and Vim-style navigation. The notez2 rewrite adds a desktop interface and cross-machine support.",
+        "I wanted project notes without having to choose between scattering them everywhere and committing everything to the repo. notez separates private, shared, scratch, and global notes, then brings them into one searchable view. It also includes a todo manager. The same core supports epoz, its companion desktop app.",
       highlights: [
-        "Rust CLI and terminal interface",
-        "Project-local notes with a global copy",
-        "Subtasks and priority flags",
-        "Desktop interface in the notez2 rewrite"
+        "Private notes stay outside shared project repos",
+        "Search across projects and note locations",
+        "Todos with tags and subtasks",
+        "Portable between machines"
       ],
     },
   },
   {
     projectTitle: "stdz",
     description:
-      "A terminal reference for Kotlin's standard library and Android fundamentals, with signatures, examples, and common pitfalls. Search directly or browse the entries interactively.",
+      "Look up a Kotlin function or Android concept without breaking out of the terminal. Searchable signatures, examples, and common mistakes, with quick command-line answers or an interactive reference to browse.",
     tags: ["Rust", "ratatui", "Kotlin", "CLI", "TUI"],
     image: "/pictures/stdz.webp",
     link: "#",
@@ -177,7 +178,7 @@ export const projects = [
   {
     projectTitle: "pinz",
     description:
-      "A terminal board for arranging ideas and todos as notes. Supports panning, zooming, and separate boards, with the data model kept separate from the interface.",
+      "A corkboard for the terminal. Move ideas and todos around, zoom out to see the groups, or zoom in to edit a note. Boards live in your own Git repository and can travel between machines.",
     tags: ["Rust", "ratatui", "TUI"],
     image: "/pictures/pinz.webp",
     link: "#",
@@ -185,7 +186,7 @@ export const projects = [
   {
     projectTitle: "zalary",
     description:
-      "A Swedish salary calculator in development for comparing employment and consulting income, including estimated take-home pay, employer costs, VAT, and hourly rates.",
+      "Work backwards from a salary, take-home amount, or invoice to see how the numbers relate. A terminal calculator for comparing Swedish employment and consulting scenarios, including taxes, company costs, and working hours.",
     tags: ["Rust", "ratatui", "TUI"],
     image: "/pictures/zalary.webp",
     link: "#",
@@ -194,7 +195,7 @@ export const projects = [
   {
     projectTitle: "spaze",
     description:
-      "Self-hosted team chat in development, built in Rust. Includes a terminal interface, GitHub sign-in, message search, and commands for capturing notes and todos.",
+      "A self-hosted chat experiment for people who work in the terminal. The prototype supports live conversations; the broader idea is to keep project discussion, notes, and todos together.",
     tags: ["Rust", "ratatui", "SQLite", "TUI"],
     image: null,
     wip: true,
@@ -203,25 +204,25 @@ export const projects = [
   {
     projectTitle: "glanze",
     description:
-      "A macOS menu-bar app for checking the status of AI coding sessions. The first version supports Claude Code, with adapters planned for other tools.",
+      "See which coding agents are working and which need your attention, without checking each terminal. A macOS menu-bar app, starting with Claude Code. Early development.",
     tags: ["Swift", "macOS"],
     image: null,
     wip: true,
     link: "#",
   },
   {
-    projectTitle: "AI Support Venture",
+    projectTitle: "Support Tools",
     description:
-      "A business project exploring Swedish-language customer support tools for e-commerce, alongside my software work.",
+      "An early business exploration of Swedish-language customer support for online shops, using existing chatbot services. Demo-stage work on the offer and setup.",
     tags: ["AI", "SaaS", "Business"],
     image: null,
     link: "#",
     wip: true,
   },
   {
-    projectTitle: "Portfolio",
+    projectTitle: "This Site",
     description:
-      "This site, built with Astro, React, and Tailwind and hosted on Vercel. The repository also includes a Spring Boot and PostgreSQL backend from my DevOps coursework.",
+      "An experiment in making a page feel like a place. A WebGL sky, light, and scroll-driven motion built around the work you're reading. Astro and React underneath; a small terminal hidden inside.",
     tags: ["Astro", "React", "Tailwind", "Kotlin", "Spring Boot", "Docker"],
     image: [
       "/pictures/portfolio-1.webp",

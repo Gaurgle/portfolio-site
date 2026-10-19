@@ -1,12 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 
-function getWhoami() {
-    const h = new Date().getHours();
-    if (h >= 1 && h < 5) return 'andreas roos  (up late hacking)';
-    if (h >= 5 && h < 8) return 'andreas roos  (early bird)';
-    return 'andreas roos';
-}
-
 function matrixBlock() {
     const chars = 'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ012789Z';
     const lines: string[] = [];
@@ -22,14 +15,14 @@ const NEOFETCH = `  ██████╗     andreas@portfolio
   ██╔══██╗    ─────────────────
   ██████╔╝    OS      portfolio-os 1.0.0
   ██╔══██╗    Host    vercel
-  ██║  ██║    Kernel  astro 5.14
-  ╚═╝  ╚═╝    Shell   react 19
-               WM      tailwind 3.4
+  ██║  ██║    Kernel  Astro
+  ╚═╝  ╚═╝    Shell   React
+               WM      Tailwind CSS
                Theme   catppuccin mocha
                Term    mini-terminal v1
-               CPU     vite @ 6.2
-               Memory  6 projects loaded
-               Uptime  since 2025
+               CPU     Vite
+               Memory  several unfinished ideas
+               Uptime  still here
                Contact larsnilsandreas@pm.me`;
 
 const SL = `      ____
@@ -39,11 +32,12 @@ const SL = `      ____
   (O)    (O)`;
 
 const RESPONSES: Record<string, string> = {
-    help: 'try: whoami, ls, cat about.txt, cd projects, cv, neofetch, crt, clear',
-    ls: 'projects/  about.txt  contact.txt  secret.txt  cv/',
-    'cat about.txt': 'backend & android dev, 36, stockholm.\nkotlin, java, spring boot, BLE, docker.',
-    'ls projects': 'portfolio/  booking-program/  webshop/\n15-game/  quiz-game/  yacht-strike/',
-    'ls projects/': 'portfolio/  booking-program/  webshop/\n15-game/  quiz-game/  yacht-strike/',
+    help: 'Try: whoami, ls, cat about.txt, cd projects, cv, neofetch, crt, clear',
+    whoami: 'andreas roos',
+    ls: 'projects/  about.txt  secret.txt  cv/',
+    'cat about.txt': 'Andreas Roos. Developer. Stockholm.\nMostly Kotlin. Sometimes drums.\nBackend, Android, Bluetooth, and a growing collection of terminal tools.',
+    'ls projects': 'bluetooth-test-app/  bluetooth-test-platform/\n studio-tools/  audio-watermarking/\n notez/  noiz/  fleetz/  portfolio/\n\nA few highlights. Type cd projects for the rest.',
+    'ls projects/': 'bluetooth-test-app/  bluetooth-test-platform/\n studio-tools/  audio-watermarking/\n notez/  noiz/  fleetz/  portfolio/\n\nA few highlights. Type cd projects for the rest.',
     pwd: '~/portfolio',
     uname: 'portfolio-os 1.0.0',
     neofetch: NEOFETCH,
@@ -60,7 +54,7 @@ const RESPONSES: Record<string, string> = {
     top: 'PID  CMD          CPU\n  1  astro        2.1%\n  2  react        1.8%\n  3  tailwind     0.4%\n  4  pixel-eagle  0.1%',
     htop: 'PID  CMD          CPU\n  1  astro        2.1%\n  2  react        1.8%\n  3  tailwind     0.4%\n  4  pixel-eagle  0.1%',
     'cat /etc/passwd': 'nice try.',
-    uptime: 'up since 2025, 6 projects loaded',
+    uptime: 'Still here. Still making things.',
     hostname: 'portfolio.local',
     'ping google.com': 'PING google.com: 64 bytes, time=0.42ms\n...just kidding, this is a fake terminal.',
     cowsay: ' ________\n< mooo!  >\n --------\n        \\   ^__^\n         \\  (oo)\\_______\n            (__)\\       )\\/\\\n                ||----w |\n                ||     ||',
@@ -99,11 +93,6 @@ export default function MiniTerminal() {
 
         for (const [prefix, path] of Object.entries(NAV)) {
             if (cmd === prefix) { window.location.href = path; return; }
-        }
-
-        if (cmd === 'whoami') {
-            setHistory(h => [...h, { cmd: raw, out: getWhoami() }]);
-            return;
         }
 
         if (cmd === 'date') {
@@ -215,7 +204,7 @@ export default function MiniTerminal() {
                 <span className="font-mono text-[10px] text-zinc-400 ml-2">~/portfolio</span>
             </div>
             <div ref={scrollRef} className="p-3 font-mono text-xs max-h-80 overflow-y-auto space-y-1">
-                <div className="text-zinc-500">type help</div>
+                <div className="text-zinc-500">A small terminal. Try help.</div>
                 {history.map((entry, i) => (
                     <div key={i}>
                         <div>

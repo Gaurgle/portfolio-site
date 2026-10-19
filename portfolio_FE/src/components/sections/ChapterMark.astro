@@ -1,39 +1,35 @@
 ---
 /**
  * Chapter mark as one symmetrical rectangle, numeral on top: the number is
- * SVG text stretched to the full rectangle width, with the hook line(s)
+ * SVG text stretched to the full rectangle width, with the title line(s)
  * beneath - all stretched to fill the box exactly, flush on both edges.
+ * One voice throughout: the same face, weight and white in every line, no
+ * accent word.
  *
- * Each hook line's font-size is fitted to its text length so short lines get
- * bigger glyphs instead of letter-spacing gaps (textLength then only fine-
- * tunes), keeping the letters tight.
+ * Each title line's font-size is fitted to its text length so short lines
+ * get bigger glyphs instead of letter-spacing gaps (textLength then only
+ * fine-tunes), keeping the letters tight.
  *
  * `width` sizes the whole rectangle; everything inside scales via
- * aspect-ratio, so the mark stays one proportional unit.
+ * aspect-ratio, so the mark stays one proportional unit. `label` names the
+ * chapter for assistive tech only. A soft lens (data-lens, clouds.ts) dims
+ * the cloud behind the mark while it stands in place.
  */
 const {
     n,
     label,
     line1,
-    pre = "",
-    accent,
-    post = ".",
-    color,
+    line2,
     width = "w-[min(18rem,84vw)] lg:w-[min(28rem,36vw)]",
-    // Each section can give its special word its own face.
-    accentStyle = "font-family:Georgia,'Times New Roman',serif;font-style:italic",
 } = Astro.props;
 
-/** Fit a line: font-size such that the text naturally fills ~720 units.
- *  `slack` shrinks the glyphs a touch for lines that would get cramped. */
-function fit(text: string, slack = 1) {
-    const fs = Math.min(220, Math.round((760 * slack) / (0.56 * text.length)));
+/** Fit a line: font-size such that the text naturally fills ~720 units. */
+function fit(text: string) {
+    const fs = Math.min(220, Math.round(760 / (0.6 * text.length)));
     return { fs, vb: Math.round(fs * 1.1), y: Math.round(fs * 0.9) };
 }
 
-const l1 = line1 ? fit(line1) : null;
-// The accent line runs a wider face (Ramose + stroke), so give it slack.
-const l2 = fit(`${pre}${accent}${post}`, 0.9);
+const lines = [line1, line2].filter(Boolean) as string[];
 // Row boxes are sized with the padding-top hack instead of CSS aspect-ratio:
 // the svgs' viewBoxes deliberately differ from the box ratio (the text is
 // stretched to fill via preserveAspectRatio="none"), and WebKit lets an
@@ -41,41 +37,50 @@ const l2 = fit(`${pre}${accent}${post}`, 0.9);
 // Percentages are relative to the mark's width: 300/720 and 115/720.
 // The box height alone decides how tall the glyphs render, because the
 // viewBox is scaled to fit it - font-size only trades stroke width against
-// letter spacing. So every hook row shares one percentage: the double-height
-// box the single-line variant used to get drew 03 and 04 at twice the
-// x-height of 01 and 02, and the four marks stopped reading as one family.
+// letter spacing. So every title row shares one percentage, and the four
+// marks read as one family.
 const hookPad = "15.98%";
+
+// The mark is drawn twice: the letters themselves, and behind them the
+// light they catch once their chapter settles (global.css .cm-fringe,
+// smoothScroll.ts --settle). The fringe copy disperses each line into a cool
+// and a warm copy a few units either side, blurred as one layer.
+const layers = ["body", "fringe"] as const;
+const shifts = (layer: (typeof layers)[number]): Array<[number, string | undefined]> =>
+    layer === "body" ? [[0, undefined]] : [[-5, "cm-cool"], [5, "cm-warm"]];
 ---
 
-<div class:list={["chapter-mark inline-block select-none", width]}
-     aria-label={`${n} ${label}: ${line1 ?? ""} ${pre}${accent}${post}`}>
-    <!-- Numeral: slightly WIDER than the hook lines (optical alignment reads
-         better with a small overhang than with exact equal widths) -->
-    <div class="cm-split cm-num-box relative w-[106%] -ml-[3%]" style="padding-top: 44.17%">
-        <svg class="absolute inset-0 h-full w-full" viewBox="0 0 720 300" preserveAspectRatio="none" aria-hidden="true">
-            <text class="cm-num" x="-8" y="290" font-size="400" textLength="736" lengthAdjust="spacingAndGlyphs" fill="#ffffff">{n}</text>
-        </svg>
-    </div>
-
-    <!-- Hook: one or two rows, tight letters, flush to the rectangle edges -->
-    <div class="cm-split mt-[4%] space-y-[3%]">
-        {l1 && line1 && (
-            <div class="relative w-full" style={`padding-top: ${hookPad}`}>
-                <svg class="absolute inset-0 h-full w-full" viewBox={`0 0 720 ${l1.vb}`} preserveAspectRatio="none" aria-hidden="true">
-                    <text x="0" y={l1.y} font-size={l1.fs} textLength="720" lengthAdjust="spacingAndGlyphs">{line1}</text>
+<div class:list={["chapter-mark relative isolate inline-block select-none", width]} data-lens
+     aria-label={`${n} ${label}: ${lines.join(" ")}`}>
+    {layers.map((layer) => (
+        <div class={layer === "body" ? undefined : "cm-fringe"} aria-hidden={layer === "fringe" ? "true" : undefined}>
+            <!-- Numeral: slightly WIDER than the title lines (optical alignment reads
+                 better with a small overhang than with exact equal widths) -->
+            <div class:list={[{ "cm-split cm-num-box": layer === "body" }, "relative w-[106%] -ml-[3%]"]} style="padding-top: 44.17%">
+                <svg class="absolute inset-0 h-full w-full" viewBox="0 0 720 300" preserveAspectRatio="none" aria-hidden="true">
+                    {shifts(layer).map(([dx, tone]) => (
+                        <text class:list={["cm-num", tone]} x={-8 + dx} y="290" font-size="400" textLength="736" lengthAdjust="spacingAndGlyphs">{n}</text>
+                    ))}
                 </svg>
             </div>
-        )}
-        <div class="relative w-full" style={`padding-top: ${hookPad}`}>
-            <svg class="absolute inset-0 h-full w-full" viewBox={`0 0 720 ${l2.vb}`} preserveAspectRatio="none" aria-hidden="true">
-                <text x="0" y={l2.y} font-size={l2.fs} textLength="720" lengthAdjust="spacingAndGlyphs">{pre}<tspan
-                    fill={color} stroke={color} stroke-width="4" paint-order="stroke"
-                    style={accentStyle}>{accent}</tspan>{post}</text>
-            </svg>
-        </div>
-    </div>
 
-    <div class="cm-split font-mono tracking-[0.35em] text-lg md:text-xl text-white/45 mt-4">{label}</div>
+            <!-- Title: one or two rows, tight letters, flush to the rectangle edges -->
+            <div class:list={[{ "cm-split": layer === "body" }, "mt-[4%] space-y-[3%]"]}>
+                {lines.map((line) => {
+                    const f = fit(line);
+                    return (
+                        <div class="relative w-full" style={`padding-top: ${hookPad}`}>
+                            <svg class="absolute inset-0 h-full w-full" viewBox={`0 0 720 ${f.vb}`} preserveAspectRatio="none" aria-hidden="true">
+                                {shifts(layer).map(([dx, tone]) => (
+                                    <text class={tone} x={dx} y={f.y} font-size={f.fs} textLength="720" lengthAdjust="spacingAndGlyphs">{line}</text>
+                                ))}
+                            </svg>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    ))}
 </div>
 
 <script>

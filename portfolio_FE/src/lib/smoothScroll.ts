@@ -14,28 +14,39 @@ import Lenis from "lenis";
 
 let lenis: Lenis | null = null;
 let rafId = 0;
-/** Lenis easing per frame: low for a heavy, deliberate glide. */
-const SCROLL_LERP = 0.065;
-/** Peak scroll speed under Lenis, in viewport heights per second. Each wheel
- *  delta moves a target the glide chases; with no limit a hard flick queues
- *  several screens and the page tears through them, skipping every held
- *  moment. Capping how far the target may run ahead of the glide bounds the
- *  speed, since the glide covers a fixed fraction of that lead per frame.
- *  Touch scrolling stays browser-owned and uncapped. */
-const MAX_SCROLL_SPEED = 1.5;
-/** Sidebar anchor jumps: viewport heights per second for short hops, and
- *  the longest any jump may take, in seconds. */
-const ANCHOR_SPEED = 3;
-const ANCHOR_MAX_DURATION = 2.2;
-/** True while an anchor-click scroll is in flight (the reveal magnet stands down). */
+/** Lenis easing per frame for a mouse wheel: a short glide that smooths the
+ *  notches without trailing far behind them. */
+const SCROLL_LERP = 0.12;
+/** Trackpads already deliver momentum of their own, so their input passes
+ *  through nearly 1:1 instead of being smoothed a second time. */
+const TRACKPAD_LERP = 1;
+/** Peak scroll speed under Lenis, in viewport heights per second, while a
+ *  pinned or held stage is in range. Each wheel delta moves a target the
+ *  glide chases; with no limit a hard flick queues several screens and the
+ *  page tears through the stage, skipping every held moment. Capping how far
+ *  the target may run ahead of the glide bounds the speed, since the glide
+ *  covers a fixed fraction of that lead per frame. Free-flowing stretches
+ *  take every delta as given. Touch scrolling stays browser-owned. */
+const MAX_SCROLL_SPEED = 3.5;
+/** Anchor jumps longer than this many viewports cross-fade instead of
+ *  scrolling through every stage on the way. */
+const ANCHOR_FADE_JUMP = 3;
+/** True while an anchor-click scroll is in flight (rest behaviours stand down). */
 let anchorBypass = false;
-/** Per-frame contact-reveal magnet, set by bindScrollDriven (needs its
- *  measurements); runs from the RAF loop since rest detection can't live
- *  in scroll events. */
-let magnetTick: (() => void) | null = null;
+/** Document scroll ranges in which a pinned or held stage is on screen (the
+ *  speed cap applies across these only). Filled by bindScrollDriven. */
+let stageRanges: Array<[number, number]> = [];
+/** Per-frame rest snap (focus handovers, contact reveal), set by
+ *  bindScrollDriven (needs its measurements); runs from the RAF loop since
+ *  rest detection can't live in scroll events. */
+let restTick: (() => void) | null = null;
 /** Per-frame particle-layer driver (scroll drift + lerped mouse parallax);
  *  lives in the RAF loop because the cursor moves without scroll events. */
 let parallaxTick: (() => void) | null = null;
+/** Pointer light on type (setupPointerLight): headline rects are read at
+ *  the top of the frame, before any scroll write, and lit at its end. */
+let lightRead: (() => void) | null = null;
+let lightWrite: (() => void) | null = null;
 const observers: IntersectionObserver[] = [];
 const cleanups: Array<() => void> = [];
 
@@ -72,6 +83,43 @@ function nativeProgress(): number {
     const el = document.documentElement;
     const max = el.scrollHeight - el.clientHeight;
     return max > 0 ? el.scrollTop / max : 0;
+}
+
+/** True when the scroll between `a` and `b` touches a pinned or held stage. */
+function crossesStage(a: number, b: number): boolean {
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    return stageRanges.some(([start, end]) => hi >= start && lo <= end);
+}
+
+/**
+ * Critically damped spring (damping 1.0) as a Lenis easing. `response` is
+ * the spring's period in seconds; `velocity` (px/s) seeds it, so motion
+ * already under way carries into the spring instead of restarting from
+ * rest. Lenis wants a duration, so it is the time the spring needs to come
+ * within half a pixel of the target.
+ */
+function springEase(distance: number, velocity: number, response: number) {
+    const omega = (2 * Math.PI) / response;
+    const relative = velocity / distance;
+    const offset = (t: number) => (1 + (omega - relative) * t) * Math.exp(-omega * t);
+    const residual = 0.5 / Math.abs(distance);
+    let duration = response;
+    while (Math.abs(offset(duration)) > residual && duration < 3) duration += 1 / 60;
+    return { duration, easing: (p: number) => 1 - offset(p * duration) };
+}
+
+/** Springs the page to `target`. Any wheel input takes over mid-flight:
+ *  Lenis starts its glide from wherever the spring has got to. */
+function springTo(target: number, response: number, onComplete?: () => void): void {
+    if (!lenis) return;
+    const distance = target - lenis.animatedScroll;
+    if (Math.abs(distance) < 1) {
+        onComplete?.();
+        return;
+    }
+    // Lenis reports velocity in pixels per frame.
+    const { duration, easing } = springEase(distance, lenis.velocity * 60, response);
+    lenis.scrollTo(target, { duration, easing, onComplete });
 }
 
 /* ------------------------------------------------------------------ */
@@ -238,6 +286,121 @@ function setupMagnetic(reduced: boolean): void {
 }
 
 /* ------------------------------------------------------------------ */
+/* Headline light (prism moments)                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A headline's light has two sources, each its own variable: how settled
+ * its chapter stands (--settle, scroll) and how near the pointer is (--lit).
+ * global.css draws a soft spectral fringe from both; `has-light` marks the
+ * headlines whose fringe layer needs drawing at all.
+ */
+const lightState = new WeakMap<HTMLElement, { settle: number; lit: number }>();
+
+function setLight(el: HTMLElement, source: "settle" | "lit", value: number): void {
+    let state = lightState.get(el);
+    if (!state) lightState.set(el, (state = { settle: 0, lit: 0 }));
+    const rounded = Math.round(value * 1000) / 1000;
+    if (state[source] === rounded) return;
+    state[source] = rounded;
+    el.style.setProperty(`--${source}`, String(rounded));
+    el.classList.toggle("has-light", state.settle > 0 || state.lit > 0);
+}
+
+/** How far the pointer's light reaches past a headline's edge, px. */
+const LIGHT_REACH = 380;
+
+/**
+ * Headlines near the cursor catch its light: --lit (0..1) eases with the
+ * distance to the headline's box, and --lx/--ly point from the cursor
+ * through the headline, so the fringe falls on its far side. Desktop with a
+ * fine pointer only. Nothing is read or written while the pointer, the
+ * scroll and every eased value are still.
+ */
+function setupPointerLight(reduced: boolean): void {
+    if (reduced || !isDesktop()) return;
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const heads = Array.from(document.querySelectorAll<HTMLElement>(
+        ".chapter-mark, .beam-title, .featured-card h3, .passage-head",
+    ));
+    if (!heads.length) return;
+
+    const onScreen = new Set<HTMLElement>();
+    const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+            const el = e.target as HTMLElement;
+            if (e.isIntersecting) onScreen.add(el);
+            else onScreen.delete(el);
+        }
+    });
+    heads.forEach((el) => io.observe(el));
+    observers.push(io);
+
+    const pointer = { x: -1e4, y: -1e4 };
+    const onMove = (e: PointerEvent) => {
+        if (e.pointerType === "touch") return;
+        pointer.x = e.clientX;
+        pointer.y = e.clientY;
+    };
+    const onLeave = () => (pointer.x = pointer.y = -1e4);
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.documentElement.addEventListener("pointerleave", onLeave);
+    cleanups.push(() => {
+        window.removeEventListener("pointermove", onMove);
+        document.documentElement.removeEventListener("pointerleave", onLeave);
+        lightRead = lightWrite = null;
+    });
+
+    const lit = new Map<HTMLElement, number>();
+    /** Per headline: target light and its direction, read but not yet written. */
+    const targets = new Map<HTMLElement, [number, number, number]>();
+    const directions = new Map<HTMLElement, string>();
+    let lastKey = "";
+    let easing = false;
+    lightRead = () => {
+        const key = `${pointer.x},${pointer.y},${window.scrollY}`;
+        if (key === lastKey && !easing) return;
+        lastKey = key;
+        for (const el of heads) {
+            const previous = targets.get(el);
+            if (!onScreen.has(el)) {
+                targets.set(el, [0, previous?.[1] ?? 0, previous?.[2] ?? 0]);
+                continue;
+            }
+            const r = el.getBoundingClientRect();
+            const dx = Math.max(r.left - pointer.x, 0, pointer.x - r.right);
+            const dy = Math.max(r.top - pointer.y, 0, pointer.y - r.bottom);
+            const near = Math.max(0, 1 - Math.hypot(dx, dy) / LIGHT_REACH);
+            const cx = r.left + r.width / 2 - pointer.x;
+            const cy = r.top + r.height / 2 - pointer.y;
+            const length = Math.hypot(cx, cy) || 1;
+            targets.set(el, [near * near, cx / length, cy / length]);
+        }
+    };
+    lightWrite = () => {
+        easing = false;
+        for (const [el, [target, lx, ly]] of targets) {
+            const current = lit.get(el) ?? 0;
+            const direction = `${lx.toFixed(2)} ${ly.toFixed(2)}`;
+            if (target > 0 && directions.get(el) !== direction) {
+                directions.set(el, direction);
+                el.style.setProperty("--lx", lx.toFixed(2));
+                el.style.setProperty("--ly", ly.toFixed(2));
+            }
+            if (current === target) continue;
+            // Eased per frame, so a light that jumps (a fast cursor, a page
+            // jump) still fades in and out.
+            const next = Math.abs(target - current) < 0.004
+                ? target
+                : current + (target - current) * 0.14;
+            lit.set(el, next);
+            setLight(el, "lit", next);
+            if (next !== target) easing = true;
+        }
+    };
+}
+
+/* ------------------------------------------------------------------ */
 /* Sidebar scroll spy                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -356,16 +519,37 @@ function measureCardStacks(): CardStack[] {
 
         section.style.height = `${layoutViewportH + distance + buffer * 2}px`;
         const top = section.getBoundingClientRect().top + window.scrollY;
+        const focus = section.dataset.stackMode === "focus";
+        if (focus && !desktop) placeSnapStops(section, cards.length, buffer, per);
         result.push({
             section, cards, top, per, distance, buffer, offX, offY,
             vertical: !desktop,
-            focus: section.dataset.stackMode === "focus",
+            focus,
             contents: Array.from(
                 section.querySelectorAll<HTMLElement>("[data-stack-contents] > *"),
             ),
         });
     }
     return result;
+}
+
+/**
+ * Phones have no rest snap (touch scrolling stays browser-owned), so the
+ * browser's own proximity snapping seats each card instead: one invisible
+ * stop per card at the scroll offset that puts it in focus (global.css,
+ * .snap-stop). Proximity only pulls when the scroll already comes to rest
+ * near a stop, so it never holds the page; the stops sit inside the stack's
+ * section, under its sticky viewport, which pins exactly as before.
+ */
+function placeSnapStops(section: HTMLElement, count: number, buffer: number, per: number): void {
+    section.querySelectorAll(":scope > .snap-stop").forEach((el) => el.remove());
+    for (let i = 0; i < count; i++) {
+        const stop = document.createElement("span");
+        stop.className = "snap-stop";
+        stop.setAttribute("aria-hidden", "true");
+        stop.style.top = `${buffer + i * per}px`;
+        section.appendChild(stop);
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -425,12 +609,13 @@ function layoutStatic(): void {
         willChange: "auto",
     });
 
-    // Stage layers the engine flies across the pin: the chapter mark, the
-    // docked headline, the finale arrow. Each is either absolute itself or
-    // centered by an absolute wrapper; dropping that puts them in flow above
-    // and below the cards, in DOM order.
+    // Stage layers the engine flies across the pin: the chapter mark and the
+    // docked headline. Each is either absolute itself or centered by an
+    // absolute wrapper; dropping that puts them in flow above the cards, in
+    // DOM order. The featured cards' own side-by-side composition is undone
+    // in global.css (html.reduced-motion).
     for (const el of document.querySelectorAll<HTMLElement>(
-        "[data-cover-content], [data-hscroll-headline], [data-hscroll-arrow]",
+        "[data-cover-content], [data-hscroll-headline]",
     )) {
         for (const box of [el, el.parentElement]) {
             if (box && getComputedStyle(box).position === "absolute") {
@@ -471,8 +656,8 @@ function applyPins(): void {
  * attribute names survive from its filmstrip past): the chapter mark
  * enters centered, the first card flies in from the right and pushes it
  * out left, every card lands on a journey-style pile, and once the pile
- * is complete it exits left as one object - leaving the arrow, which
- * rides in and docks. Mobile runs the cardstack deck instead.
+ * is complete it exits left as one object while the listing below climbs
+ * in. Mobile runs the cardstack deck instead.
  */
 type Showcase = {
     section: HTMLElement;
@@ -488,20 +673,10 @@ type Showcase = {
     headlineW: number;
     /** The pile's resting right edge: the exit glues the headline to it. */
     dockRight: number;
-    sigilEl: HTMLElement | null;
     /** `data-hscroll-mode="strip"`: projects pass through one at a time
      *  instead of landing on a pile (they have no surface to pile with). */
     strip: boolean;
-    arrowEl: HTMLElement | null;
-    /** Arrow assembly parts: outline path (with cached length) + the
-     *  label's individual letters (stamped on typewriter-style). */
-    arrowPath: SVGPathElement | null;
-    arrowLen: number;
-    arrowLetters: SVGElement[];
-    /** True viewport-centering correction: the full-bleed section sits
-     *  half a scrollbar-width left of the viewport origin. */
-    arrowShift: number;
-    /** Docked x for headline and arrow: the pile's resting left edge. */
+    /** Docked x for the headline: the pile's resting left edge. */
     dockLeft: number;
     /** Pile cascade offset per card. */
     offX: number;
@@ -512,8 +687,6 @@ type Showcase = {
     settle: number;
     /** Scroll spent on the pile's exit slide. */
     exitDist: number;
-    /** Dwell on the assembled arrow before its own exit. */
-    arrowDwell: number;
     buffer: number;
     top: number;
     /** Which clamped end state the engine last wrote while the showcase was
@@ -545,31 +718,25 @@ function measureShowcases(): Showcase[] {
         }
 
         const vh = window.innerHeight;
-        // Generous read-time per landing card, a settle beat on the full
-        // pile, one exit slide, and a dwell on the docked arrow.
+        // Read-time per landing card, a settle beat on the full pile, and
+        // one exit slide.
         const strip = section.dataset.hscrollMode === "strip";
         // A strip segment is an arrival plus a dwell, so it runs longer:
-        // 0.9vh to arrive (unhurried, at the page's own scroll pace) and
-        // 0.8vh held still (STRIP_ARRIVE splits it).
-        const per = Math.round(vh * (strip ? 1.2 : 0.75));
+        // about 0.45vh to arrive and 0.4vh held still (STRIP_ARRIVE splits
+        // it); the rest snap seats a project that stops mid-arrival.
+        const per = Math.round(vh * (strip ? 0.85 : 0.75));
         const settle = Math.round(vh * 0.3);
-        // Generous exit: the pile's departure AND the arrow's assembly
-        // (outline draw, flood, label stamp) are both scrubbed across it, so
-        // this is the dial that sets how much scroll the whole assembly gets.
-        // The label's share of that is widened separately in the scrub, so the
-        // lettering slows without dragging out the draw and flood with it.
-        const exitDist = Math.round(vh * 1.0);
-        // Short dwell: the arrow does not need to sit finished on an empty
-        // stage, and a long one leaves dead scroll between it and the grid it
-        // points at. The grid climbs over its tail instead (see index.astro).
-        const arrowDwell = Math.round(vh * 0.12);
+        const exitDist = Math.round(vh * 0.5);
         const buffer = Math.round(vh * 0.3);
         // Cascade offsets; keep in sync with the .hscroll-pin CSS calc.
         const offX = parseFloat(section.dataset.offX ?? "24");
         const offY = parseFloat(section.dataset.offY ?? "28");
 
+        // A cushion on entry only: the pin lets go as the pile leaves, so
+        // the listing below (index.astro, negative margin) climbs in under
+        // the exit instead of after an empty stage.
         section.style.height =
-            `${vh + buffer * 2 + cards.length * per + settle + exitDist + arrowDwell}px`;
+            `${vh + buffer + cards.length * per + settle + exitDist}px`;
         const sectionRect = section.getBoundingClientRect();
         const top = sectionRect.top + window.scrollY;
         const coverRight = coverEl
@@ -592,32 +759,16 @@ function measureShowcases(): Showcase[] {
             )}px`;
         }
 
-        const arrowEl = section.querySelector<HTMLElement>("[data-hscroll-arrow]");
-        const arrowPath = arrowEl?.querySelector<SVGPathElement>("path") ?? null;
-        let arrowLen = 0;
-        if (arrowPath) {
-            arrowLen = arrowPath.getTotalLength();
-            arrowPath.style.strokeDasharray = String(arrowLen);
-        }
-
         result.push({
             section, track, cards, coverEl, coverRight,
             headline,
             headlineW: headline?.offsetWidth ?? 0,
-            // Section space, not viewport space: the headline and arrow are
-            // positioned inside the full-bleed section, which sits half a
+            // Section space, not viewport space: the headline is positioned
+            // inside the full-bleed section, which sits half a
             // scrollbar-width left of the viewport origin.
             dockRight: Math.round(trackRect.right - sectionRect.left),
-            sigilEl: section.querySelector<HTMLElement>("[data-headline-sigil]"),
-            arrowEl, arrowPath, arrowLen,
-            arrowLetters: arrowEl
-                ? Array.from(arrowEl.querySelectorAll<SVGElement>("text tspan"))
-                : [],
-            arrowShift: Math.round(
-                (window.innerWidth - sectionRect.width) / 2 - sectionRect.left,
-            ),
             dockLeft: Math.round(trackRect.left - sectionRect.left),
-            offX, offY, per, settle, exitDist, arrowDwell, buffer, top,
+            offX, offY, per, settle, exitDist, buffer, top,
             strip, rested: null,
         });
     }
@@ -759,7 +910,7 @@ function setCovered(card: HTMLElement, landed: number): void {
 
 /** Share of each focus-stack segment a card spends fully in focus, either
  *  side of its centre, before it starts to leave. */
-const FOCUS_DWELL = 0.2;
+const FOCUS_DWELL = 0.3;
 /** A card has left by this offset and the next only starts arriving after
  *  it, so two cards' copy is never on stage together. */
 const FOCUS_HANDOVER = 0.5;
@@ -774,6 +925,9 @@ function focusStack(s: CardStack, local: number): void {
         const offset = position - i;
         const travel = Math.max(0, Math.abs(offset) - FOCUS_DWELL) / (FOCUS_HANDOVER - FOCUS_DWELL);
         const focus = Math.sign(offset) * Math.min(1, travel);
+        // Settled while in focus; the headline's light leaves with it.
+        const away = Math.abs(focus);
+        setLight(card, "settle", 1 - away * away * (3 - 2 * away));
         const value = focus.toFixed(3);
         if (card.style.getPropertyValue("--f") === value) return;
         card.style.setProperty("--f", value);
@@ -852,12 +1006,36 @@ function bindScrollDriven(reduced: boolean): void {
     let holds = reduced ? [] : measureHolds();
     let covers = reduced ? [] : measureCovers();
 
+    /** Scroll ranges the speed cap guards: every pin, card stack, showcase
+     *  and hold, from the moment it engages until it lets go. */
+    const measureStages = () => {
+        const ranges: Array<[number, number]> = [];
+        for (const section of document.querySelectorAll<HTMLElement>("[data-pin]")) {
+            if (!section.style.height) continue;
+            const top = section.getBoundingClientRect().top + window.scrollY;
+            ranges.push([top, top + section.offsetHeight - layoutViewportH]);
+        }
+        for (const s of stacks) ranges.push([s.top, s.top + s.distance + s.buffer * 2]);
+        for (const sc of showcases) {
+            ranges.push([sc.top, sc.top + sc.section.offsetHeight - window.innerHeight]);
+        }
+        for (const h of holds) ranges.push([h.top, h.top + h.dist]);
+        stageRanges = ranges;
+    };
+    if (!reduced) measureStages();
+    cleanups.push(() => (stageRanges = []));
 
-    // Reveal magnet: stopping mid-reveal leaves the page edge hanging over
-    // the contact panel. Once the scroll RESTS inside the reveal band
-    // (finger off, momentum spent), ease to the closer end - fully open or
-    // fully closed. Never engages while the user is actively scrolling.
-    if (!reduced && panel && lenis && isDesktop()) {
+    // Rest snap. Never while the visitor is scrolling: it fires once the
+    // scroll RESTS for 150ms (finger off, momentum spent), and any new wheel
+    // input takes the page straight back, since Lenis starts its glide from
+    // wherever the spring has got to. The page springs to the seat the last
+    // movement was heading for (momentum projected, as a flick lands where
+    // it is going) when it rests somewhere no reader should be left:
+    // - inside a handover between two journey stops or two featured
+    //   projects, with two half-faded texts on stage;
+    // - part way into the contact reveal, the page edge hanging over the
+    //   panel. Only its two ends are seats: closed or fully open.
+    if (!reduced && lenis && isDesktop()) {
         let touching = false;
         const onTouchStart = () => (touching = true);
         const onTouchEnd = () => (touching = false);
@@ -870,30 +1048,74 @@ function bindScrollDriven(reduced: boolean): void {
             window.removeEventListener("touchcancel", onTouchEnd);
         });
 
-        let restFrames = 0;
+        /** The seat nearest to where the movement was heading, when `y`
+         *  rests inside a handover or the contact reveal; null anywhere else. */
+        const snapTarget = (y: number, velocity: number): number | null => {
+            // Apple's scroll projection (deceleration 0.998 per ms).
+            const projected = y + (velocity / 1000) * 0.998 / (1 - 0.998);
+            for (const s of stacks) {
+                if (!s.focus) continue;
+                const position = (y - s.top - s.buffer) / s.per;
+                if (position <= 0 || position >= s.cards.length - 1) continue;
+                const i = Math.floor(position);
+                const within = position - i;
+                if (within <= FOCUS_DWELL || within >= 1 - FOCUS_DWELL) continue;
+                const heading = (projected - s.top - s.buffer) / s.per;
+                return s.top + s.buffer + (heading < i + 0.5 ? i : i + 1) * s.per;
+            }
+            for (const sc of showcases) {
+                if (!sc.strip) continue;
+                const arrive = sc.per * STRIP_ARRIVE;
+                const local = y - sc.top - sc.buffer;
+                const i = Math.floor(local / sc.per);
+                // Card 0's arrival hands over from the chapter mark, not a card.
+                if (i < 1 || i >= sc.cards.length || local - i * sc.per >= arrive) continue;
+                const centre = (k: number) => sc.top + sc.buffer + k * sc.per + (arrive + sc.per) / 2;
+                const before = centre(i - 1), after = centre(i);
+                return Math.abs(projected - before) < Math.abs(projected - after) ? before : after;
+            }
+            if (panel) {
+                const open = document.documentElement.scrollHeight - window.innerHeight;
+                const closed = open - panel.offsetHeight;
+                if (y > closed + 1 && y < open - 1) {
+                    return projected > (closed + open) / 2 ? open : closed;
+                }
+            }
+            return null;
+        };
+
+        // Where and when the current movement began. A wheel glide decays
+        // exponentially, so by the time it rests its last frames say nothing
+        // about where it was going; the movement as a whole does.
+        let motionFrom: [number, number] | null = null;
         let lastY = -1;
-        magnetTick = () => {
+        let lastAt = 0;
+        let restSince = -1;
+        restTick = () => {
             if (!lenis) return;
-            if (touching || anchorBypass) {
-                restFrames = 0;
+            const now = performance.now();
+            const y = window.scrollY;
+            const moving = lastY >= 0 && Math.abs(y - lastY) >= 0.5;
+            if (moving && !motionFrom) motionFrom = [lastAt, lastY];
+            lastY = y;
+            lastAt = now;
+            if (touching || anchorBypass || moving || !motionFrom) {
+                restSince = -1;
+                if (touching || anchorBypass) motionFrom = null;
                 return;
             }
-            const y = window.scrollY;
-            restFrames = Math.abs(y - lastY) < 0.5 ? restFrames + 1 : 0;
-            lastY = y;
-            // Fire exactly once per rest, after ~200ms of stillness.
-            if (restFrames !== 12) return;
-            const max =
-                document.documentElement.scrollHeight - window.innerHeight;
-            const bandStart = max - panel.offsetHeight;
-            // Edges excluded: settled states must not re-trigger.
-            if (y < bandStart + 32 || y > max - 32) return;
-            lenis.scrollTo(y > (bandStart + max) / 2 ? max : bandStart, {
-                duration: 0.8,
-                easing: (t: number) => 1 - Math.pow(1 - t, 3),
-            });
+            if (restSince < 0) restSince = now;
+            if (now - restSince < 150) return;
+            // Average velocity of the whole movement, px/s. The movement is
+            // then spent; the next one (the spring's own, too) is measured
+            // afresh, and a seat it lands on is never a snap target.
+            const span = (restSince - motionFrom[0]) / 1000;
+            const velocity = span > 0 ? (y - motionFrom[1]) / span : 0;
+            motionFrom = null;
+            const target = snapTarget(y, velocity);
+            if (target !== null) springTo(target, 0.4);
         };
-        cleanups.push(() => (magnetTick = null));
+        cleanups.push(() => (restTick = null));
     }
 
     // Frozen viewport height for all per-frame math. Reading innerHeight
@@ -925,6 +1147,7 @@ function bindScrollDriven(reduced: boolean): void {
         markDrifts = measureMarkDrifts();
         holds = measureHolds();
         covers = measureCovers();
+        measureStages();
         lenis?.resize();
         onScroll();
     };
@@ -971,6 +1194,24 @@ function bindScrollDriven(reduced: boolean): void {
         ? []
         : Array.from(document.querySelectorAll<HTMLElement>("[data-focus]"));
 
+    // Prism moments: each chapter mark reports how settled it stands, 0..1:
+    // centred on screen is settled, arriving or leaving is not. global.css
+    // ramps the mark's light and its width axis with it. Measured on the
+    // mark's parent, which no drift transform moves. The contact mark stands
+    // still in its fixed panel, so it settles with the reveal instead.
+    const marks = Array.from(document.querySelectorAll<HTMLElement>(".chapter-mark"));
+    const contactMark = panel?.querySelector<HTMLElement>(".chapter-mark") ?? null;
+
+    // DOM depth (desktop): `data-depth` content drifts by that share of its
+    // distance from the viewport centre. Positive lags the scroll (farther
+    // away), negative runs ahead of it (nearer). Transform only, and only on
+    // elements no other effect transforms. Inside a pin or a hold the box
+    // stands still, so the drift does too: held moments stay held.
+    const depthEls = reduced || !isDesktop()
+        ? []
+        : Array.from(document.querySelectorAll<HTMLElement>("[data-depth]"))
+            .map((el) => ({ el, depth: parseFloat(el.dataset.depth ?? "0"), shift: 0 }));
+
     let lastScrub = "";
     const onScroll = () => {
         const progress = lenis ? lenis.progress : nativeProgress();
@@ -982,8 +1223,42 @@ function bindScrollDriven(reduced: boolean): void {
         // Measure before any write below, so reading the boxes never forces
         // the browser to settle this frame's styles and layout early.
         const focusRects = focusEls.map((el) => el.getBoundingClientRect());
+        const markRects = marks.map((m) => (m.parentElement ?? m).getBoundingClientRect());
+        const depthRects = depthEls.map((d) => d.el.getBoundingClientRect());
+        let reveal = 0;
+        if (contactMark && panel) {
+            const open = document.documentElement.scrollHeight - window.innerHeight;
+            const h = panel.offsetHeight || 1;
+            reveal = Math.max(0, Math.min(1, (scroll - (open - h)) / h));
+        }
 
-        if (bar) bar.style.transform = `scaleX(${progress || 0})`;
+        if (bar) {
+            bar.style.transform = `scaleX(${progress || 0})`;
+            // The tip's refraction drifts through the spectrum on the way down.
+            bar.style.setProperty("--p", (progress || 0).toFixed(3));
+        }
+
+        marks.forEach((m, i) => {
+            const r = markRects[i];
+            let settle = 0;
+            if (r.height > 0) {
+                const off = Math.abs(r.top + r.height / 2 - vh / 2) / (vh / 2);
+                const t = Math.max(0, Math.min(1, (off - 0.2) / 0.6));
+                settle = 1 - t * t * (3 - 2 * t);
+            }
+            if (m === contactMark) settle *= reveal * reveal * (3 - 2 * reveal);
+            setLight(m, "settle", settle);
+        });
+
+        depthEls.forEach((d, i) => {
+            const r = depthRects[i];
+            if (r.bottom < -200 || r.top > vh + 200) return;
+            const centre = r.top + r.height / 2 - d.shift;
+            const shift = Math.max(-48, Math.min(48, (centre - vh / 2) * d.depth));
+            if (Math.abs(shift - d.shift) < 0.05) return;
+            d.shift = shift;
+            d.el.style.transform = `translate3d(0, ${shift.toFixed(1)}px, 0)`;
+        });
 
         // Visible only near the end (the reveal starts around 0.88); 0.6
         // leaves a wide margin so no gesture can outrun the toggle. The
@@ -1060,14 +1335,14 @@ function bindScrollDriven(reduced: boolean): void {
             const stackLen = sc.cards.length * sc.per;
             if (
                 local > -vh * 0.2 &&
-                local < stackLen + sc.settle + sc.exitDist + sc.buffer
+                local < stackLen + sc.settle + sc.exitDist
             ) {
                 inShowcase = true;
             }
-            // Every value below is clamped: before 0 and past the arrow's
+            // Every value below is clamped: before 0 and past the pile's
             // exit it sits at its first or last state. Write that once, then
             // leave the showcase alone until the scroll brings it back.
-            const end = stackLen + sc.settle + sc.exitDist + sc.arrowDwell + sc.buffer;
+            const end = stackLen + sc.settle + sc.exitDist;
             const rested = local <= 0 ? "before" : local >= end ? "after" : null;
             if (rested && rested === sc.rested) continue;
             sc.rested = rested;
@@ -1099,6 +1374,7 @@ function bindScrollDriven(reduced: boolean): void {
                     // leaving: the title's chromatic split opens with it.
                     const drift = Math.max(1 - eased, gone / (window.innerWidth * 1.05));
                     card.style.setProperty("--drift", drift.toFixed(3));
+                    setLight(card, "settle", 1 - drift);
                     card.style.visibility = next >= 1 ? "hidden" : "";
                     return;
                 }
@@ -1127,8 +1403,7 @@ function bindScrollDriven(reduced: boolean): void {
 
             // Once the pile is complete (plus a settle beat) it exits left
             // as ONE object, at full opacity - pure motion; it passes
-            // behind the frosted sidebar - while the arrow rides in to
-            // take the stage.
+            // behind the sidebar - while the listing climbs in below.
             const e = Math.max(
                 0,
                 Math.min(1, (local - stackLen - sc.settle) / sc.exitDist),
@@ -1155,72 +1430,6 @@ function bindScrollDriven(reduced: boolean): void {
                 );
                 sc.headline.style.opacity = inO.toFixed(3);
             }
-
-            // The headline's // adopts the color of the arriving card
-            // (CSS transition handles the fade between).
-            if (sc.sigilEl && sc.cards.length) {
-                const active = Math.max(
-                    0,
-                    Math.min(sc.cards.length - 1, Math.floor(local / sc.per)),
-                );
-                const fc = sc.cards[active].style.getPropertyValue("--fc").trim();
-                if (fc) sc.sigilEl.style.color = `rgb(${fc})`;
-            }
-
-            // Finale arrow, assembled IN PLACE on the emptied stage and
-            // scrubbed by the exit progress (fully reversible): once the
-            // pile has cleared, the outline draws itself around the
-            // silhouette, the fill floods in, and the label stamps on.
-            // Then it exits the way it points: sliding down and fading as
-            // the section releases into the grid.
-            if (sc.arrowEl) {
-                const draw = Math.max(0, Math.min(1, (easedE - 0.38) / 0.3));
-                const flood = Math.max(0, Math.min(1, (easedE - 0.68) / 0.1));
-                if (sc.arrowPath) {
-                    sc.arrowPath.style.strokeDashoffset =
-                        String(sc.arrowLen * (1 - draw));
-                    sc.arrowPath.style.fillOpacity = flood.toFixed(3);
-                    // The stroke STAYS. An SVG stroke is centered on the path,
-                    // so it reaches half a stroke-width past the fill edge:
-                    // fading it out shrinks the silhouette, and the outline you
-                    // drew is visibly bigger than the arrow you end up with.
-                    // Keeping it at full opacity in the fill's own color makes
-                    // both states the same shape, and same-color-at-full-alpha
-                    // leaves no rim to give it away.
-                    sc.arrowPath.style.strokeOpacity = "1";
-                }
-                // Letters stamp on one at a time (M-O-R-E, then PROJECTS
-                // running down the leg) - hard on/off, like a typewriter.
-                // This is the widest window of the three phases: the label is
-                // the part worth reading, and it landed too fast to register
-                // when it shared a sliver of scroll with the flood.
-                const stamp = Math.max(0, Math.min(1, (easedE - 0.78) / 0.22));
-                const n = sc.arrowLetters.length || 1;
-                sc.arrowLetters.forEach((letter, i) => {
-                    letter.style.opacity = stamp * n >= i + 0.6 ? "1" : "0";
-                });
-
-                const e2 = Math.max(
-                    0,
-                    Math.min(
-                        1,
-                        (local - stackLen - sc.settle - sc.exitDist - sc.arrowDwell) /
-                            sc.buffer,
-                    ),
-                );
-                const eased2 = e2 * e2 * (3 - 2 * e2);
-                // Layout centers the arrow (arrowShift trues it up against
-                // the viewport); the engine only drives its exit.
-                sc.arrowEl.style.transform =
-                    `translate3d(${sc.arrowShift}px, ${(eased2 * vh * 0.35).toFixed(1)}px, 0)`;
-                sc.arrowEl.style.opacity = (1 - eased2).toFixed(3);
-                // One number for the arrow's time on stage: 0 as its fill
-                // floods in, 1 once it has left. clouds.ts uses it to know
-                // when the arrow is there to wear the sky's split.
-                const arrival = Math.max(0, Math.min(1, (easedE - 0.62) / 0.38));
-                sc.arrowEl.style.setProperty("--arrow-life", (arrival * 0.55 + e2 * 0.45).toFixed(4));
-            }
-
         }
         document.documentElement.classList.toggle("in-showcase", inShowcase);
 
@@ -1355,29 +1564,40 @@ function setupAnchors(): void {
             const target = document.querySelector<HTMLElement>(hash);
             if (!target) return;
             e.preventDefault();
-            if (lenis) {
-                // Walls stand down for the jump (safety timeout in case the
-                // scroll gets interrupted and onComplete never fires).
+            const main = document.querySelector<HTMLElement>("main");
+            if (lenis && main) {
+                // Rest behaviours stand down for the jump (safety timeout in
+                // case the scroll gets interrupted and onComplete never fires).
                 anchorBypass = true;
-                // Paced by distance, so a jump to the next section travels
-                // at ANCHOR_SPEED and a jump across the page takes at most
-                // ANCHOR_MAX_DURATION instead of tearing past every stage.
-                const distance = Math.abs(target.getBoundingClientRect().top);
-                const duration = Math.min(
-                    ANCHOR_MAX_DURATION,
-                    Math.max(0.6, distance / (ANCHOR_SPEED * layoutViewportH)),
-                );
-                const failsafe = window.setTimeout(() => (anchorBypass = false), duration * 1000 + 500);
-                lenis.scrollTo(target, {
-                    offset: 0,
-                    duration,
-                    easing: (t: number) =>
-                        t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
-                    onComplete: () => {
-                        window.clearTimeout(failsafe);
-                        anchorBypass = false;
-                    },
-                });
+                const failsafe = window.setTimeout(() => (anchorBypass = false), 3000);
+                const done = () => {
+                    window.clearTimeout(failsafe);
+                    anchorBypass = false;
+                };
+                const top = target.getBoundingClientRect().top;
+                if (Math.abs(top) > ANCHOR_FADE_JUMP * layoutViewportH) {
+                    // A long jump would tear past every stage on the way.
+                    // The page fades out, lands, and fades back in already
+                    // laid out for its new position (the jump's scroll event
+                    // runs the whole choreography once).
+                    main.style.transition = "opacity 150ms ease-out";
+                    main.style.opacity = "0";
+                    window.setTimeout(() => {
+                        lenis?.scrollTo(target, { immediate: true, force: true });
+                        requestAnimationFrame(() => {
+                            main.style.transition = "opacity 220ms ease-out";
+                            main.style.opacity = "";
+                            window.setTimeout(() => {
+                                main.style.transition = "";
+                                done();
+                            }, 220);
+                        });
+                    }, 150);
+                } else {
+                    // A short hop springs there: it starts the instant the
+                    // link is pressed and settles without overshoot.
+                    springTo(lenis.animatedScroll + top, 0.45, done);
+                }
             } else {
                 // No Lenis (phones, reduced motion): the browser's own glide,
                 // unless motion is to be kept still.
@@ -1440,19 +1660,41 @@ export function initSmoothScroll(): void {
     document.documentElement.classList.toggle("reduced-motion", reduced);
 
     if (!reduced) {
-        // Low lerp + slightly damped wheel = heavier, more deliberate glide.
         // Touch scrolling stays browser-owned. The animation RAF still runs,
-        // but no Lenis rest magnet can restart a completed mobile gesture.
+        // but no Lenis rest behaviour can restart a completed mobile gesture.
         if (isDesktop() && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+            // How sure the engine is that the wheel events come from a
+            // trackpad, 0..1. A trackpad streams small, often fractional
+            // pixel deltas every frame or two; a mouse wheel sends whole
+            // notches (or line-mode deltas), spaced apart. The score drifts
+            // with each event and fades during pauses, so the glide eases
+            // between the two settings instead of switching.
+            let trackpad = 0;
+            let lastWheel = 0;
             lenis = new Lenis({
                 lerp: SCROLL_LERP,
                 smoothWheel: true,
-                wheelMultiplier: 0.85,
+                wheelMultiplier: 1,
                 // Runs per wheel event, before the delta (multiplier already
                 // applied) reaches the target, and may rewrite it.
                 virtualScroll: (data) => {
                     if (!lenis) return true;
-                    const maxLead = (MAX_SCROLL_SPEED * layoutViewportH) / (SCROLL_LERP * 60);
+                    const event = data.event;
+                    if (event instanceof WheelEvent) {
+                        const now = performance.now();
+                        const gap = now - lastWheel;
+                        lastWheel = now;
+                        const size = Math.abs(event.deltaY);
+                        const fine = event.deltaMode === 0 && (size % 1 !== 0 || size < 50);
+                        trackpad *= Math.exp(-Math.max(0, gap - 50) / 400);
+                        trackpad += ((fine && gap < 120 ? 1 : 0) - trackpad) * 0.3;
+                        lenis.options.lerp = SCROLL_LERP + (TRACKPAD_LERP - SCROLL_LERP) * trackpad;
+                    }
+                    const target = lenis.targetScroll + data.deltaY;
+                    if (!crossesStage(lenis.animatedScroll, target)) return true;
+                    // Lenis damps the lead by 1 - e^-lerp per 60Hz frame.
+                    const perFrame = 1 - Math.exp(-lenis.options.lerp);
+                    const maxLead = (MAX_SCROLL_SPEED * layoutViewportH) / (60 * perFrame);
                     const lead = lenis.targetScroll - lenis.animatedScroll;
                     const next = Math.max(-maxLead, Math.min(maxLead, lead + data.deltaY));
                     data.deltaY = next - lead;
@@ -1467,10 +1709,12 @@ export function initSmoothScroll(): void {
             // background tab resumes.
             const frameScale = previousTime ? Math.min((time - previousTime) / (1000 / 60), 2) : 1;
             previousTime = time;
+            lightRead?.();
             lenis?.raf(time);
             tickMarquee(frameScale);
-            magnetTick?.();
+            restTick?.();
             parallaxTick?.();
+            lightWrite?.();
             rafId = requestAnimationFrame(raf);
         };
         rafId = requestAnimationFrame(raf);
@@ -1485,6 +1729,7 @@ export function initSmoothScroll(): void {
 
     setupWordReveals(reduced);
     setupMagnetic(reduced);
+    setupPointerLight(reduced);
     setupScrollSpy();
     setupAnchors();
     // Applies pin/stack heights against the final stretched layout.

@@ -19,8 +19,8 @@ const ICONS = {
 
 const links = [
     { label: "larsnilsandreas@pm.me", href: "mailto:larsnilsandreas@pm.me", icon: ICONS.mail, external: false },
-    { label: "github", href: "https://github.com/gaurgle/", icon: ICONS.github, external: true },
-    { label: "linkedin", href: "https://www.linkedin.com/in/andreasrooos/", icon: ICONS.linkedin, external: true },
+    { label: "GitHub", href: "https://github.com/gaurgle/", icon: ICONS.github, external: true },
+    { label: "LinkedIn", href: "https://www.linkedin.com/in/andreasrooos/", icon: ICONS.linkedin, external: true },
 ];
 ---
 
@@ -28,10 +28,10 @@ const links = [
      end. The stylesheet hides it until the scroll engine reveals it - keep
      it reachable without JS. -->
 <noscript><style>.contact-panel { visibility: visible; }</style></noscript>
-<div class="contact-panel" data-section="contact" data-hue="#ffb84d">
+<div class="contact-panel" data-section="contact">
     <div class="w-full max-w-6xl px-6 flex flex-col lg:flex-row items-center lg:justify-between gap-4 lg:gap-10">
         <!-- Form on the left -->
-        <div class="w-full max-w-xl">
+        <div class="w-full max-w-xl" data-lens>
             <ContactForm client:idle />
         </div>
 
@@ -39,7 +39,7 @@ const links = [
              the direct lines under it -->
         <div class="shrink-0 order-first lg:order-none flex flex-col items-center lg:items-start gap-3 lg:gap-6">
             <ChapterMark n="04" label="CONTACT"
-                         pre="say " accent="hello" color="#ffb84d"
+                         line1="Let's" line2="talk"
                          width="w-[min(11rem,50vw)] lg:w-[min(24rem,26vw)]" />
             <ul class="contact-links">
                 {links.map((l) => (
@@ -60,12 +60,12 @@ const links = [
 <script>
     import { sketchOnHover } from "../../lib/sketch";
 
-    // Direct lines: rough peach underline on hover, the chapter's colour
+    // Direct lines: the nav's rough underline on hover
     document.addEventListener("astro:page-load", () => {
         document.querySelectorAll("[data-contact-link]").forEach((el) => {
             if (el instanceof HTMLElement) {
                 sketchOnHover(el, {
-                    color: "#ffb84d",
+                    color: "rgb(184 197 214)",
                     type: "underline",
                     strokeWidth: 1.5,
                     padding: 3,

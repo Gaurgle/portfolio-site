@@ -23,7 +23,7 @@ const ROOS = `
 `;
 const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
 ---
-<BaseLayout title="Andreas Roos" current="/" revealFooter>
+<BaseLayout title="Andreas Roos | Software Developer" current="/" revealFooter>
     <ContactPanel slot="reveal-panel" />
 
     <!-- ================= HERO ================= -->
@@ -33,7 +33,6 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
          cloud, lifted in front as a curtain (clouds.ts), has nearly reached
          the camera (1.15vh): the first chapter is uncovered, not overlaid. -->
     <section id="home" data-section="home" data-pin="1" data-pin-mobile
-             data-hue="#8dffb0"
              class="relative -mt-[80px] md:-mt-[100px]">
         <!-- Full first screen on mobile (lvh: the screen with the browser
              bar hidden, matching the engine's pin height) so nothing peeks
@@ -94,7 +93,7 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
              opacity belongs to the scrubbed dissolve). -->
         <div class="hero-lines flex flex-col items-center">
         <!-- Separate words let the glitch shift them independently. -->
-        <p class="hero-tagline font-mono text-sm sm:text-base md:text-lg text-zinc-200 tracking-wide whitespace-nowrap -mt-2"><span class="hero-tag" style="--glitch-direction: -1">Backend</span> <span class="text-zinc-500">-</span> <span class="hero-tag" style="--glitch-direction: 0.7">Android</span> <span class="text-zinc-500">-</span> <span class="hero-tag" style="--glitch-direction: -0.6">Bluetooth LE</span> <span class="text-zinc-500">-</span> <span class="hero-tag" style="--glitch-direction: 1">Stockholm</span></p>
+        <p class="hero-tagline font-mono text-sm sm:text-base md:text-lg text-zinc-200 tracking-wide whitespace-nowrap -mt-2"><span class="hero-tag" style="--glitch-direction: -1">Developer</span> <span class="text-zinc-500">·</span> <span class="hero-tag" style="--glitch-direction: 0.7">Kotlin</span> <span class="text-zinc-500">·</span> <span class="hero-tag" style="--glitch-direction: -0.6">Android</span> <span class="text-zinc-500">·</span> <span class="hero-tag" style="--glitch-direction: 1">Stockholm</span></p>
         </div>
 
         </div>
@@ -109,16 +108,17 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
     <!-- ================= TECH MARQUEE ================= -->
     <!-- Unpinned: it reads as a palate-cleanser divider between the two big
          chapters, not a held moment - and every other section already pins. -->
-    <section class="relative py-8">
+    <!-- data-depth: the band runs a little ahead of the scroll, nearer than
+         the chapters around it (smoothScroll.ts, desktop). -->
+    <section class="relative py-8" data-depth="-0.05">
         <TechMarquee client:idle />
     </section>
 
     <!-- ================= PROJECTS ================= -->
     <!-- Desktop tail: the ls listing is short, and without this cushion it
-         would rest inside the contact reveal band (the magnet would pull
+         would rest inside the contact reveal band (the rest snap would pull
          the page away while the visitor reads the list) -->
     <section id="projects" data-section="projects"
-             data-hue="#46beff"
              class="relative max-w-6xl mx-auto px-4 pb-16 lg:pb-[30vh]">
         <!-- Flagship projects: pinned horizontal filmstrip; the 03 chapter
              mark lives inside the strip's viewport and gets pushed out by
@@ -127,20 +127,20 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
 
         <!-- ...then the rest, flowing freely: after the pinned filmstrip a
              plain-scrolling grid is the contrast that makes the pins land -->
-        <!-- Negative top margin on desktop: the grid climbs over the arrow's
-             tail while it is still fading out, so the two overlap instead of
-             handing off across a gap of empty scroll. -->
+        <!-- Negative top margin on desktop: the grid climbs in while the
+             last featured project is still sliding out, so the two overlap
+             instead of handing off across a gap of empty scroll. -->
         <!-- more-projects-stage: on wide screens the listing grows past the
              section's reading column (global.css), so the viewer's picture
              is sized for the screen and not for a 72rem page. -->
-        <!-- data-hold: once the listing arrives it stays put for a screen
-             and a half of scroll (desktop), so nobody flies past it on the
-             way to the contact panel. Seated high (data-hold-at): the
-             listing is nearly a screen tall and its last row must fit. -->
-        <div data-hold="0.8" data-hold-at="0.09" class="more-projects-stage relative z-10 mt-10 md:mt-[6vh] lg:-mt-[20vh]">
+        <!-- data-hold: once the listing arrives it stays put for a short
+             beat of scroll (desktop), so nobody flies past it on the way to
+             the contact panel. Seated high (data-hold-at): the listing is
+             nearly a screen tall and its last row must fit. -->
+        <div data-hold="0.4" data-hold-at="0.09" class="more-projects-stage relative z-10 mt-10 md:mt-[6vh] lg:-mt-[30vh]">
             <div data-hold-content>
-                <h3 class="font-bold uppercase tracking-[0.3em] text-xl md:text-2xl text-white/80 select-none mb-10">
-                    more projects<span class="text-ctp-blue">.</span>
+                <h3 data-depth="0.05" class="section-head uppercase tracking-[0.12em] text-xl md:text-2xl text-white/90 select-none mb-10">
+                    More projects
                 </h3>
                 <ProjectsGrid client:load />
             </div>
@@ -164,16 +164,23 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
      *  until the sky's shaders are compiled and the fonts have landed, so
      *  the rise never shares the GPU or its glyphs with that work. The
      *  ceiling is for a browser where the sky never reports in (no WebGL). */
-    const BLACK_FLOOR = 1000;
+    /** Reduced motion keeps no artificial floors: the screen stands only as
+     *  long as the page actually needs. */
+    const STILL = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const BLACK_FLOOR = STILL ? 0 : 1000;
     const BLACK_CEILING = 2500;
     /** From the start of the sweep until the world may fade in: the sweep,
      *  the reflection's lag and a beat with the mark standing (global.css). */
-    const RISE_FLOOR = 2300;
+    const RISE_FLOOR = STILL ? 0 : 2300;
     /** Longest the loading screen may stand in all, for a failed island or
      *  a picture that never arrives. */
     const LOADING_CEILING = 5000;
     /** How long the world takes to fade in around ROOS (global.css). */
     const REVEAL = 1400;
+    /** A visitor who scrolls during the loading screen skips the rest of
+     *  the rise: it plays out at speed and the world cross-fades in over
+     *  this long (global.css, is-skipping). */
+    const SKIP = 250;
 
     const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
     const once = (target: EventTarget, name: string) =>
@@ -210,11 +217,13 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
      *  `overflow: hidden` alone stops neither the smooth-scroll engine (it
      *  reads the wheel itself and scrolls from script) nor touch on iOS, so
      *  the input is swallowed before anything else sees it, and any scroll
-     *  that still gets through is put back. Returns the release. */
-    function holdScroll(): () => void {
+     *  that still gets through is put back. `onIntent` hears every swallowed
+     *  attempt to scroll. Returns the release. */
+    function holdScroll(onIntent: () => void): () => void {
         const swallow = (event: Event) => {
             event.preventDefault();
             event.stopImmediatePropagation();
+            onIntent();
         };
         const swallowKey = (event: KeyboardEvent) => {
             if (SCROLL_KEYS.has(event.key)) swallow(event);
@@ -239,7 +248,12 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
     document.addEventListener("astro:page-load", () => {
         const root = document.documentElement;
         if (!root.classList.contains("is-loading")) return;
-        const releaseScroll = holdScroll();
+        let skipRequested = false;
+        const releaseScroll = holdScroll(() => {
+            if (skipRequested) return;
+            skipRequested = true;
+            skip();
+        });
         // One listener: the event fires once, so it is awaited once and
         // shared by both gates below.
         const skyReady = once(document, "sky:ready");
@@ -257,23 +271,56 @@ const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
             root.classList.add("is-rising");
             return wait(RISE_FLOOR);
         });
-        // Gate two: the world fades in once the mark stands and everything
-        // the first scroll needs has arrived.
-        const ready = Promise.all([
-            risen,
+        // Everything the first scroll needs: the sky, the fonts, the
+        // islands and the first pictures. Only the mark's rise is theatre.
+        const prepared = Promise.all([
+            black,
             document.readyState === "complete" ? null : once(window, "load"),
             ...hydrated,
             ...featuredPictures.map((src) => warm(src, "high")),
         ]);
-        Promise.race([ready, wait(LOADING_CEILING)]).then(() => {
+        // Gate two: the world fades in once the mark stands and the page is
+        // prepared.
+        const ready = Promise.all([risen, prepared]);
+
+        let lifted = false;
+        const lift = (fade: number) => {
+            if (lifted) return;
+            lifted = true;
             releaseScroll();
             root.classList.add("is-rising", "is-revealing");
             root.classList.remove("is-loading");
             setTimeout(() => {
-                root.classList.remove("is-revealing", "is-rising");
+                root.classList.remove("is-revealing", "is-rising", "is-skipping");
                 laterPictures.forEach((src) => warm(src, "low"));
-            }, REVEAL);
-        });
+            }, fade);
+        };
+        Promise.race([ready, wait(LOADING_CEILING)]).then(() => lift(REVEAL));
+
+        /** The first wheel, swipe or scroll key skips ahead, as soon as the
+         *  page is prepared (at once, if it already is): the rise runs to its
+         *  end state at speed instead of jumping there, and the world
+         *  cross-fades in quickly. */
+        function skip() {
+            Promise.race([prepared, wait(LOADING_CEILING)]).then(() => {
+                if (lifted) return;
+                root.classList.add("is-rising", "is-skipping");
+                const home = document.getElementById("home");
+                const flash = document.getElementById("arrival-flash");
+                for (const animation of document.getAnimations()) {
+                    const target = (animation.effect as KeyframeEffect | null)?.target;
+                    if (!(target instanceof Element)) continue;
+                    if (!home?.contains(target) && target !== flash) continue;
+                    if (animation.playState !== "running") continue;
+                    const end = Number(animation.effect?.getComputedTiming().endTime);
+                    const remaining = end - Number(animation.currentTime ?? 0);
+                    if (Number.isFinite(remaining) && remaining > SKIP) {
+                        animation.playbackRate = remaining / SKIP;
+                    }
+                }
+                lift(SKIP);
+            });
+        }
     });
 
     document.addEventListener("astro:page-load", () => {
