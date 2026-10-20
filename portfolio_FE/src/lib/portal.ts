@@ -12,7 +12,8 @@
  * the border it wears the content's colours; further out they turn to
  * banded, metallic chrome (orange, rose, violet, electric blue, cyan: no
  * green or yellow, so it never reads as a rainbow). The threshold itself
- * never moves.
+ * never moves, but it buzzes, like the light beam under the sky's glitch
+ * (clouds.ts gives a cloud cut off by it a faint seam of the same chrome).
  *
  * The fluid is a small stable-fluids simulation (Stam, "Stable Fluids",
  * 1999): semi-Lagrangian advection, a viscosity blur, and a pressure solve
@@ -28,12 +29,12 @@
  * not measured as a whole every frame.
  */
 
-/** Never flares: the sky, the starfield and other decoration, and the
- *  chrome the portal belongs to. */
+/** Never flares: the sky, the starfield and other decoration, the ROOS
+ *  mark, and the chrome the portal belongs to. */
 const EXCLUDE = [
     "#sidebar", "header", "canvas", "script", "style", "noscript",
     ".particle-layers", ".portal-edge", ".cm-fringe",
-    ".hero-mark-ghost", ".hero-mark-ground", ".hero-mark-horizon",
+    ".hero-mark",
     "[data-sky]", "#secret-terminal",
 ].join(", ");
 /** How far of the content side is read, CSS px. */
@@ -187,6 +188,14 @@ void main() {
  *  body of the fluid ends, so it reads thick rather than as a haze. */
 const displaySource = common + `
 uniform sampler2D dye;
+// The buzz: the liquid shivers sideways along thin scanlines with its colours
+// pulled apart, like the light beam under the sky's glitch, only faster and
+// in passing bursts. CSS px; continuous in time, never a jump cut.
+float buzz(float y) {
+    float lines = sin(y * .9 + time * 53.) * .6 + sin(y * .23 - time * 37.) * .4;
+    float burst = smoothstep(.45, .85, noise(vec2(y * .012, time * 3.)));
+    return lines * burst * 2.5;
+}
 vec3 chrome(float h) {
     const vec3 stops[5] = vec3[5](vec3(1., .42, .06), vec3(1., .16, .5),
         vec3(.58, .2, 1.), vec3(.16, .44, 1.), vec3(.1, .92, 1.));
@@ -195,8 +204,10 @@ vec3 chrome(float h) {
     return mix(stops[i], stops[(i + 1) % 5], smoothstep(0., 1., fract(k)));
 }
 void main() {
-    vec2 split = vec2(texel.x * 1.2, 0.);
-    vec3 d = vec3(texture(dye, uv + split).r, texture(dye, uv).g, texture(dye, uv - split).b);
+    float b = buzz(py());
+    vec2 at = uv + vec2(b / view.x, 0.);
+    vec2 split = vec2(texel.x * 1.2 + abs(b) * .8 / view.x, 0.);
+    vec3 d = vec3(texture(dye, at + split).r, texture(dye, at).g, texture(dye, at - split).b);
     float l = luma(d);
     float x = abs(px()), y = py();
     float h = x * .006 + y * .0011 + time * .02;
@@ -206,15 +217,15 @@ void main() {
     vec3 metal = chrome(h + l * 1.8) * (.55 + .45 * cos(l * 9. + time * .4));
     vec3 c = mix(d, metal * l * 1.7, smoothstep(3., 45., x) * .85);
     // The rim: where the fluid's body falls away, its surface catches light.
-    vec3 lx = texture(dye, uv + vec2(texel.x, 0.)).rgb - texture(dye, uv - vec2(texel.x, 0.)).rgb;
-    vec3 ly = texture(dye, uv + vec2(0., texel.y)).rgb - texture(dye, uv - vec2(0., texel.y)).rgb;
+    vec3 lx = texture(dye, at + vec2(texel.x, 0.)).rgb - texture(dye, at - vec2(texel.x, 0.)).rgb;
+    vec3 ly = texture(dye, at + vec2(0., texel.y)).rgb - texture(dye, at - vec2(0., texel.y)).rgb;
     float rim = length(vec2(luma(lx), luma(ly)));
     c += chrome(h + .3) * rim * 1.6;
     // The coarse layer, only where there is light. A billowy texture like
     // the clouds', drifting slowly through the liquid.
-    vec2 at = vec2(px(), py());
-    float billow = noise(at * .05 + vec2(time * .05, 0.)) * .55
-        + noise(at * .11 - vec2(0., time * .07)) * .3 + noise(at * .23 + time * .04) * .15;
+    vec2 here = vec2(px(), py());
+    float billow = noise(here * .05 + vec2(time * .05, 0.)) * .55
+        + noise(here * .11 - vec2(0., time * .07)) * .3 + noise(here * .23 + time * .04) * .15;
     c *= .65 + .7 * billow;
     // Film grain in clumps of a couple of pixels, new every frame.
     vec2 clump = floor(gl_FragCoord.xy / 2.);

@@ -329,6 +329,9 @@ uniform float skyTime;
 uniform vec3 pointerLight;
 // How far the copy in front of the page leads the cloud while scrolling, uv.
 uniform float frontLead;
+// The portal at the sidebar's edge (portal.ts): x its uv, y the canvas's
+// height in CSS px; x is 0 where there is none.
+uniform vec2 portal;
 ${lensShape}
 out vec4 color;
 const float zoom=.2, displacement=.05, chromatic=.01;
@@ -420,6 +423,14 @@ float smoothNoise(vec2 p) {
     float d=fract(sin(dot(i+vec2(1.,1.),vec2(127.1,311.7)))*43758.5453);
     return mix(mix(a,b,w.x),mix(c,d,w.x),w.y);
 }
+// The portal's chrome (portal.ts): orange, rose, violet, electric blue, cyan.
+vec3 portalChrome(float h) {
+    const vec3 stops[5]=vec3[5](vec3(1.,.42,.06),vec3(1.,.16,.5),
+        vec3(.58,.2,1.),vec3(.16,.44,1.),vec3(.1,.92,1.));
+    float k=fract(h)*5.;
+    int i=int(k);
+    return mix(stops[i],stops[(i+1)%5],smoothstep(0.,1.,fract(k)));
+}
 void main() {
     vec2 uv=gl_FragCoord.xy/resolution;
     float aspect=resolution.x/resolution.y;
@@ -502,6 +513,32 @@ void main() {
     vec3 cloud=shaded.rgb*.85;
     float glare=dot(cloud,vec3(.2126,.7152,.0722));
     cloud*=mix(1.,1./(1.+glare/TEXT_KNEE),lens.x*TEXT_HOLD);
+    // The portal touches the sky too, barely: where a cloud is cut off by
+    // the sidebar's edge, that cut face catches a thin seam of the portal's
+    // chrome, split into its colours and buzzing like the beam's glitch. No
+    // flare and no trail: only the cloud's face at the border, while it is
+    // there.
+    if(portal.x>0. && layer==0) {
+        float y=(1.-uv.y)*portal.y, x=(uv.x-portal.x)*aspect*portal.y;
+        float lines=sin(y*.9+skyTime*53.)*.6+sin(y*.23-skyTime*37.)*.4;
+        float burst=.35+.65*smoothstep(.3,.8,smoothNoise(vec2(y*.015,skyTime*2.5)));
+        // The seam's depth, CSS px, shivering along the scanlines.
+        float face=x+lines*burst*1.5;
+        vec3 depth=max(vec3(face-1.5,face,face+1.5),0.);
+        // A little flare: some stretches reach further out, slowly changing,
+        // and wisps stream off them away from the border.
+        // Tongues with crisp tips, narrow along the border, and wisps with
+        // firm edges, so the flares read sharp rather than as a glow.
+        float reach=4.+12.*pow(smoothNoise(vec2(y*.06,skyTime*.6)),3.);
+        float wisp=smoothstep(.45,.7,smoothNoise(vec2(x*.09-skyTime*2.2,y*.12+skyTime*.3)));
+        vec3 tongue=1.-smoothstep(reach*.55,reach,depth);
+        vec3 seam=(exp(-depth/3.)+tongue*wisp*.6)*smoothstep(-1.5,1.5,x);
+        float density=smoothstep(.04,.4,raw.a);
+        // Grain like the portal's, new every frame; the sky's pixels are
+        // already about the size of the portal's clumps.
+        seam*=.7+.6*fract(sin(dot(floor(gl_FragCoord.xy)+fract(skyTime*7.13)*97.,vec2(127.1,311.7)))*43758.5453);
+        cloud+=portalChrome(y*.004+x*.02+skyTime*.08+body*.8)*seam*density*burst*(.75+.25*lines)*.45;
+    }
     vec4 sky=vec4(cloud+beam,max(raw.a*.85,beamAlpha));
     // Deep space keeps a breath of the same hue: a faint, slow nebular
     // wash, three or four levels above black at most.
@@ -756,7 +793,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     gl.bindFramebuffer(gl.FRAMEBUFFER,sceneBuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,sceneTexture,0);
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer","nightCap","fog","skyTint","skyTime","pointerLight","frontLead","lenses[0]","lensPower[0]","lensDim[0]",...opticalUniformNames].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
+    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer","nightCap","fog","skyTint","skyTime","pointerLight","frontLead","portal","lenses[0]","lensPower[0]","lensDim[0]",...opticalUniformNames].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
     gl.useProgram(chromaticProgram);
     gl.uniform1i(chromaticUniforms.scene,1);
     // The clear-space haze reads the clouds' noise volume, already on unit 0.
@@ -854,7 +891,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         (at<=calmFrom ? at : calmFrom+(Math.min(at,calmTo)-calmFrom)*CALM_PACE
             +Math.min(Math.max(0,at-calmTo),calmTail)*tailPace+Math.max(0,at-calmTo-calmTail))
         +journeyCatchUp(at)-aboutHold(at)-heroHold);
-    let width=0, height=0, frame=0, last=0, elapsed=0, disposed=false;
+    let width=0, height=0, frame=0, last=0, elapsed=0, disposed=false, portalEdge=0;
     const resize = () => {
         const w=canvas.clientWidth, h=canvas.clientHeight;
         if(w===width && (!desktop.matches || h===height)) return;
@@ -868,6 +905,8 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,canvas.width,canvas.height,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
         gl.activeTexture(gl.TEXTURE0);
         if(foreground) { foreground.width=canvas.width; foreground.height=canvas.height; }
+        const sidebar=document.getElementById("sidebar")?.getBoundingClientRect();
+        portalEdge=sidebar && sidebar.right>0 ? (sidebar.right-1.5-canvas.getBoundingClientRect().left)/width : 0;
         last=0;
     };
     let previousScroll=-1, previousPageScroll=-1;
@@ -1310,6 +1349,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         gl.uniform1f(chromaticUniforms.skyTime,chroma.time);
         gl.uniform3f(chromaticUniforms.pointerLight,pointerAt?.x ?? .5,pointerAt?.y ?? .5,sky.light);
         gl.uniform1f(chromaticUniforms.frontLead,motion ? sky.lead*.012 : 0);
+        gl.uniform2f(chromaticUniforms.portal,desktop.matches && motion ? portalEdge : 0,height);
         if(starfield) {
             // The same slow curvature the sky is bent by, at the screen's
             // centre, in px (a pixel or two), plus the hue as an rgb colour.
