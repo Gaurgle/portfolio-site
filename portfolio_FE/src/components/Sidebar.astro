@@ -5,12 +5,13 @@ import SidebarNav from "./SidebarNav";
 <!-- Phones: a drawer that slides in over a scrim (SidebarToggle owns the
      open state, aria-hidden and inert). Desktop: always there, a flat dark
      column exactly as wide as the clearance the page keeps for it (9.5rem),
-     flush to the screen's edges, with no border. -->
+     flush to the screen's edges, with no border, only a 3px fade at its
+     right edge (global.css). -->
 <aside
     id="sidebar"
     class="fixed left-0 top-0
      z-40 h-screen w-[72vw] max-w-[20rem] lg:w-[9.5rem] lg:max-w-none
-     bg-black/[0.96] lg:bg-black/[0.62]
+     bg-black/[0.96]
      transform transition-transform duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)]
      touch-pan-y lg:touch-auto
      -translate-x-full lg:translate-x-0">

@@ -833,17 +833,20 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const journeyCatchUp=(at: number)=>stopsExtra*clamp01((at-stopsFrom)/Math.max(stopsTo-stopsFrom,1e-3));
     // The weather was composed against an about chapter about 1.4 screens
     // long, scrolling past. It now pins its passages like the journey and
-    // runs longer; the weather waits out the difference while it is pinned
-    // (aboutFrom..aboutTo, in screens of scroll), so the clouds after it
+    // runs longer, so the weather gives up the difference on the way in
+    // (from the top of the page to the pin, aboutFrom, in screens of
+    // scroll), while the hero still fills the screen. Through the pin itself
+    // it runs at full pace, so its clouds pass behind the text as they do
+    // in the journey instead of hanging there, and the clouds after it
     // still meet the content they were placed for.
     const aboutStack=document.querySelector<HTMLElement>("#about [data-cardstack]");
     const COMPOSED_ABOUT=1.4;
-    let aboutFrom=Infinity, aboutTo=Infinity, aboutExtra=0;
-    const aboutHold=(at: number)=>aboutExtra*clamp01((at-aboutFrom)/Math.max(aboutTo-aboutFrom,1e-3));
-    /** Scroll as the weather experiences it: continuous, held through the
-     *  about pin's extra length, made up over the journey's stops, slowed
-     *  in the strip, hurried over its tail, and started once the hero has
-     *  let go of the page. */
+    let aboutFrom=Infinity, aboutExtra=0;
+    const aboutHold=(at: number)=>aboutExtra*clamp01(at/Math.max(aboutFrom,1e-3));
+    /** Scroll as the weather experiences it: continuous, slowed on the way
+     *  into the about pin by its extra length, made up over the journey's
+     *  stops, slowed in the strip, hurried over its tail, and started once
+     *  the hero has let go of the page. */
     const weatherScroll=(at: number)=>Math.max(0,
         (at<=calmFrom ? at : calmFrom+(Math.min(at,calmTo)-calmFrom)*CALM_PACE
             +Math.min(Math.max(0,at-calmTo),calmTail)*tailPace+Math.max(0,at-calmTo-calmTail))
@@ -1005,7 +1008,6 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             if(aboutStack) {
                 const box=aboutStack.getBoundingClientRect();
                 aboutFrom=scroll+box.top/height;
-                aboutTo=Math.max(aboutFrom,scroll+box.bottom/height-1);
                 aboutExtra=Math.max(0,box.height/height-COMPOSED_ABOUT);
             }
             if(journeyStack && journeyStops>0) {

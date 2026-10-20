@@ -478,8 +478,8 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
 }
 
 
-/* Header shade: flat behind the bar, then a short fade at its bottom edge,
-   so the edge reads clean without a hard line. Phones run it darker: the
+/* Header shade: flat behind the bar, then a 3px fade at its bottom edge,
+   so the edge reads crisp without a hard line. Phones run it darker: the
    icons there sit right over text scrolling under them. On desktop it
    starts where the sidebar column ends, so the two never stack. */
 #site-header::before {
@@ -489,7 +489,7 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     z-index: -1;
     pointer-events: none;
     background: linear-gradient(to bottom,
-        rgb(0 0 0 / var(--shade)) calc(100% - 0.75rem), transparent);
+        rgb(0 0 0 / var(--shade)) calc(100% - 3px), transparent);
     --shade: 0.9;
 }
 @media (min-width: 768px) {
@@ -500,6 +500,11 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
 @media (min-width: 1024px) {
     #site-header::before {
         left: 9.5rem;
+    }
+    /* The sidebar column: the same shade, the same 3px edge. */
+    #sidebar {
+        background: linear-gradient(to right,
+            rgb(0 0 0 / 0.62) calc(100% - 3px), transparent);
     }
 }
 
@@ -1538,10 +1543,10 @@ html.reduced-motion .chapter-mark text.cm-num {
     text-shadow: var(--halo);
 }
 /* Contents of the journey, set under the chapter mark like a book's: the
-   four stops, numbered in the mark's own face. A point of light glides
-   beside them with the flight (--stop-at, smoothScroll.ts focusStack), so
-   where you are and how far is left read at a glance, and each entry flies
-   to its stop. Desktop only; the phone stage has no room beside the mark. */
+   four stops, numbered in the mark's own face, along a thin line. A
+   brighter stretch of the line glides with the flight (--stop-at,
+   smoothScroll.ts focusStack), so where you are and how far is left read
+   at a glance, and each entry flies to its stop. Desktop only; the phone stage has no room beside the mark. */
 .stop-contents {
     --row: 1.9em;
     display: none;
@@ -1552,19 +1557,26 @@ html.reduced-motion .chapter-mark text.cm-num {
     line-height: var(--row);
     color: rgb(161 161 170); /* zinc-400 */
 }
-/* The pointer: a small point of light at the stop in focus, gliding
-   between stops as the flight moves on. */
+/* The line, and the lit stretch of it: one row tall, at the stop in focus
+   and gliding between stops as the flight moves on. */
+.stop-contents::before,
 .stop-contents::after {
     content: "";
     position: absolute;
     left: 0;
-    top: calc(var(--row) / 2 - 2.5px);
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
+    top: 0;
+    width: 2px;
+    border-radius: 1px;
     pointer-events: none;
+}
+.stop-contents::before {
+    height: 100%;
+    background: rgb(255 255 255 / 0.14);
+}
+.stop-contents::after {
+    height: var(--row);
     background: var(--cloud);
-    box-shadow: 0 0 6px rgb(240 243 247 / 0.8), 0 0 14px rgb(184 197 214 / 0.5);
+    box-shadow: 0 0 8px rgb(240 243 247 / 0.5);
     transform: translateY(calc(var(--stop-at, 0) * var(--row)));
 }
 .stop-contents li {
