@@ -477,33 +477,12 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     transform: translateY(0);
 }
 
-/* About passages: loose text in the sky, no panel. The clouds' lens pass
-   clears the sky behind it (data-lens); the halo covers what is left. */
-.signal-copy {
-    font-size: var(--copy-size);
-    line-height: var(--copy-leading);
-    color: rgb(244 244 245); /* zinc-100 */
-    text-shadow: var(--halo);
-}
-/* Words arrive the way the prism's light does: split into a red and a blue
-   copy far apart, converging into one white word. Two shadows on both ends
-   so the split eases into the halo instead of switching. */
-.signal .wr-w {
-    text-shadow: -0.4em 0 0 rgb(255 70 90 / 0.85), 0.4em 0 0 rgb(70 190 255 / 0.85);
-    transition:
-        opacity 0.5s ease,
-        transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
-        text-shadow 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-    transition-delay: calc(var(--wi, 0) * 16ms);
-}
-.signal[data-reveal].is-visible .wr-w {
-    text-shadow: var(--halo);
-}
 
-/* Desktop sidebar: one fixed dark shade along the left edge keeps the nav
-   legible when a cloud drifts behind it, fading out past the column instead
-   of ending in a vertical line. A plain gradient, not a backdrop blur: it
-   costs nothing over the animated sky. */
+/* Desktop sidebar: a floating pane of dark glass, inset from the screen's
+   edges, with a clean edge instead of a shade fading into the page. The
+   light catches its top rim and the glass deepens toward the bottom, so it
+   reads as a material standing over the sky. No backdrop blur: over the
+   animated sky that would re-filter the canvas every frame. */
 @media (min-width: 1024px) {
     #sidebar {
         isolation: isolate;
@@ -511,32 +490,31 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     #sidebar::before {
         content: "";
         position: absolute;
-        inset: 0 -3rem 0 0;
+        inset: 0.75rem;
         z-index: -1;
         pointer-events: none;
-        /* Held under the links, then a short eased falloff just past the
-           column (close to a smoothstep), so over a bright cloud the shade
-           neither smears far into the page nor ends in a vertical line. */
-        background: linear-gradient(to right,
-            rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.58) 55%, rgb(0 0 0 / 0.45) 70%,
-            rgb(0 0 0 / 0.25) 82%, rgb(0 0 0 / 0.09) 92%, rgb(0 0 0 / 0.02) 97%, transparent);
+        border-radius: 1.25rem;
+        border: 1px solid rgb(255 255 255 / 0.09);
+        background:
+            linear-gradient(to bottom, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0) 30%),
+            linear-gradient(to bottom, rgb(12 12 16 / 0.62), rgb(6 6 9 / 0.78));
+        box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 0.12),
+            0 12px 40px rgb(0 0 0 / 0.45);
     }
 }
 
-/* Phone header: solid enough behind the icons that text scrolling under
-   them drops away, then an eased falloff a little past the bar, so the
-   shade never shows where it ends. It reaches below the header without
-   catching taps there. */
+/* Phone header: dark behind the icons so text scrolling under them drops
+   away, and a short falloff at the bar's own bottom edge. */
 @media (max-width: 767px) {
     #site-header::before {
         content: "";
         position: absolute;
-        inset: 0 0 -1.5rem 0;
+        inset: 0;
         z-index: -1;
         pointer-events: none;
         background: linear-gradient(to bottom,
-            rgb(0 0 0 / 0.92), rgb(0 0 0 / 0.86) 40%, rgb(0 0 0 / 0.6) 62%,
-            rgb(0 0 0 / 0.28) 80%, rgb(0 0 0 / 0.08) 92%, transparent);
+            rgb(0 0 0 / 0.92), rgb(0 0 0 / 0.88) 65%, rgb(0 0 0 / 0.5) 85%, transparent);
     }
 }
 
@@ -790,21 +768,6 @@ html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .lenis.lenis-stopped { overflow: hidden; }
 
-/* Reveal-on-scroll: hidden until observed, then reuse the fade-up keyframe */
-[data-reveal] {
-    opacity: 0;
-    transform: translateY(20px);
-    will-change: opacity, transform;
-}
-[data-reveal].is-visible {
-    animation: fade-up 0.6s ease-out forwards;
-}
-[data-reveal-delay="1"].is-visible { animation-delay: 0.08s; }
-[data-reveal-delay="2"].is-visible { animation-delay: 0.16s; }
-[data-reveal-delay="3"].is-visible { animation-delay: 0.24s; }
-[data-reveal-delay="4"].is-visible { animation-delay: 0.32s; }
-[data-reveal-delay="5"].is-visible { animation-delay: 0.40s; }
-[data-reveal-delay="6"].is-visible { animation-delay: 0.48s; }
 
 /* Film grain: fixed layer jittered by stepped transforms (compositor-only -
    the texture itself is painted once). The noise tiles every 220px, so any
@@ -1108,29 +1071,6 @@ html.reduced-motion .chapter-mark text.cm-num {
     left: 0;
 }
 
-/* Word reveals: [data-word-reveal] text is split into .wr-w spans by the
-   engine; they rise in staggered once the surrounding [data-reveal] card
-   turns visible. Untouched (plain text) without JS. */
-.wr-w {
-    display: inline-block;
-    opacity: 0;
-    transform: translateY(0.55em);
-    transition:
-        opacity 0.45s ease,
-        transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-    transition-delay: calc(var(--wi, 0) * 18ms);
-}
-[data-reveal].is-visible .wr-w {
-    opacity: 1;
-    transform: none;
-}
-@media (prefers-reduced-motion: reduce) {
-    .wr-w {
-        opacity: 1 !important;
-        transform: none !important;
-        transition: none !important;
-    }
-}
 
 /* Sidebar nav: links rest in a soft grey. Hovered, or while its section is
    active (.spy-active, set by the scroll spy), the word brightens to cloud
@@ -1478,10 +1418,10 @@ html.reduced-motion .chapter-mark text.cm-num {
    the exit is ROOS's own (inflate, soften, gone), so the whole page shares
    one way of moving past things. Nothing here has a surface: the sky is
    cleared behind the text by the clouds' lens pass (data-lens). */
-.journey-stack {
+.flight-stack {
     position: relative;
 }
-.journey-stack .journey-viewport {
+.flight-stack .flight-viewport {
     position: sticky;
     top: 0;
     overflow: hidden;
@@ -1489,7 +1429,7 @@ html.reduced-motion .chapter-mark text.cm-num {
     align-items: center;
     justify-content: center;
 }
-.journey-stack .stack-area {
+.flight-stack .stack-area {
     position: relative;
 }
 /* The flight's per-card values are only read on the card that carries
@@ -1533,9 +1473,11 @@ html.reduced-motion .chapter-mark text.cm-num {
     --exit: calc(var(--passed) * var(--passed));
     position: absolute;
     inset: 0;
+    /* Seated at the top of the stage, so every stop's headline lands on the
+       same line, whatever its length. */
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     opacity: calc(1 + var(--ahead) * 1.2 - var(--passed) * 1.5);
     /* Grows from its left edge, away from the chapter mark beside it. */
     transform:
@@ -1603,18 +1545,62 @@ html.reduced-motion .chapter-mark text.cm-num {
     text-shadow: var(--halo);
 }
 /* Contents of the journey, set under the chapter mark like a book's: the
-   four stops in plain type, the current one lit. Desktop only; the phone
-   stage has no room beside the mark. */
+   four stops, numbered, along a rail. A pointer rides the rail with the
+   flight (--stop-at, smoothScroll.ts focusStack), so where you are and how
+   far is left read at a glance, and each entry flies to its stop. Desktop
+   only; the phone stage has no room beside the mark. */
 .stop-contents {
+    --row: 1.9em;
     display: none;
+    position: relative;
     margin-top: 2.25rem;
+    padding-left: 1rem;
     font-size: 0.95rem;
-    line-height: 1.9;
+    line-height: var(--row);
     color: rgb(161 161 170); /* zinc-400 */
+}
+/* The rail, and the pointer on it: one row tall, at the stop in focus and
+   gliding between stops as the flight moves on. */
+.stop-contents::before,
+.stop-contents::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 2px;
+    border-radius: 1px;
+    pointer-events: none;
+}
+.stop-contents::before {
+    height: 100%;
+    background: rgb(255 255 255 / 0.14);
+}
+.stop-contents::after {
+    height: var(--row);
+    background: var(--cloud);
+    box-shadow: 0 0 8px rgb(240 243 247 / 0.5);
+    transform: translateY(calc(var(--stop-at, 0) * 100%));
 }
 .stop-contents li {
     transition: color 0.4s ease, text-shadow 0.4s ease;
     text-shadow: 0 0 10px rgb(0 0 0 / 0.8);
+}
+.stop-contents button {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    color: inherit;
+    cursor: pointer;
+}
+.stop-contents .stop-n {
+    font-family: theme("fontFamily.mono");
+    font-size: 0.75em;
+    opacity: 0.6;
+}
+@media (hover: hover) and (pointer: fine) {
+    .stop-contents li:not(.is-current):not(.on-cloud) button:hover {
+        color: rgb(228 228 231); /* zinc-200 */
+    }
 }
 /* A bright cloud is behind this entry (clouds.ts reads the sky): dark ink,
    with a light halo where the cloud's own shadows would swallow it. */
@@ -1625,14 +1611,14 @@ html.reduced-motion .chapter-mark text.cm-num {
 .stop-contents li.on-cloud.is-current {
     color: #000;
 }
-.stop-contents li::first-letter {
-    text-transform: uppercase;
+.stop-contents button {
+    text-transform: capitalize;
 }
 .stop-contents .is-current {
     color: var(--cloud);
 }
 @media (min-width: 1024px) {
-    .journey-stack .journey-viewport {
+    .flight-stack .flight-viewport {
         height: 100vh;
         /* Clear the fixed sidebar: without this the centered composition
            slides under the nav (the numeral over the links, the headline's
@@ -1642,10 +1628,13 @@ html.reduced-motion .chapter-mark text.cm-num {
     /* Mark + stage are sized against the column right of the sidebar
        (100vw - 9.5rem), not the full viewport, so the pinned row fits
        from 1024px up without hiding under the nav */
-    .journey-stack .chapter-mark {
-        width: min(24rem, calc((100vw - 9.5rem) * 0.28));
+    .flight-stack {
+        --mark-w: min(24rem, calc((100vw - 9.5rem) * 0.28));
     }
-    .journey-stack .stack-area {
+    .flight-stack .chapter-mark {
+        width: var(--mark-w);
+    }
+    .flight-stack .stack-area {
         width: min(42rem, calc((100vw - 9.5rem) * 0.46));
         height: min(34rem, 70vh);
     }
@@ -1658,24 +1647,42 @@ html.reduced-motion .chapter-mark text.cm-num {
     .stop-contents {
         display: block;
     }
+    /* In flight, the eyebrow hangs above its headline, so the headline
+       itself stands flush with the top of the mark beside it. Laid out in
+       flow (reduced motion) it simply leads its stop. */
+    /* Optical flush, capitals to digits: the numeral's digits start a
+       little below the top of their box (about 2.6% of the mark's width),
+       and the headline's capitals sit a little below its own (its tight
+       leading). Ascenders (f, b, k) rise above the line, as they should. */
+    html:not(.reduced-motion) .beam-head {
+        position: relative;
+        /* The headline's own size (.beam-title), so em is its em. */
+        font-size: clamp(2rem, 3.9vw, 3.75rem);
+        margin-top: calc(var(--mark-w, 0px) * 0.026 - 0.09em);
+    }
+    html:not(.reduced-motion) .beam-head .passage-head {
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+    }
 }
 /* Mobile: the same flight on a narrower stage under the compact mark. */
 @media (max-width: 1023px) {
-    .journey-stack .journey-viewport {
+    .flight-stack .flight-viewport {
         /* lvh: see .hscroll-viewport. Must match measureViewportHeight. */
         height: 100lvh;
         /* Match the available screen, reserving space for the fixed header. */
         padding-top: 5rem;
         padding-bottom: 1rem;
     }
-    .journey-stack .journey-viewport > div {
+    .flight-stack .flight-viewport > div {
         height: 100%;
         min-height: 0;
         padding-top: 0;
         padding-bottom: 0;
         justify-content: center;
     }
-    .journey-stack .stack-area {
+    .flight-stack .stack-area {
         width: 100%;
         height: clamp(22rem, calc(100svh - 10.5rem), 34rem);
         flex-shrink: 0;
@@ -1937,8 +1944,8 @@ html.reduced-motion .beam-stop {
 .tech-marquee {
     overflow: hidden;
     padding: 4rem 0;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
 }
 [data-marquee-track] {
     display: flex;
@@ -2209,7 +2216,6 @@ html[data-section="contact"] .site-socials {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    [data-reveal],
     [data-hero-scrub] .hero-boom,
     [data-hero-scrub] .hero-tagline,
     [data-hero-scrub] .hero-tag {

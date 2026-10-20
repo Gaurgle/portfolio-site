@@ -29,12 +29,13 @@ const ROW_HEIGHT = "(3.75rem + 1px)";
  *  so the description sits up beside the listing on wide screens too. */
 const PREVIEW_ROWS = 10;
 /** The frame's shape is the screenshots' own (terminal captures, ~16:10),
- *  so a picture fills it instead of leaving dead air above the copy. An
- *  explicit height (cqw: the viewer column is the container), not
+ *  so a picture fills it instead of leaving dead air above the copy. Its
+ *  height is rounded down to whole rows, so its bottom edge lies on a row's
+ *  line. An explicit height (cqw: the viewer column is the container), not
  *  aspect-ratio: WebKit leaves the img's max-height: 100% unresolved
  *  against an aspect-ratio height. */
 const viewerFrame = {
-    height: `min(100cqw * 936 / 1521, ${PREVIEW_ROWS} * ${ROW_HEIGHT} + 1px)`,
+    height: `min(round(down, 100cqw * 936 / 1521 - 1px, ${ROW_HEIGHT}) + 1px, ${PREVIEW_ROWS} * ${ROW_HEIGHT} + 1px)`,
 };
 
 export default function ProjectsGrid() {

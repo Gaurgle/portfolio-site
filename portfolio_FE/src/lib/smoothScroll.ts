@@ -123,136 +123,6 @@ function springTo(target: number, response: number, onComplete?: () => void): vo
 }
 
 /* ------------------------------------------------------------------ */
-/* Reveal on scroll (one-shot)                                         */
-/* ------------------------------------------------------------------ */
-
-function setupReveal(): void {
-    const els = document.querySelectorAll<HTMLElement>("[data-reveal]");
-    if (!els.length) return;
-
-    const io = new IntersectionObserver(
-        (entries) => {
-            for (const entry of entries) {
-                if (!entry.isIntersecting) continue;
-                entry.target.classList.add("is-visible");
-                io.unobserve(entry.target);
-            }
-        },
-        { threshold: 0.15, rootMargin: "0px 0px -8% 0px" },
-    );
-
-    els.forEach((el) => io.observe(el));
-    observers.push(io);
-}
-
-/* ------------------------------------------------------------------ */
-/* Word reveals                                                        */
-/* ------------------------------------------------------------------ */
-
-/**
- * `[data-word-reveal]` text splits into word spans that rise in with a
- * stagger once the surrounding `[data-reveal]` card becomes visible (the
- * reveal IO adds .is-visible; CSS does the rest). Walks text nodes only,
- * so nested markup - like the rough-notation spans - stays intact.
- */
-function setupWordReveals(reduced: boolean): void {
-    if (reduced) return;
-    const els = document.querySelectorAll<HTMLElement>(
-        "[data-word-reveal]:not([data-wr-done])",
-    );
-    for (const el of els) {
-        el.setAttribute("data-wr-done", "");
-        let wi = 0;
-        const walk = (node: Node) => {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                [...node.childNodes].forEach(walk);
-                return;
-            }
-            if (node.nodeType !== Node.TEXT_NODE) return;
-            const text = node.textContent ?? "";
-            if (!text.trim()) return;
-            const frag = document.createDocumentFragment();
-            // A text node that opens with punctuation and no leading space is
-            // the tail of the element before it: the "." in
-            // "<span>IMRSV Music</span>." lives in a separate text node from
-            // the name it terminates. Remembered here so it can be tied back
-            // to that element once the fragment is in the document.
-            const opensWithPunctuation = /^[^\s\p{L}\p{N}]/u.test(text);
-            let leadPunctuation: HTMLElement | null = null;
-
-            for (const part of text.split(/(\s+)/)) {
-                if (!part) continue;
-                if (/^\s+$/.test(part)) {
-                    frag.appendChild(document.createTextNode(part));
-                } else {
-                    const span = document.createElement("span");
-                    span.className = "wr-w";
-                    // Punctuation stranded by the split - the "." after an
-                    // annotated name, the "," between two of them, the "/" in
-                    // "Spring Boot/Ktor" - is its own text node and would
-                    // otherwise get its own stagger index and rise a beat
-                    // after the word it belongs to, reading as a misplaced
-                    // mark. Reuse the previous word's index so it travels with
-                    // its word instead of trailing it.
-                    const isPunctuation = !/[\p{L}\p{N}]/u.test(part);
-                    if (isPunctuation && wi > 0) {
-                        span.style.setProperty("--wi", String(Math.min(wi - 1, 45)));
-                    } else {
-                        // Delay cap: very long paragraphs finish together at
-                        // the tail instead of dripping in for seconds.
-                        span.style.setProperty("--wi", String(Math.min(wi++, 45)));
-                    }
-                    span.textContent = part;
-                    if (isPunctuation && opensWithPunctuation && !frag.firstChild) {
-                        leadPunctuation = span;
-                    }
-                    frag.appendChild(span);
-                }
-            }
-
-            const parent = node.parentNode;
-            parent?.replaceChild(frag, node);
-
-            // Every .wr-w is display:inline-block, and the line breaker allows
-            // a break after any atomic inline - so a "." that follows an
-            // annotated name can start the next line on its own. Measured: it
-            // orphans at ~1% of container widths, which is why it only showed
-            // up at one specific viewport. A word joiner does NOT prevent it.
-            // Tying the element and its punctuation into a nowrap shell does.
-            if (leadPunctuation && parent) {
-                // Walk back past any rough-notation overlay: it injects its
-                // <svg> as a sibling directly after the word it annotates, so
-                // the naive previousSibling is the drawing, not the text.
-                let anchor: Node | null = leadPunctuation.previousSibling;
-                while (
-                    anchor &&
-                    anchor.nodeType === Node.ELEMENT_NODE &&
-                    (anchor as Element).classList?.contains("rough-annotation")
-                ) {
-                    anchor = anchor.previousSibling;
-                }
-
-                if (anchor && anchor.nodeType === Node.ELEMENT_NODE) {
-                    const shell = document.createElement("span");
-                    shell.style.whiteSpace = "nowrap";
-                    parent.insertBefore(shell, anchor);
-                    // Move the whole run, anchor through punctuation, so any
-                    // overlay in between keeps its position in the order.
-                    let cursor: Node | null = anchor;
-                    while (cursor) {
-                        const next: Node | null = cursor.nextSibling;
-                        shell.appendChild(cursor);
-                        if (cursor === leadPunctuation) break;
-                        cursor = next;
-                    }
-                }
-            }
-        };
-        [...el.childNodes].forEach(walk);
-    }
-}
-
-/* ------------------------------------------------------------------ */
 /* Magnetic hover                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -486,7 +356,8 @@ type CardStack = {
      *  visitor through them, one in focus at a time. */
     focus: boolean;
     /** Focus stacks: the `[data-stack-contents]` entries naming each card, in
-     *  order. The one in focus is marked `is-current`. */
+     *  order. The one in focus is marked `is-current`; the list carries the
+     *  continuous position as `--stop-at` for its pointer. */
     contents: HTMLElement[];
 };
 
@@ -512,7 +383,7 @@ function measureCardStacks(): CardStack[] {
         // this much vertical scroll before/after the landing sequence.
         const buffer = Math.round(layoutViewportH * (desktop ? 0.45 : 0.3));
         // Cascade offset per card. Desktop: diagonal coaster pile (keep in
-        // sync with .journey-stack CSS vars). Mobile: a slim vertical deck -
+        // sync with .flight-stack CSS vars). Mobile: a slim vertical deck -
         // each landing card covers the pile, leaving a 10px edge per card.
         const offX = desktop ? parseFloat(section.dataset.offX ?? "26") : 0;
         const offY = desktop ? parseFloat(section.dataset.offY ?? "48") : 10;
@@ -558,7 +429,7 @@ function layoutStatic(): void {
     style("[data-pin], [data-cardstack], [data-hscroll]", { height: "auto" });
 
     // Pinned viewports: stop sticking, stop clipping, stop reserving a screen.
-    style(".pin-viewport, .journey-viewport, .hscroll-viewport", {
+    style(".pin-viewport, .flight-viewport, .hscroll-viewport", {
         position: "static",
         height: "auto",
         overflow: "visible",
@@ -855,7 +726,7 @@ function measureMarkDrifts(): MarkDrift[] {
     // residual drift transform from an earlier measure.
     all.forEach((el) => (el.style.transform = ""));
     return all
-        .filter((el) => !el.closest(".contact-panel, .journey-stack, .hscroll-pin"))
+        .filter((el) => !el.closest(".contact-panel, .flight-stack, .hscroll-pin"))
         .map((el) => {
             const r = el.getBoundingClientRect();
             // "Settled" once the mark's top passes ~72% of the viewport -
@@ -900,7 +771,13 @@ const FOCUS_HANDOVER = 0.5;
 function focusStack(s: CardStack, local: number): void {
     const position = Math.max(0, Math.min(s.cards.length - 1, local / s.per));
     const current = Math.round(position);
-    s.contents.forEach((entry, i) => entry.classList.toggle("is-current", i === current));
+    s.contents.forEach((entry, i) => {
+        entry.classList.toggle("is-current", i === current);
+        const button = entry.querySelector("button");
+        if (i === current) button?.setAttribute("aria-current", "step");
+        else button?.removeAttribute("aria-current");
+    });
+    s.contents[0]?.parentElement?.style.setProperty("--stop-at", position.toFixed(3));
     s.cards.forEach((card, i) => {
         const offset = position - i;
         const travel = Math.max(0, Math.abs(offset) - FOCUS_DWELL) / (FOCUS_HANDOVER - FOCUS_DWELL);
@@ -981,6 +858,19 @@ function bindScrollDriven(reduced: boolean): void {
     // so they must be applied before any position is measured.
     if (!reduced) applyPins();
     let stacks = reduced ? [] : measureCardStacks();
+
+    // A focus stack's contents entry flies to its card: the scroll at which
+    // that card stands in focus.
+    const onContents = (e: Event) => {
+        const entry = (e.target as Element | null)?.closest<HTMLElement>("[data-stack-contents] > *");
+        const s = entry && stacks.find((st) => st.contents.includes(entry));
+        if (!entry || !s) return;
+        const target = s.top + s.buffer + s.contents.indexOf(entry) * s.per;
+        if (lenis) springTo(target, 0.6);
+        else window.scrollTo({ top: target, behavior: "smooth" });
+    };
+    document.addEventListener("click", onContents);
+    cleanups.push(() => document.removeEventListener("click", onContents));
     let showcases = reduced ? [] : measureShowcases();
     let markDrifts = reduced ? [] : measureMarkDrifts();
     let holds = reduced ? [] : measureHolds();
@@ -1166,14 +1056,6 @@ function bindScrollDriven(reduced: boolean): void {
         document.fonts?.ready.then(() => alive && remeasure());
     }
 
-    // Depth-of-field cards: full presence near the viewport center, fading
-    // toward the edges (about cards use this to take turns in focus).
-    // Opacity only: animating blur() on cards that also carry a backdrop
-    // filter repainted the backdrop every single frame.
-    const focusEls = reduced || !isDesktop()
-        ? []
-        : Array.from(document.querySelectorAll<HTMLElement>("[data-focus]"));
-
     // Prism moments: each chapter mark reports how settled it stands, 0..1:
     // centred on screen is settled, arriving or leaving is not. global.css
     // ramps the mark's light and its width axis with it. Measured on the
@@ -1202,7 +1084,6 @@ function bindScrollDriven(reduced: boolean): void {
         const vh = viewportH;
         // Measure before any write below, so reading the boxes never forces
         // the browser to settle this frame's styles and layout early.
-        const focusRects = focusEls.map((el) => el.getBoundingClientRect());
         const markRects = marks.map((m) => (m.parentElement ?? m).getBoundingClientRect());
         const depthRects = depthEls.map((d) => d.el.getBoundingClientRect());
         let reveal = 0;
@@ -1290,21 +1171,6 @@ function bindScrollDriven(reduced: boolean): void {
                 `translate3d(0, ${(pre + sink).toFixed(1)}px, 0)`;
         }
 
-        // Depth-of-field focus (see focusEls above). A dead zone around the
-        // center keeps the active card fully sharp, and outgoing cards
-        // (above center) defocus far more slowly than incoming ones.
-        focusEls.forEach((el, i) => {
-            const r = focusRects[i];
-            if (r.bottom < -150 || r.top > vh + 150) return;
-            const mid = r.top + r.height / 2;
-            const delta = mid - vh / 2;
-            const norm =
-                delta >= 0
-                    ? delta / (vh / 2)
-                    : (-delta / (vh / 2)) * 0.4;
-            const d = Math.max(0, Math.min(1, norm) - 0.25) / 0.75;
-            el.style.opacity = (1 - d * 0.55).toFixed(3);
-        });
 
         // Featured showcase pile (cushioned: waits out the entry buffer).
         // While inside one, the particle background lights up (CSS reacts
@@ -1699,15 +1565,10 @@ export function initSmoothScroll(): void {
         };
         rafId = requestAnimationFrame(raf);
 
-        setupReveal();
     } else {
-        document
-            .querySelectorAll("[data-reveal]")
-            .forEach((el) => el.classList.add("is-visible"));
         layoutStatic();
     }
 
-    setupWordReveals(reduced);
     setupMagnetic(reduced);
     setupPointerLight(reduced);
     setupScrollSpy();
