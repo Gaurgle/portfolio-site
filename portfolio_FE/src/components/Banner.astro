@@ -1,14 +1,12 @@
 ---
 const {isHome = false} = Astro.props;
 ---
-<!-- Gradient bg: held most of the bar's height, then a short fade at its
-     bottom edge, no hard line against the content. Phones get a deeper
-     shade (global.css, #site-header::before): the icons there sit right
-     over the text scrolling under them. A plain gradient, no filter. -->
+<!-- Shade (global.css, #site-header::before): flat behind the bar, with a
+     short fade at its bottom edge instead of a hard line. A plain gradient,
+     no filter. -->
 <header
     id="site-header"
-    class="sticky top-0 z-50 pb-2 md:pb-0
-     md:bg-[linear-gradient(to_bottom,rgb(0_0_0/0.7),rgb(0_0_0/0.6)_55%,transparent)]">
+    class="sticky top-0 z-50 pb-2 md:pb-0">
 
     <div class="relative overflow-hidden">
         <nav class="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 h-16 md:h-20">

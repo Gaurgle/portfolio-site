@@ -478,44 +478,37 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
 }
 
 
-/* Desktop sidebar: a floating pane of dark glass, inset from the screen's
-   edges, with a clean edge instead of a shade fading into the page. The
-   light catches its top rim and the glass deepens toward the bottom, so it
-   reads as a material standing over the sky. No backdrop blur: over the
-   animated sky that would re-filter the canvas every frame. */
-@media (min-width: 1024px) {
-    #sidebar {
-        isolation: isolate;
+/* Header shade: flat behind the bar, then a short fade at its bottom edge,
+   so the edge reads clean without a hard line. Phones run it darker: the
+   icons there sit right over text scrolling under them. On desktop it
+   starts where the sidebar column ends, so the two never stack. */
+#site-header::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(to bottom,
+        rgb(0 0 0 / var(--shade)) calc(100% - 0.75rem), transparent);
+    --shade: 0.9;
+}
+@media (min-width: 768px) {
+    #site-header::before {
+        --shade: 0.62;
     }
-    #sidebar::before {
-        content: "";
-        position: absolute;
-        inset: 0.75rem;
-        z-index: -1;
-        pointer-events: none;
-        border-radius: 1.25rem;
-        border: 1px solid rgb(255 255 255 / 0.09);
-        background:
-            linear-gradient(to bottom, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0) 30%),
-            linear-gradient(to bottom, rgb(12 12 16 / 0.62), rgb(6 6 9 / 0.78));
-        box-shadow:
-            inset 0 1px 0 rgb(255 255 255 / 0.12),
-            0 12px 40px rgb(0 0 0 / 0.45);
+}
+@media (min-width: 1024px) {
+    #site-header::before {
+        left: 9.5rem;
     }
 }
 
-/* Phone header: dark behind the icons so text scrolling under them drops
-   away, and a short falloff at the bar's own bottom edge. */
-@media (max-width: 767px) {
-    #site-header::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        z-index: -1;
-        pointer-events: none;
-        background: linear-gradient(to bottom,
-            rgb(0 0 0 / 0.92), rgb(0 0 0 / 0.88) 65%, rgb(0 0 0 / 0.5) 85%, transparent);
-    }
+/* Sidebar nav: the site's own face at reading size, not a terminal label.
+   Emphasis comes from colour and light (.nav-link below). */
+#sidebar .nav-link {
+    font-size: 0.9375rem;
+    font-weight: 450;
+    letter-spacing: 0.01em;
 }
 
 /* Phone drawer scrim: fades to half black in step with the drawer's slide
@@ -1545,10 +1538,10 @@ html.reduced-motion .chapter-mark text.cm-num {
     text-shadow: var(--halo);
 }
 /* Contents of the journey, set under the chapter mark like a book's: the
-   four stops, numbered, along a rail. A pointer rides the rail with the
-   flight (--stop-at, smoothScroll.ts focusStack), so where you are and how
-   far is left read at a glance, and each entry flies to its stop. Desktop
-   only; the phone stage has no room beside the mark. */
+   four stops, numbered in the mark's own face. A point of light glides
+   beside them with the flight (--stop-at, smoothScroll.ts focusStack), so
+   where you are and how far is left read at a glance, and each entry flies
+   to its stop. Desktop only; the phone stage has no room beside the mark. */
 .stop-contents {
     --row: 1.9em;
     display: none;
@@ -1559,27 +1552,20 @@ html.reduced-motion .chapter-mark text.cm-num {
     line-height: var(--row);
     color: rgb(161 161 170); /* zinc-400 */
 }
-/* The rail, and the pointer on it: one row tall, at the stop in focus and
-   gliding between stops as the flight moves on. */
-.stop-contents::before,
+/* The pointer: a small point of light at the stop in focus, gliding
+   between stops as the flight moves on. */
 .stop-contents::after {
     content: "";
     position: absolute;
     left: 0;
-    top: 0;
-    width: 2px;
-    border-radius: 1px;
+    top: calc(var(--row) / 2 - 2.5px);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
     pointer-events: none;
-}
-.stop-contents::before {
-    height: 100%;
-    background: rgb(255 255 255 / 0.14);
-}
-.stop-contents::after {
-    height: var(--row);
     background: var(--cloud);
-    box-shadow: 0 0 8px rgb(240 243 247 / 0.5);
-    transform: translateY(calc(var(--stop-at, 0) * 100%));
+    box-shadow: 0 0 6px rgb(240 243 247 / 0.8), 0 0 14px rgb(184 197 214 / 0.5);
+    transform: translateY(calc(var(--stop-at, 0) * var(--row)));
 }
 .stop-contents li {
     transition: color 0.4s ease, text-shadow 0.4s ease;
@@ -1593,9 +1579,8 @@ html.reduced-motion .chapter-mark text.cm-num {
     cursor: pointer;
 }
 .stop-contents .stop-n {
-    font-family: theme("fontFamily.mono");
-    font-size: 0.75em;
-    opacity: 0.6;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.55;
 }
 @media (hover: hover) and (pointer: fine) {
     .stop-contents li:not(.is-current):not(.on-cloud) button:hover {
@@ -2057,10 +2042,9 @@ html.reduced-motion .beam-stop {
         width: auto; /* defeat w-full so the margin shrinks the box instead of overflowing it */
         margin-left: max(9.5rem, calc((100vw - 72rem) / 2));
     }
-    /* Same clearance for the centered flow sections (mx-auto only clears
-       the sidebar when the viewport is wide enough for the centering
+    /* Same clearance for the centered projects section (mx-auto only
+       clears the sidebar when the viewport is wide enough for the centering
        offset to exceed it). Above ~1470px this is exactly mx-auto. */
-    #about,
     #projects {
         margin-left: max(9.5rem, calc((100vw - 72rem) / 2));
         margin-right: max(0px, calc((100vw - 72rem) / 2));
