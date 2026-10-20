@@ -831,13 +831,23 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     const COMPOSED_STOPS=5;
     let stopsFrom=Infinity, stopsTo=Infinity, stopsExtra=0;
     const journeyCatchUp=(at: number)=>stopsExtra*clamp01((at-stopsFrom)/Math.max(stopsTo-stopsFrom,1e-3));
-    /** Scroll as the weather experiences it: continuous, made up over the
-     *  journey's stops, slowed in the strip, hurried over its tail, and
-     *  started once the hero has let go of the page. */
+    // The weather was composed against an about chapter about 1.4 screens
+    // long, scrolling past. It now pins its passages like the journey and
+    // runs longer; the weather waits out the difference while it is pinned
+    // (aboutFrom..aboutTo, in screens of scroll), so the clouds after it
+    // still meet the content they were placed for.
+    const aboutStack=document.querySelector<HTMLElement>("#about [data-cardstack]");
+    const COMPOSED_ABOUT=1.4;
+    let aboutFrom=Infinity, aboutTo=Infinity, aboutExtra=0;
+    const aboutHold=(at: number)=>aboutExtra*clamp01((at-aboutFrom)/Math.max(aboutTo-aboutFrom,1e-3));
+    /** Scroll as the weather experiences it: continuous, held through the
+     *  about pin's extra length, made up over the journey's stops, slowed
+     *  in the strip, hurried over its tail, and started once the hero has
+     *  let go of the page. */
     const weatherScroll=(at: number)=>Math.max(0,
         (at<=calmFrom ? at : calmFrom+(Math.min(at,calmTo)-calmFrom)*CALM_PACE
             +Math.min(Math.max(0,at-calmTo),calmTail)*tailPace+Math.max(0,at-calmTo-calmTail))
-        +journeyCatchUp(at)-heroHold);
+        +journeyCatchUp(at)-aboutHold(at)-heroHold);
     let width=0, height=0, frame=0, last=0, elapsed=0, disposed=false;
     const resize = () => {
         const w=canvas.clientWidth, h=canvas.clientHeight;
@@ -992,6 +1002,12 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
                 return top>.15 && top<.9 ? Math.sin((top-.15)/.75*Math.PI)**2 : 0;
             })) : 0;
             pageEnd=(document.documentElement.scrollHeight-window.innerHeight)/height;
+            if(aboutStack) {
+                const box=aboutStack.getBoundingClientRect();
+                aboutFrom=scroll+box.top/height;
+                aboutTo=Math.max(aboutFrom,scroll+box.bottom/height-1);
+                aboutExtra=Math.max(0,box.height/height-COMPOSED_ABOUT);
+            }
             if(journeyStack && journeyStops>0) {
                 // Stops are ~0.65 screens each on desktop, 0.6 on phones
                 // (smoothScroll.ts measureCardStacks).

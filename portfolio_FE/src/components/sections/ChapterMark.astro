@@ -1,14 +1,13 @@
 ---
 /**
- * Chapter mark as one symmetrical rectangle, numeral on top: the number is
- * SVG text stretched to the full rectangle width, with the title line(s)
- * beneath - all stretched to fill the box exactly, flush on both edges.
+ * Chapter mark as one rectangle, numeral on top: the number is SVG text
+ * stretched to the full rectangle width, with the title line(s) beneath.
  * One voice throughout: the same face, weight and white in every line, no
  * accent word.
  *
- * Each title line's font-size is fitted to its text length so short lines
- * get bigger glyphs instead of letter-spacing gaps (textLength then only
- * fine-tunes), keeping the letters tight.
+ * The title is set, not stretched: both lines share one size and the
+ * font's own spacing, flush left, sized so the longer line spans the
+ * numeral once the letters have settled open (global.css, --settle).
  *
  * `width` sizes the whole rectangle; everything inside scales via
  * aspect-ratio, so the mark stays one proportional unit. `label` names the
@@ -23,23 +22,21 @@ const {
     width = "w-[min(18rem,84vw)] lg:w-[min(28rem,36vw)]",
 } = Astro.props;
 
-/** Fit a line: font-size such that the text naturally fills ~720 units. */
-function fit(text: string) {
-    const fs = Math.min(220, Math.round(760 / (0.6 * text.length)));
-    return { fs, vb: Math.round(fs * 1.1), y: Math.round(fs * 0.9) };
-}
+/** Title size in the 720-unit-wide title box: the longer line fills it at
+ *  the settled width, measured at about 0.86 of the size per character. */
+const longest = Math.max(...[line1, line2].filter(Boolean).map((l: string) => l.length));
+const titleSize = Math.round(720 / (0.86 * longest));
+const linePitch = Math.round(titleSize * 1.08);
 
 const lines = [line1, line2].filter(Boolean) as string[];
-// Row boxes are sized with the padding-top hack instead of CSS aspect-ratio:
-// the svgs' viewBoxes deliberately differ from the box ratio (the text is
-// stretched to fill via preserveAspectRatio="none"), and WebKit lets an
-// svg's intrinsic viewBox ratio beat CSS aspect-ratio, collapsing the row.
-// Percentages are relative to the mark's width: 300/720 and 115/720.
-// The box height alone decides how tall the glyphs render, because the
-// viewBox is scaled to fit it - font-size only trades stroke width against
-// letter spacing. So every title row shares one percentage, and the four
-// marks read as one family.
-const hookPad = "15.98%";
+// Boxes are sized with the padding-top hack instead of CSS aspect-ratio:
+// the numeral's viewBox deliberately differs from its box ratio (stretched
+// via preserveAspectRatio="none"), and WebKit lets an svg's intrinsic
+// viewBox ratio beat CSS aspect-ratio, collapsing the row. Percentages are
+// relative to the box's width. The title box has its viewBox's own ratio,
+// so its letters keep their shapes.
+const titleHeight = linePitch * lines.length;
+const titlePad = `${((titleHeight / 720) * 100).toFixed(3)}%`;
 
 // The mark is drawn twice: the letters themselves, and behind them the
 // light they catch once their chapter settles (global.css .cm-fringe,
@@ -64,20 +61,15 @@ const shifts = (layer: (typeof layers)[number]): Array<[number, string | undefin
                 </svg>
             </div>
 
-            <!-- Title: one or two rows, tight letters, flush to the rectangle edges -->
-            <div class:list={[{ "cm-split": layer === "body" }, "cm-title mt-[4%] space-y-[3%]"]}>
-                {lines.map((line) => {
-                    const f = fit(line);
-                    return (
-                        <div class="relative w-full" style={`padding-top: ${hookPad}`}>
-                            <svg class="absolute inset-0 h-full w-full" viewBox={`0 0 720 ${f.vb}`} preserveAspectRatio="none" aria-hidden="true">
-                                {shifts(layer).map(([dx, tone]) => (
-                                    <text class={tone} x={dx} y={f.y} font-size={f.fs} textLength="720" lengthAdjust="spacingAndGlyphs">{line}</text>
-                                ))}
-                            </svg>
-                        </div>
-                    );
-                })}
+            <!-- Title: one or two lines in one size, flush left -->
+            <div class:list={[{ "cm-split": layer === "body" }, "cm-title mt-[4%]"]}>
+                <div class="relative w-full" style={`padding-top: ${titlePad}`}>
+                    <svg class="absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 720 ${titleHeight}`} preserveAspectRatio="xMinYMin meet" aria-hidden="true">
+                        {lines.map((line, i) => shifts(layer).map(([dx, tone]) => (
+                            <text class={tone} x={dx} y={Math.round(i * linePitch + titleSize * 0.84)} font-size={titleSize}>{line}</text>
+                        )))}
+                    </svg>
+                </div>
             </div>
         </div>
     ))}

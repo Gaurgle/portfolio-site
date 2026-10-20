@@ -1,50 +1,43 @@
 ---
 /**
- * About: the chapter mark (01 ABOUT + hook) sticks on the left and rides
- * with the story flowing past on the right, the way the journey sets its
- * mark beside its stops; the story reads over the darker space there. The story has no surface: each
- * passage is loose text the sky clears and bends around (data-lens,
- * clouds.ts), and its words converge out of a chromatic split as it arrives. The tech stack lives in
- * the marquee band further down (TechMarquee).
+ * About: the chapter mark (01 + name) stays on the left of the pinned
+ * viewport while the visitor flies through two passages in depth, the same
+ * flight as the journey (JourneySection.astro, global.css .flight-stack).
+ * Nothing is boxed: each passage is loose text the sky clears behind
+ * (data-lens on the stage, clouds.ts). The tech stack lives in the marquee
+ * band further down (TechMarquee).
  */
 import ChapterMark from "./ChapterMark.astro";
 ---
 
-<section id="about" data-section="about"
-         class="relative max-w-6xl mx-auto px-4">
-
-    <div class="lg:flex lg:flex-row lg:gap-10">
-        <!-- Chapter mark: sticky on the left for the whole section. Pulled
-             up 40vh on desktop so it rises into the emptied hero screen and
-             is already in place when the first passage arrives under it. -->
-        <div class="lg:w-[42%] shrink-0 lg:sticky lg:top-0 lg:h-screen lg:-mt-[40vh] flex flex-col justify-center items-center lg:items-start lg:text-left pt-24 lg:pt-0 z-0">
-            <ChapterMark n="01" label="ABOUT"
-                         line1="Andreas" line2="Roos" />
-        </div>
-
-        <!-- Story passages on the right, with a small entry hold (little pin) -->
-        <!-- Extra tail: about keeps the frame a while before journey arrives -->
-        <div data-hold="0.2" class="lg:w-[58%] relative z-10 pt-16 pb-8 lg:pt-[18vh] lg:pb-[18vh]">
-            <!-- Big gaps on desktop (each passage owns the frame); compact on
-                 mobile where there is no focus effect to justify them -->
-            <div data-hold-content class="space-y-14 lg:space-y-[16vh]">
-
-            <div data-reveal data-focus data-lens class="signal" data-rn-card>
-                <h3 class="passage-head" data-depth="0.05">Software development</h3>
-                <p data-word-reveal class="signal-copy">I'm Andreas, a <span class="text-white" data-rn="underline">software developer</span> in <span class="text-white" data-rn="underline">Stockholm</span>.
-                        I work mainly in <span class="text-white" data-rn="underline">Kotlin</span> and <span class="text-white" data-rn="underline">Java</span>, building <span class="text-white" data-rn="underline">backend services</span>, <span class="text-white" data-rn="underline">Android</span> apps, and tools.
-                        I like getting into the details of how software works, and having a say in how it's put together.
-                        Audio and Bluetooth are particular interests, alongside a growing collection of projects of my own.</p>
-            </div>
-
-            <div data-reveal data-focus data-lens class="signal" data-rn-card>
-                <h3 class="passage-head" data-depth="0.05">Work and projects</h3>
-                <p data-word-reveal class="signal-copy">I'm <span class="text-white" data-rn="underline">Head of Technology</span> at <span class="text-white" data-rn="underline">IMRSV Music</span>, where I also mix and master records.
-                        I design and build <span class="text-white" data-rn="underline">internal software</span>, automate workflows, connect services, and develop the <span class="text-white" data-rn="underline">infrastructure</span> they run on.
-                        The work takes me from writing Kotlin to deploying services and planning storage and backups.
-                        Outside work, I build <span class="text-white" data-rn="underline">CLI and TUI</span> tools in <span class="text-white" data-rn="underline">Rust</span> for my own workflow. One makes rain sounds.</p>
-            </div>
-
+<section id="about" data-section="about" class="relative">
+    <div data-cardstack data-stack-mode="focus" class="flight-stack relative z-10">
+        <div class="flight-viewport">
+            <div class="relative z-10 w-full flex flex-col lg:flex-row items-center lg:items-start lg:justify-center gap-5 lg:gap-[4vw] px-4 lg:px-[2vw] py-4 lg:py-0">
+                <div class="shrink-0 text-center lg:text-left">
+                    <ChapterMark n="01" label="ABOUT"
+                                 line1="Andreas" line2="Roos" />
+                </div>
+                <div class="stack-area" data-lens>
+                    <article data-stack-card data-rn-card class="beam-stop" style="--f: 0">
+                        <header class="beam-head"><h3 class="beam-title">Software development</h3></header>
+                        <div class="beam-copy">
+                            <p>I'm Andreas, a <span class="text-white" data-rn="underline">software developer</span> in <span class="text-white" data-rn="underline">Stockholm</span>.
+                                I work mainly in <span class="text-white" data-rn="underline">Kotlin</span> and <span class="text-white" data-rn="underline">Java</span>, building <span class="text-white" data-rn="underline">backend services</span>, <span class="text-white" data-rn="underline">Android</span> apps, and tools.
+                                I like getting into the details of how software works, and having a say in how it's put together.
+                                Audio and Bluetooth are particular interests, alongside a growing collection of projects of my own.</p>
+                        </div>
+                    </article>
+                    <article data-stack-card data-rn-card class="beam-stop" style="--f: -1">
+                        <header class="beam-head"><h3 class="beam-title">Work and projects</h3></header>
+                        <div class="beam-copy">
+                            <p>I'm <span class="text-white" data-rn="underline">Head of Technology</span> at <span class="text-white" data-rn="underline">IMRSV Music</span>, where I also mix and master records.
+                                I design and build <span class="text-white" data-rn="underline">internal software</span>, automate workflows, connect services, and develop the <span class="text-white" data-rn="underline">infrastructure</span> they run on.
+                                The work takes me from writing Kotlin to deploying services and planning storage and backups.
+                                Outside work, I build <span class="text-white" data-rn="underline">CLI and TUI</span> tools in <span class="text-white" data-rn="underline">Rust</span> for my own workflow. One makes rain sounds.</p>
+                        </div>
+                    </article>
+                </div>
             </div>
         </div>
     </div>
@@ -192,9 +185,28 @@ import ChapterMark from "./ChapterMark.astro";
         io.observe(card);
     }
 
+    /**
+     * rough-notation measures each word where it stands on screen, so a
+     * passage still flying in (scaled, smoothScroll.ts --f) would get its
+     * strokes in the wrong places. Each passage is wired once it has
+     * arrived: --f at 0, or reduced motion, where nothing flies.
+     */
+    function whenArrived(card, wire) {
+        const arrived = () =>
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+            parseFloat(card.style.getPropertyValue("--f")) === 0;
+        if (arrived()) return wire();
+        const watch = new MutationObserver(() => {
+            if (!arrived()) return;
+            watch.disconnect();
+            wire();
+        });
+        watch.observe(card, { attributes: true, attributeFilter: ["style"] });
+    }
+
     function setupAnnotations() {
         const cards = Array.from(document.querySelectorAll("[data-rn-card]"));
-        cards.forEach((card) => setupCard(card));
+        cards.forEach((card) => whenArrived(card, () => setupCard(card)));
     }
 
     // Run on first load and after every View Transitions navigation

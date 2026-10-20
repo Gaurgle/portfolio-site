@@ -5,7 +5,9 @@
  * Nothing is boxed: each milestone is loose text in the sky that approaches
  * from far off, holds in focus, then passes the camera the way ROOS does
  * (smoothScroll.ts reports --f per milestone, global.css does the flight).
- * Under the mark sits a plain contents list of the four stops; the right
+ * Under the mark sits the contents of the four stops, numbered, with a
+ * pointer riding a rail to the one in focus; each entry flies to its stop.
+ * The right
  * margin stays empty, because that is where the prism's light flares. The
  * list has no clearing, so each entry turns to dark ink while a bright cloud
  * is behind it (data-sky-adapt, clouds.ts).
@@ -55,22 +57,28 @@ const milestones: Milestone[] = [
 <section id="journey" data-section="journey"
          class="relative">
 
-    <div data-cardstack data-stack-mode="focus" class="journey-stack relative z-10">
-        <div class="journey-viewport">
-            <!-- lg:items-center: the mark and the text in focus share one
-                 horizontal axis, the line the visitor travels along -->
-            <div class="relative z-10 w-full flex flex-col lg:flex-row items-center lg:justify-center gap-5 lg:gap-[4vw] px-4 lg:px-[2vw] py-4 lg:py-0">
+    <div data-cardstack data-stack-mode="focus" class="flight-stack relative z-10">
+        <div class="flight-viewport">
+            <!-- lg:items-start: the stop's headline stands flush with the
+                 top of the mark once it has arrived -->
+            <div class="relative z-10 w-full flex flex-col lg:flex-row items-center lg:items-start lg:justify-center gap-5 lg:gap-[4vw] px-4 lg:px-[2vw] py-4 lg:py-0">
                 <!-- Chapter mark: stays for the whole flight, with the
                      contents of the journey set under it -->
                 <div class="shrink-0 text-center lg:text-left">
                     <ChapterMark n="02" label="JOURNEY"
                                  line1="How I" line2="got here"
  />
-                    <ol data-stack-contents class="stop-contents" aria-hidden="true">
-                        {milestones.map((m) => (
-                            <li data-sky-adapt>{m.cmd}</li>
-                        ))}
-                    </ol>
+                    <nav aria-label="Journey stops">
+                        <ol data-stack-contents class="stop-contents">
+                            {milestones.map((m) => (
+                                <li data-sky-adapt>
+                                    <button type="button" class="press">
+                                        <span class="stop-n">{m.n}</span>{m.cmd}
+                                    </button>
+                                </li>
+                            ))}
+                        </ol>
+                    </nav>
                 </div>
 
                 <!-- The flight: milestones share one stage, separated in depth.
@@ -78,8 +86,10 @@ const milestones: Milestone[] = [
                 <div class="stack-area" data-lens>
                     {milestones.map((m, i) => (
                         <article data-stack-card class="beam-stop" style={`--f: ${i === 0 ? 0 : -1}`}>
-                            <div class="passage-head">{m.cmd}</div>
-                            <h3 class="beam-title">{m.title}</h3>
+                            <header class="beam-head">
+                                <div class="passage-head">{m.cmd}</div>
+                                <h3 class="beam-title">{m.title}</h3>
+                            </header>
                             <div class="beam-copy">
                                 {m.paras.map((p) => (
                                     <p>{p}</p>
