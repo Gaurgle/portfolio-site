@@ -513,6 +513,18 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     }
 }
 
+/* The portal at the sidebar's edge (portal.ts): its light adds to whatever
+   is crossing beneath it (black adds nothing). Above the sidebar, under
+   the header. */
+.portal-edge {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 45;
+    pointer-events: none;
+    mix-blend-mode: screen;
+}
+
 /* Sidebar nav: the site's own face at reading size, not a terminal label.
    Emphasis comes from colour and light (.nav-link below). */
 #sidebar .nav-link {
