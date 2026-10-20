@@ -1,4 +1,5 @@
 import Lenis from "lenis";
+import { setupPortal } from "./portal";
 
 /**
  * Scroll engine for the one-page "terminal session" site.
@@ -1655,6 +1656,8 @@ export function initSmoothScroll(): void {
     setupAnchors();
     // Applies pin/stack heights against the final stretched layout.
     bindScrollDriven(reduced);
+    // The sidebar's edge as a portal for content leaving left (desktop).
+    if (!reduced && isDesktop()) cleanups.push(setupPortal());
 }
 
 /** Bind once; ClientRouter fires page-load on initial load and every navigation. */
