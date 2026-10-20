@@ -511,14 +511,32 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     #sidebar::before {
         content: "";
         position: absolute;
-        inset: 0 -9rem 0 0;
+        inset: 0 -3rem 0 0;
         z-index: -1;
         pointer-events: none;
-        /* An eased falloff (close to a smoothstep), so over a bright cloud
-           the shade never shows where it ends as a vertical line. */
+        /* Held under the links, then a short eased falloff just past the
+           column (close to a smoothstep), so over a bright cloud the shade
+           neither smears far into the page nor ends in a vertical line. */
         background: linear-gradient(to right,
-            rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.55) 25%, rgb(0 0 0 / 0.42) 45%,
-            rgb(0 0 0 / 0.25) 62%, rgb(0 0 0 / 0.11) 78%, rgb(0 0 0 / 0.03) 91%, transparent);
+            rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.58) 55%, rgb(0 0 0 / 0.45) 70%,
+            rgb(0 0 0 / 0.25) 82%, rgb(0 0 0 / 0.09) 92%, rgb(0 0 0 / 0.02) 97%, transparent);
+    }
+}
+
+/* Phone header: solid enough behind the icons that text scrolling under
+   them drops away, then an eased falloff a little past the bar, so the
+   shade never shows where it ends. It reaches below the header without
+   catching taps there. */
+@media (max-width: 767px) {
+    #site-header::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 -1.5rem 0;
+        z-index: -1;
+        pointer-events: none;
+        background: linear-gradient(to bottom,
+            rgb(0 0 0 / 0.92), rgb(0 0 0 / 0.86) 40%, rgb(0 0 0 / 0.6) 62%,
+            rgb(0 0 0 / 0.28) 80%, rgb(0 0 0 / 0.08) 92%, transparent);
     }
 }
 
@@ -1361,7 +1379,7 @@ html.reduced-motion .chapter-mark text.cm-num {
         width: 100%;
         /* Stable small-viewport geometry: no content measurement or toolbar-
            driven resize work while the deck is moving. */
-        height: calc(clamp(22rem, calc(100svh - 16.5rem), 28rem) + var(--deck-n, 3) * 10px);
+        height: calc(clamp(22rem, calc(100svh - 12rem), 28rem) + var(--deck-n, 3) * 10px);
     }
     /* Cards fill the stable track; browser toolbar changes cannot resize it. */
     .hscroll-pin .featured-card {
@@ -1409,12 +1427,14 @@ html.reduced-motion .chapter-mark text.cm-num {
        card still reads as a terminal object - the contrast is the point. */
     .hscroll-pin .featured-card .edit-desc {
         display: -webkit-box;
-        -webkit-line-clamp: 6;
+        /* Up to six lines, fewer when the card is short (FeaturedShowcase
+           fits the count with fitLines). */
+        -webkit-line-clamp: var(--fit-lines, 6);
         -webkit-box-orient: vertical;
         overflow: hidden;
         flex: none;
         font-family: theme("fontFamily.sans");
-        font-size: 14px;
+        font-size: 15px;
         line-height: 1.55;
         letter-spacing: 0;
         text-transform: none;
@@ -1431,13 +1451,6 @@ html.reduced-motion .chapter-mark text.cm-num {
        to the bottom of the card as even breathing space. */
     .hscroll-pin .featured-card .edit-cols > div {
         flex: none;
-    }
-    /* Extreme-short viewports only (well below the URL-bar toggle range, so
-       it can't flip mid-scroll): let the body scroll rather than clip. */
-    @media (max-height: 560px) {
-        .hscroll-pin .featured-card .edit-body {
-            overflow-y: auto;
-        }
     }
 }
 
@@ -1664,13 +1677,35 @@ html.reduced-motion .chapter-mark text.cm-num {
     }
     .journey-stack .stack-area {
         width: 100%;
-        height: clamp(22rem, calc(100svh - 15rem), 30rem);
+        height: clamp(22rem, calc(100svh - 10.5rem), 34rem);
         flex-shrink: 0;
         min-height: 0;
+        /* Its height is svh-based, so a query on it cannot flip while the
+           browser bar moves. */
+        container-type: size;
     }
     .beam-copy {
-        font-size: 0.9375rem;
+        font-size: 1rem;
         line-height: 1.55;
+    }
+    /* A shorter stage cannot hold the longest stop at that size: it
+       spilled over the chapter mark and was cut off below. The copy steps
+       down with the stage instead. */
+    @container (max-height: 32rem) {
+        .beam-title {
+            margin-bottom: 0.875rem;
+            font-size: 1.75rem;
+        }
+        .beam-copy {
+            gap: 0.75rem;
+            font-size: 0.9375rem;
+            line-height: 1.5;
+        }
+    }
+    @container (max-height: 30rem) {
+        .beam-copy {
+            font-size: 0.875rem;
+        }
     }
 }
 /* Phones run the featured projects through the same flight (the desktop
@@ -1745,10 +1780,10 @@ html.reduced-motion .beam-stop {
 }
 
 /* Mobile decks stay fixed while the page scrolls. Only transforms change;
-   on unusually short screens the card body itself remains reachable. */
+   the card body never scrolls: the description gives up lines instead. */
 @media (max-width: 1023px) {
     .hscroll-pin .featured-card .edit-body {
-        overflow-y: auto;
+        overflow: hidden;
     }
     .hscroll-pin .featured-card .edit-body > * {
         flex-shrink: 0;
@@ -1776,6 +1811,17 @@ html.reduced-motion .beam-stop {
         max-height: 40%;
         flex-shrink: 0;
     }
+    /* The card's height is svh-based (stable under the browser bar). */
+    .hscroll-pin .featured-card {
+        container-type: size;
+    }
+    /* A short card gives the copy the room: a shallower screenshot band
+       instead of a description cut to a line or two. */
+    @container (max-height: 25rem) {
+        .hscroll-pin .featured-card .edit-media {
+            max-height: 30%;
+        }
+    }
 }
 
 /* The listing under the featured strip breaks out of the section's 72rem
@@ -1787,6 +1833,15 @@ html.reduced-motion .beam-stop {
         width: var(--stage);
         margin-left: calc(50% - var(--stage) / 2);
     }
+}
+
+/* A description clamped to the whole lines its fixed-height card has room
+   for (fitLines.ts sets the count). */
+.fit-lines {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--fit-lines, 12);
+    overflow: hidden;
 }
 
 /* Docked preview viewer: quick crossfade when the shown project changes */
@@ -2221,35 +2276,34 @@ svg.rough-annotation.rn-primed {
     }
 }
 
-/* One mobile numeral size across the three content chapters. */
+/* Phones: the three content chapters wear a compact mark, numeral and
+   title side by side instead of stacked, about half the height, so the
+   pinned stages under it get the room. The numeral keeps its proportions:
+   its padding is a share of the whole mark's width, so it shrinks with the
+   numeral's share (0.4167 of its own width x 42%). */
 @media (max-width: 1023px) {
     #about .chapter-mark,
     #journey .chapter-mark,
     #projects .chapter-mark {
-        width: min(8.5rem, 40vw);
+        width: min(13rem, 60vw);
+        --cm-num-pad: 17.5%;
+    }
+    :is(#about, #journey, #projects) .chapter-mark .cm-layer {
+        display: flex;
+        align-items: center;
+        gap: 5%;
+    }
+    :is(#about, #journey, #projects) .chapter-mark .cm-num-row {
+        flex: none;
+        width: 42%;
+        margin-left: 0;
+    }
+    :is(#about, #journey, #projects) .chapter-mark .cm-title {
+        flex: 1;
+        margin-top: 0;
     }
 }
 
-/* Phones: the journey and featured stacks seat each card with the browser's
-   own proximity snapping, one stop per card (smoothScroll.ts
-   placeSnapStops). Proximity, never mandatory: it only pulls a scroll that
-   already comes to rest near a card, so nothing holds the page. Off under
-   reduced motion, where the stacks are plain documents. */
-.snap-stop {
-    position: absolute;
-    left: 0;
-    width: 1px;
-    height: 1px;
-    pointer-events: none;
-}
-@media (max-width: 1023px) {
-    html:not(.reduced-motion) {
-        scroll-snap-type: y proximity;
-    }
-    .snap-stop {
-        scroll-snap-align: start;
-    }
-}
 
 /* Phone drawer: it springs (SidebarToggle.tsx) and may overshoot open by a
    few pixels, so its material runs on past its left edge. */

@@ -520,7 +520,6 @@ function measureCardStacks(): CardStack[] {
         section.style.height = `${layoutViewportH + distance + buffer * 2}px`;
         const top = section.getBoundingClientRect().top + window.scrollY;
         const focus = section.dataset.stackMode === "focus";
-        if (focus && !desktop) placeSnapStops(section, cards.length, buffer, per);
         result.push({
             section, cards, top, per, distance, buffer, offX, offY,
             vertical: !desktop,
@@ -531,25 +530,6 @@ function measureCardStacks(): CardStack[] {
         });
     }
     return result;
-}
-
-/**
- * Phones have no rest snap (touch scrolling stays browser-owned), so the
- * browser's own proximity snapping seats each card instead: one invisible
- * stop per card at the scroll offset that puts it in focus (global.css,
- * .snap-stop). Proximity only pulls when the scroll already comes to rest
- * near a stop, so it never holds the page; the stops sit inside the stack's
- * section, under its sticky viewport, which pins exactly as before.
- */
-function placeSnapStops(section: HTMLElement, count: number, buffer: number, per: number): void {
-    section.querySelectorAll(":scope > .snap-stop").forEach((el) => el.remove());
-    for (let i = 0; i < count; i++) {
-        const stop = document.createElement("span");
-        stop.className = "snap-stop";
-        stop.setAttribute("aria-hidden", "true");
-        stop.style.top = `${buffer + i * per}px`;
-        section.appendChild(stop);
-    }
 }
 
 /* ------------------------------------------------------------------ */

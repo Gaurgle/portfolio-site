@@ -23,6 +23,20 @@ const firstImage = (p: Project) =>
 /** The project that leads the listing, and so opens in the viewer. */
 const LEAD = "pinz";
 
+/** Height of one listing row: py-4, a text-lg line and its 1px border. */
+const ROW_HEIGHT = "(3.75rem + 1px)";
+/** The viewer frame never reaches past this many rows (through noiz-kmp),
+ *  so the description sits up beside the listing on wide screens too. */
+const PREVIEW_ROWS = 10;
+/** The frame's shape is the screenshots' own (terminal captures, ~16:10),
+ *  so a picture fills it instead of leaving dead air above the copy. An
+ *  explicit height (cqw: the viewer column is the container), not
+ *  aspect-ratio: WebKit leaves the img's max-height: 100% unresolved
+ *  against an aspect-ratio height. */
+const viewerFrame = {
+    height: `min(100cqw * 936 / 1521, ${PREVIEW_ROWS} * ${ROW_HEIGHT} + 1px)`,
+};
+
 export default function ProjectsGrid() {
     const rest = projects
         .filter((p) => !("featured" in p) || !p.featured)
@@ -182,7 +196,7 @@ export default function ProjectsGrid() {
                         the bottom. Engages on row click; rests as a
                         statement until then. Set sizes: nothing moves or
                         resizes between projects - only content swaps. */}
-                    <div className="w-[clamp(34rem,46%,64rem)] shrink-0 relative flex flex-col">
+                    <div className="w-[clamp(34rem,46%,64rem)] shrink-0 relative flex flex-col [container-type:inline-size]">
                         {shown && (
                             <p className="absolute bottom-full left-0 mb-1 font-mono text-base text-white">
                                 {shown.projectTitle.toLowerCase().replaceAll(" ", "-")}
@@ -190,7 +204,7 @@ export default function ProjectsGrid() {
                             </p>
                         )}
                         {!shown ? (
-                            <div className="w-full aspect-[17/14] flex flex-col justify-end p-8 bg-zinc-900/20 border border-zinc-800 rounded-md">
+                            <div style={viewerFrame} className="w-full flex flex-col justify-end p-8 bg-zinc-900/20 border border-zinc-800 rounded-md">
                                 <p className="text-3xl font-bold leading-tight text-white/90 mb-4">
                                     {rest.length} more
                                     <br />
@@ -205,8 +219,12 @@ export default function ProjectsGrid() {
                                 type="button"
                                 aria-label={`Open ${shown.projectTitle} screenshots`}
                                 onClick={openLightbox}
+                                style={viewerFrame}
                                 className="block w-full cursor-zoom-in"
                             >
+                                {/* Scaled whole to fit the frame, never
+                                    stretched; a narrower shot keeps to the
+                                    left edge, in line with the copy. */}
                                 <img
                                     ref={viewerShotRef}
                                     key={shown.projectTitle}
@@ -214,11 +232,11 @@ export default function ProjectsGrid() {
                                     {...imageSize(firstImage(shown)!)}
                                     alt=""
                                     decoding="async"
-                                    className="w-full h-auto aspect-[17/14] object-contain object-top rounded-md animate-fade-in-fast cursor-zoom-in"
+                                    className="block w-auto h-auto max-w-full max-h-full rounded-md animate-fade-in-fast cursor-zoom-in"
                                 />
                             </button>
                         ) : (
-                            <div className="w-full aspect-[17/14] flex items-center justify-center bg-zinc-900/30 border border-zinc-800 rounded-md font-mono text-xs text-zinc-600">
+                            <div style={viewerFrame} className="w-full flex items-center justify-center bg-zinc-900/30 border border-zinc-800 rounded-md font-mono text-xs text-zinc-600">
                                 <span>No preview yet</span>
                             </div>
                         )}

@@ -317,6 +317,9 @@ ${opticalField}
 uniform int layer;
 // 0..1: how far the night cap holds the hero fly-through down (see render).
 uniform float nightCap;
+// The hero fly-through's billows: x how strongly they show (0..1), y how
+// far the camera has travelled into the cloud.
+uniform vec2 fog;
 // The sky's quiet hue for this stretch of the weather: a near-white multiplier
 // (indigo, deep teal, a bruised violet), never a colour of its own.
 uniform vec3 skyTint;
@@ -402,6 +405,17 @@ vec3 clearSpaceLight(vec2 uv, vec2 split) {
         opticalLight(p+sway,0.,glint).g,opticalLight(cool+sway,0.,glint).b);
     vec3 released=1.-exp(-energy*(.7+.6*haze)*phase*1.8);
     return mix(held,released,open)*gleam;
+}
+// Value noise with a smooth (quintic) blend between lattice points: soft
+// billows at any scale, independent of how the browser filters textures.
+float smoothNoise(vec2 p) {
+    vec2 i=floor(p), f=fract(p);
+    vec2 w=f*f*f*(f*(f*6.-15.)+10.);
+    float a=fract(sin(dot(i,vec2(127.1,311.7)))*43758.5453);
+    float b=fract(sin(dot(i+vec2(1.,0.),vec2(127.1,311.7)))*43758.5453);
+    float c=fract(sin(dot(i+vec2(0.,1.),vec2(127.1,311.7)))*43758.5453);
+    float d=fract(sin(dot(i+vec2(1.,1.),vec2(127.1,311.7)))*43758.5453);
+    return mix(mix(a,b,w.x),mix(c,d,w.x),w.y);
 }
 void main() {
     vec2 uv=gl_FragCoord.xy/resolution;
@@ -496,6 +510,21 @@ void main() {
     // only what exceeds the cap, so nothing switches at the limit.
     float luma=dot(color.rgb,vec3(.2126,.7152,.0722));
     color.rgb=mix(color.rgb,color.rgb*min(1.,.6/max(luma,1e-4))*vec3(.84,.91,1.),nightCap);
+    // Deep inside the hero cloud the volume fills the frame evenly, a flat
+    // grey. Billows drifting past the camera break it up: they swell outward
+    // as the camera travels on and brighten as much as they shade, so the
+    // fog keeps its brightness and only gains texture.
+    // Computed here rather than read from the noise volume: WebKit samples
+    // that float texture unfiltered, and at this scale its cells show as
+    // square blocks.
+    if(fog.x>0.) {
+        vec2 at=(uv-.5)*vec2(aspect,1.)*(5.-fog.y*2.)+vec2(skyTime*.02,fog.y*1.5);
+        float billow=smoothNoise(at)*.55+smoothNoise(at*2.1+3.7)*.3+smoothNoise(at*4.3+7.1)*.15;
+        color.rgb*=1.+(smoothstep(.25,.75,billow)-.5)*.5*fog.x;
+    }
+    // Premultiplied: no channel may exceed alpha, or the compositor shows
+    // it as a false colour (the fog's brightening, the pointer's light).
+    color.rgb=min(color.rgb,vec3(color.a));
 }
 `;
 
@@ -724,7 +753,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     gl.bindFramebuffer(gl.FRAMEBUFFER,sceneBuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,sceneTexture,0);
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer","nightCap","skyTint","skyTime","pointerLight","frontLead","lenses[0]","lensPower[0]","lensDim[0]",...opticalUniformNames].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
+    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer","nightCap","fog","skyTint","skyTime","pointerLight","frontLead","lenses[0]","lensPower[0]","lensDim[0]",...opticalUniformNames].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
     gl.useProgram(chromaticProgram);
     gl.uniform1i(chromaticUniforms.scene,1);
     // The clear-space haze reads the clouds' noise volume, already on unit 0.
@@ -1274,7 +1303,10 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
             }
         }
         // Eased in with the curtain and out as the camera leaves the cloud.
-        gl.uniform1f(chromaticUniforms.nightCap,night ? curtain*(1-smooth((opening-.9)/.1)) : 0);
+        const insideHero=curtain*(1-smooth((opening-.9)/.1));
+        gl.uniform1f(chromaticUniforms.nightCap,night ? insideHero : 0);
+        // Night fog is capped flatter, so its billows show a little more.
+        gl.uniform2f(chromaticUniforms.fog,insideHero*(night ? 1 : .7),opening);
         uploadLight(chromaticUniforms);
         gl.uniform4fv(chromaticUniforms["lenses[0]"],lensRects);
         gl.uniform1fv(chromaticUniforms["lensPower[0]"],lensPowers);
