@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from "react";
 import {createPortal, flushSync} from "react-dom";
 import {lightboxPair, swapShot} from "../lib/shotTransition";
+import {fitLines} from "../lib/fitLines";
 import {projects} from "../data/projects.ts";
 import {imageSize} from "../data/imageSizes.ts";
 
@@ -140,6 +141,8 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const shotsRef = useRef<HTMLButtonElement>(null);
+    const descBoxRef = useRef<HTMLDivElement>(null);
+    const descRef = useRef<HTMLParagraphElement>(null);
     // The shown picture grows into the lightbox and goes back on close.
     const cardShot = () => shotsRef.current?.querySelectorAll("img")[currentIndex] ?? null;
     const openLightbox = () => swapShot({shot: cardShot()}, () => {
@@ -170,6 +173,13 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
+    }, []);
+
+    // The card has a fixed height: the description gives up whole lines
+    // rather than scrolling inside it.
+    useEffect(() => {
+        if (!descRef.current || !descBoxRef.current) return;
+        return fitLines(descRef.current, descBoxRef.current, 12);
     }, []);
 
     return (
@@ -244,9 +254,10 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                     {project.projectTitle}
                 </h3>
                 <div
-                    className="flex-1 min-h-0 overflow-y-auto text-sm text-zinc-400 leading-relaxed"
+                    ref={descBoxRef}
+                    className="flex-1 min-h-0 overflow-hidden text-[15px] text-zinc-400 leading-relaxed"
                 >
-                    <p>{project.description}</p>
+                    <p ref={descRef} className="fit-lines">{project.description}</p>
                 </div>
 
                 {project.tags && (

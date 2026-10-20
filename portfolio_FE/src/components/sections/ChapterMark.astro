@@ -53,10 +53,10 @@ const shifts = (layer: (typeof layers)[number]): Array<[number, string | undefin
 <div class:list={["chapter-mark relative isolate inline-block select-none", width]} data-lens
      aria-label={`${n} ${label}: ${lines.join(" ")}`}>
     {layers.map((layer) => (
-        <div class={layer === "body" ? undefined : "cm-fringe"} aria-hidden={layer === "fringe" ? "true" : undefined}>
+        <div class:list={["cm-layer", { "cm-fringe": layer === "fringe" }]} aria-hidden={layer === "fringe" ? "true" : undefined}>
             <!-- Numeral: slightly WIDER than the title lines (optical alignment reads
                  better with a small overhang than with exact equal widths) -->
-            <div class:list={[{ "cm-split cm-num-box": layer === "body" }, "relative w-[106%] -ml-[3%]"]} style="padding-top: 44.17%">
+            <div class:list={[{ "cm-split cm-num-box": layer === "body" }, "cm-num-row relative w-[106%] -ml-[3%]"]} style="padding-top: var(--cm-num-pad, 44.17%)">
                 <svg class="absolute inset-0 h-full w-full" viewBox="0 0 720 300" preserveAspectRatio="none" aria-hidden="true">
                     {shifts(layer).map(([dx, tone]) => (
                         <text class:list={["cm-num", tone]} x={-8 + dx} y="290" font-size="400" textLength="736" lengthAdjust="spacingAndGlyphs">{n}</text>
@@ -65,7 +65,7 @@ const shifts = (layer: (typeof layers)[number]): Array<[number, string | undefin
             </div>
 
             <!-- Title: one or two rows, tight letters, flush to the rectangle edges -->
-            <div class:list={[{ "cm-split": layer === "body" }, "mt-[4%] space-y-[3%]"]}>
+            <div class:list={[{ "cm-split": layer === "body" }, "cm-title mt-[4%] space-y-[3%]"]}>
                 {lines.map((line) => {
                     const f = fit(line);
                     return (

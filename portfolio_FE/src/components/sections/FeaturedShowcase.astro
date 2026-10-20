@@ -113,6 +113,7 @@ const allImages = (p: (typeof projects)[number]) =>
 
 <script>
     import { lightboxPair, swapShot } from "../../lib/shotTransition";
+    import { fitLines } from "../../lib/fitLines";
 
     /** True from the click that opens a lightbox until it is asked to close. */
     let lightboxOpen = false;
@@ -262,4 +263,20 @@ const allImages = (p: (typeof projects)[number]) =>
     }
 
     document.addEventListener("astro:page-load", wireLightboxes);
+
+    /** Phones deal the projects as fixed-height cards: each description
+     *  gives up whole lines until its card holds title, copy and tags
+     *  without scrolling. */
+    let unfit: Array<() => void> = [];
+    document.addEventListener("astro:page-load", () => {
+        if (!window.matchMedia("(max-width: 1023px)").matches) return;
+        for (const body of document.querySelectorAll<HTMLElement>(".hscroll-pin .featured-card .edit-body")) {
+            const desc = body.querySelector<HTMLElement>(".edit-desc");
+            if (desc) unfit.push(fitLines(desc, body, 6));
+        }
+    });
+    document.addEventListener("astro:before-swap", () => {
+        unfit.forEach((stop) => stop());
+        unfit = [];
+    });
 </script>
