@@ -181,7 +181,7 @@ export default function ContactForm() {
                         value={form.message}
                         onChange={onChange}
                         className="contact-field resize-none h-20 lg:h-auto"
-                        placeholder="A role, a question, or just a hello."
+                        placeholder="What would you like to talk about?"
                     />
                 </label>
 

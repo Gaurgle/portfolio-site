@@ -480,8 +480,10 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
 
 /* Header shade: flat behind the bar, then a 3px fade at its bottom edge,
    so the edge reads crisp without a hard line. Phones run it darker: the
-   icons there sit right over text scrolling under them. On desktop it
-   starts where the sidebar column ends, so the two never stack. */
+   icons there sit right over text scrolling under them. On desktop the
+   sidebar is the one piece of chrome, running the full height, and the top
+   stays open sky: the only thing up there is the pair of icons, and they
+   carry their own halo. A band beside the sidebar met it in a seam. */
 #site-header::before {
     content: "";
     position: absolute;
@@ -499,9 +501,12 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
 }
 @media (min-width: 1024px) {
     #site-header::before {
-        left: 9.5rem;
+        content: none;
     }
-    /* The sidebar column: the same shade, the same 3px edge. */
+    .site-socials svg {
+        filter: drop-shadow(0 0 4px rgb(0 0 0 / 0.95)) drop-shadow(0 0 12px rgb(0 0 0 / 0.7));
+    }
+    /* The sidebar column: the same shade, a 3px edge. */
     #sidebar {
         background: linear-gradient(to right,
             rgb(0 0 0 / 0.62) calc(100% - 3px), transparent);
@@ -932,17 +937,15 @@ html.lenis, html.lenis body { height: auto; }
    width as the chapter settles (--settle, smoothScroll.ts). The svg holds
    every line to the mark's width (textLength), so only the letterforms
    breathe; nothing around the mark reflows. */
-/* Momentum (--speed, desktop): a fast arrival opens the letters a little
-   wider still, and they ease back on the same spring as the scroll. */
 .chapter-mark text {
     font-family: "Anybody", system-ui, sans-serif;
     font-weight: 700;
-    font-stretch: calc(100% + var(--settle, 1) * 25% + var(--speed, 0) * 10%);
+    font-stretch: calc(100% + var(--settle, 1) * 25%);
     fill: var(--cloud);
 }
 .chapter-mark text.cm-num {
     font-weight: 850;
-    font-stretch: calc(112% + var(--settle, 1) * 28% + var(--speed, 0) * 10%);
+    font-stretch: calc(112% + var(--settle, 1) * 28%);
 }
 html.reduced-motion .chapter-mark text {
     font-stretch: 125%;
@@ -1639,12 +1642,8 @@ html.reduced-motion .chapter-mark text.cm-num {
     }
     /* Out of focus is out of focus: the blur is the depth of field. Desktop
        only, like the ROOS blur, to spare phone GPUs. */
-    /* Speed (--speed, smoothScroll.ts motionTick): in transit the stops
-       soften and stretch a touch along the scroll, the way fast motion
-       blurs, and come back sharp as the page settles. */
     html:not(.reduced-motion) .beam-stop {
-        filter: blur(calc((var(--exit) * 18 - var(--ahead) * 7 + var(--speed, 0) * 2.5) * 1px));
-        scale: 1 calc(1 + var(--speed, 0) * 0.025);
+        filter: blur(calc((var(--exit) * 18 - var(--ahead) * 7) * 1px));
         will-change: transform, opacity, filter;
     }
     .stop-contents {

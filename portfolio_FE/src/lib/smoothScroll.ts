@@ -48,8 +48,8 @@ let parallaxTick: (() => void) | null = null;
 let lightRead: (() => void) | null = null;
 let lightWrite: (() => void) | null = null;
 /** Per-frame springs that follow Lenis (desktop), set by bindScrollDriven:
- *  scroll speed for the flights and marks, the journey pointer, and the
- *  give at the end of the page. `dt` in seconds. */
+ *  the journey pointer and the give at the end of the page. `dt` in
+ *  seconds. */
 let motionTick: ((dt: number) => void) | null = null;
 /** Wheel travel past the end of the page, px, and when it last grew: the
  *  page gives a little with growing resistance, then springs back. */
@@ -1019,31 +1019,14 @@ function bindScrollDriven(reduced: boolean): void {
         cleanups.push(() => (restTick = null));
     }
 
-    // Springs that follow the scroll (desktop): they carry the scroll's own
-    // speed into the page, so motion reads as momentum rather than a
-    // readout, and settle without overshoot once the page rests.
+    // Springs that follow the scroll (desktop): they settle without
+    // overshoot once the page rests, so motion reads as momentum rather
+    // than a readout.
     if (!reduced && lenis && isDesktop()) {
-        // Scroll speed, 0..1, as --speed on the flights (they stretch and
-        // soften a touch in transit) and the chapter marks (their letters
-        // open a little wider on a fast arrival).
-        const speed = { x: 0, v: 0 };
-        const speedEls = Array.from(
-            document.querySelectorAll<HTMLElement>(".flight-stack, .chapter-mark"),
-        );
-        let shownSpeed = -1;
         // The contact panel gives at the end of the page, then springs back.
         const give = { x: 0, v: 0 };
         let shownGive = 0;
         motionTick = (dt) => {
-            if (!lenis) return;
-            springStep(speed, Math.min(1, Math.abs(lenis.velocity) / 40), 0.35, dt);
-            const sp = Math.max(0, Math.min(1, speed.x));
-            const value = sp < 0.004 ? 0 : Math.round(sp * 1000) / 1000;
-            if (value !== shownSpeed) {
-                shownSpeed = value;
-                speedEls.forEach((el) => el.style.setProperty("--speed", String(value)));
-            }
-
             for (const s of stacks) {
                 const p = s.pointer;
                 const list = s.contents[0]?.parentElement;
@@ -1062,7 +1045,7 @@ function bindScrollDriven(reduced: boolean): void {
                     springStep(give, 0, 0.4, dt);
                     overscroll = Math.max(0, give.x);
                 }
-                const lift = give.x > 0.5 ? rubberband(give.x, viewportH * 0.12) : 0;
+                const lift = give.x > 0.5 ? rubberband(give.x, viewportH * 0.06) : 0;
                 if (Math.abs(lift - shownGive) > 0.1) {
                     shownGive = lift;
                     panel.style.transform = lift ? `translate3d(0, ${(-lift).toFixed(1)}px, 0)` : "";
