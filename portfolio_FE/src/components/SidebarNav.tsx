@@ -5,11 +5,11 @@ import { sketchOnHover } from "../lib/sketch";
 // active state set by the scroll spy in smoothScroll.ts. global.css lights
 // the word on hover and while its section is active (.nav-link).
 const links = [
-    { href: "/#home", spy: "home", label: "home" },
-    { href: "/#about", spy: "about", label: "about" },
-    { href: "/#journey", spy: "journey", label: "journey" },
-    { href: "/#projects", spy: "projects", label: "projects" },
-    { href: "/#contact", spy: "contact", label: "contact" },
+    { href: "/#home", spy: "home", label: "Home" },
+    { href: "/#about", spy: "about", label: "About" },
+    { href: "/#journey", spy: "journey", label: "Journey" },
+    { href: "/#projects", spy: "projects", label: "Projects" },
+    { href: "/#contact", spy: "contact", label: "Contact" },
 ];
 
 /** The rough underline's ink: the cloud-shade accent. */
@@ -41,7 +41,7 @@ export default function SidebarNav() {
                 <a
                     key={href}
                     data-spy={spy}
-                    className="nav-link block py-1.5 font-mono text-base"
+                    className="nav-link block py-1.5"
                     href={href}
                 >
                     <span ref={(el) => (labelRefs.current[i] = el)}>{label}</span>

@@ -3,24 +3,26 @@ import SidebarNav from "./SidebarNav";
 ---
 
 <!-- Phones: a drawer that slides in over a scrim (SidebarToggle owns the
-     open state, aria-hidden and inert). Desktop: always there. -->
+     open state, aria-hidden and inert). Desktop: always there, a flat dark
+     column exactly as wide as the clearance the page keeps for it (9.5rem),
+     flush to the screen's edges, with no border. -->
 <aside
     id="sidebar"
     class="fixed left-0 top-0
-     z-40 h-screen w-[72vw] max-w-[20rem] lg:w-auto lg:max-w-none
-     bg-black/[0.96] lg:bg-transparent
+     z-40 h-screen w-[72vw] max-w-[20rem] lg:w-[9.5rem] lg:max-w-none
+     bg-black/[0.96] lg:bg-black/[0.62]
      transform transition-transform duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)]
      touch-pan-y lg:touch-auto
      -translate-x-full lg:translate-x-0">
 
-    <nav class="relative h-full p-8 pt-[88px] lg:pt-[110px]">
+    <nav class="relative h-full p-8 pt-[88px] lg:pl-6 lg:pr-2 lg:pt-[110px]">
         <!-- Links -->
         <SidebarNav client:load />
 
         <!-- CV downloads: same light as the nav -->
         <div class="mt-8 space-y-1">
-            <p class="font-mono text-xs text-zinc-400 mb-2 tracking-wide">CV</p>
-            <a class="nav-link flex items-center gap-2 py-1.5 font-mono text-base"
+            <p class="text-[13px] text-zinc-500 mb-1.5">CV</p>
+            <a class="nav-link flex items-center gap-2 py-1.5 whitespace-nowrap"
                href="/cv/andreas-roos-cv-en.pdf" download>
                 <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -28,7 +30,7 @@ import SidebarNav from "./SidebarNav";
                 </svg>
                 <span data-cv>English PDF</span>
             </a>
-            <a class="nav-link flex items-center gap-2 py-1.5 font-mono text-base"
+            <a class="nav-link flex items-center gap-2 py-1.5 whitespace-nowrap"
                href="/cv/andreas-roos-cv-sv.pdf" download>
                 <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

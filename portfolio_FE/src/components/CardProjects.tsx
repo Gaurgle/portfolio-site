@@ -293,7 +293,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                             rel="noopener noreferrer"
                             className="text-sm text-zinc-400 hover:text-white transition-colors duration-200"
                         >
-                            Code &rarr;
+                            GitHub &rarr;
                         </a>
                     )}
                 </div>

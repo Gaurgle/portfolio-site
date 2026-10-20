@@ -262,7 +262,7 @@ export default function ProjectsGrid() {
                                     {shown.link && shown.link !== "#" && (
                                         <a href={shown.link} target="_blank" rel="noopener noreferrer"
                                            className="text-zinc-400 hover:text-white transition-colors duration-200">
-                                            Code &rarr;
+                                            GitHub &rarr;
                                         </a>
                                     )}
                                     {shown.demoUrl && (
