@@ -4,16 +4,16 @@
  * the starfield) is engulfed as it passes through a portal of liquid
  * chrome. The border is the surface of a world whose gravity points into
  * it, sideways, unrelated to the page's up and down: the content pours its
- * light and colour into the liquid as it crosses (carried in a little by
- * its own momentum), and the liquid flares off the surface like solar
- * prominences, rising away from the border out over the content and
- * falling back onto it, some stretches erupting more than others. It pools
- * wider on the content side, so what crosses is swallowed, not traced. At
- * the border it wears the content's colours; further out they turn to
- * banded, metallic chrome (orange, rose, violet, electric blue, cyan: no
- * green or yellow, so it never reads as a rainbow). The threshold itself
- * never moves, but it buzzes, like the light beam under the sky's glitch
- * (clouds.ts gives a cloud cut off by it a faint seam of the same chrome).
+ * light and colour into it as it crosses, and two layers rise off the
+ * surface. One is molten silver: heavy, splashed back out by the content's
+ * impact, arcing and falling back onto the border. The other is a solar
+ * flare: light, buoyant plasma that lifts off in prominences, loops over
+ * and thins away. It pools wider on the content side, so what crosses is
+ * swallowed, not traced. At the border it wears the content's colours;
+ * further out they turn to silver and banded chrome (orange, rose, violet,
+ * electric blue, cyan: no green or yellow, so it never reads as a
+ * rainbow). The threshold itself never moves (clouds.ts gives a cloud cut
+ * off by it a faint, buzzing seam of the same chrome).
  *
  * The fluid is a small stable-fluids simulation (Stam, "Stable Fluids",
  * 1999): semi-Lagrangian advection, a viscosity blur, and a pressure solve
@@ -43,8 +43,20 @@ const AHEAD = 24;
 const REACH = 100;
 /** The simulation's resolution relative to the canvas. */
 const SIM_SCALE = 0.5;
-/** Pressure solve iterations: more is more fluid, and more work. */
-const PRESSURE_STEPS = 16;
+/** The two layers: how each is pushed (force shader), how thick it is,
+ *  how much of the content it takes in, how much of it survives each step
+ *  at the border and far off, and how many pressure iterations it gets
+ *  (more is more fluid, and more work). */
+const METAL = {
+    // Heavy: launched hard, pulled back hard, keeps its momentum, splashes.
+    force: { launch: .045, pull: .016, rise: .0007, vortex: .25, splash: .05, churn: .012, hold: .97 },
+    thick: .6, amount: .14, keep: [.976, .9], pressureSteps: 16,
+};
+const FLARE = {
+    // Light: buoyant, barely held back, curls, and thins away quickly.
+    force: { launch: .035, pull: .007, rise: .0003, vortex: .35, splash: .015, churn: .025, hold: .94 },
+    thick: .9, amount: .07, keep: [.96, .86], pressureSteps: 8,
+};
 /** Seconds the fluid is kept alive after the last content left the edge;
  *  over the last FADE of them it fades to nothing before it stops. */
 const LINGER = 2.2;
@@ -81,28 +93,58 @@ float py() { return (1. - uv.y) * view.y; }
 /** Forces, with gravity turned sideways: the border is the surface, "up"
  *  is away from it. Light rises off the surface where it is brightest and
  *  gravity pulls it back, so plumes arc out and fall in; how hard each
- *  stretch erupts drifts slowly. The content's momentum carries it in a
- *  little. Velocities are in cells per step, kept slow: liquid, not smoke. */
+ *  stretch erupts drifts slowly. The content's momentum drags it in on the
+ *  sidebar side and splashes it out on the other. Velocities are in cells
+ *  per step. Each layer brings its own weights (METAL, FLARE). */
 const forceSource = common + `
 uniform sampler2D velocity;
 uniform sampler2D dye;
+uniform sampler2D curl;
 uniform float speed; // how fast the content is moving into the border, px per frame
+uniform float launch, pull, rise, vortex, splash, churn, hold;
 void main() {
     vec2 v = texture(velocity, uv).xy;
     float light = luma(texture(dye, uv).rgb);
     float x = px(), y = py();
-    // Eruptions: the light lifts off the surface, harder in some places.
+    // Eruptions: the light lifts off the surface, harder in some places, and
+    // at a slant that drifts along the border, so plumes leave as arcs, not
+    // as bars.
     float erupt = .3 + 1.4 * pow(noise(vec2(y * .018, time * .35)), 2.);
-    v.x += light * .03 * erupt;
-    // Gravity, toward the surface from either side; lighter on the sidebar
-    // side, so what is dragged in stays in a while.
-    v.x -= sign(x) * (x > 0. ? .014 : .006) * smoothstep(0., 8., abs(x));
-    // The crossing content drags the liquid in with it, past the border.
-    v.x -= speed * .5 * exp(-x * x / 900.) * .3;
-    // A slow, even churn, so nothing settles into stillness.
+    float slant = (noise(vec2(y * .025 + 7.3, time * .25)) - .5) * 1.8;
+    v += light * launch * erupt * vec2(cos(slant), sin(slant));
+    // Shear above the surface: the further a plume rises, the more it is
+    // bent along the border, one way here and the other there.
+    v.y += (noise(vec2(y * .012 - 3.1, time * .2)) - .5) * .05 * smoothstep(0., 40., x);
+    // Gravity, toward the surface from either side, harder the higher the
+    // liquid has risen, so arcs fall back in instead of spreading out;
+    // lighter on the sidebar side, so what is dragged in stays in a while.
+    v.x -= sign(x) * (x > 0. ? pull + x * rise : .006) * smoothstep(0., 8., abs(x));
+    // Vorticity confinement: the swirls the solver would smear away are
+    // given back, so the plumes curl over as they fall.
+    float cl = texture(curl, uv - vec2(texel.x, 0.)).x, cr = texture(curl, uv + vec2(texel.x, 0.)).x;
+    float cb = texture(curl, uv - vec2(0., texel.y)).x, ct = texture(curl, uv + vec2(0., texel.y)).x;
+    vec2 toward = vec2(abs(ct) - abs(cb), abs(cr) - abs(cl));
+    v += toward / (length(toward) + 1e-5) * texture(curl, uv).x * vec2(1., -1.) * vortex;
+    // The crossing content drags the liquid in with it on the sidebar side,
+    // and its impact splashes the liquid back out on the content side, more
+    // in some places than others.
+    float hit = speed * exp(-x * x / 400.);
+    v.x -= hit * .15 * smoothstep(4., -4., x);
+    v.x += hit * light * splash * smoothstep(-4., 4., x) * (.3 + noise(vec2(y * .05, time * 2.)));
+    // A faint churn, so nothing settles into stillness.
     vec2 q = vec2(x * .035, y * .02);
-    v += (vec2(noise(q + vec2(time * .12, 0.)), noise(q + vec2(5.2, time * .1))) - .5) * .025;
-    color = vec4(v * .94, 0., 1.);
+    v += (vec2(noise(q + vec2(time * .12, 0.)), noise(q + vec2(5.2, time * .1))) - .5) * churn;
+    color = vec4(v * hold, 0., 1.);
+}
+`;
+
+/** How the flow turns at each cell. */
+const curlSource = common + `
+uniform sampler2D velocity;
+void main() {
+    float l = texture(velocity, uv - vec2(texel.x, 0.)).y, r = texture(velocity, uv + vec2(texel.x, 0.)).y;
+    float b = texture(velocity, uv - vec2(0., texel.y)).x, t = texture(velocity, uv + vec2(0., texel.y)).x;
+    color = vec4(.5 * (r - l - t + b), 0., 0., 1.);
 }
 `;
 
@@ -111,6 +153,7 @@ const injectSource = common + `
 uniform sampler2D dye;
 uniform sampler2D content; // what lies just right of the edge, now
 uniform float ahead;
+uniform float amount;
 vec3 lit(float x, float y) {
     vec4 c = texture(content, vec2(clamp(x, 0., ahead - 1.) / ahead, y / view.y));
     return c.rgb * c.a;
@@ -118,13 +161,15 @@ vec3 lit(float x, float y) {
 void main() {
     vec3 d = texture(dye, uv).rgb;
     float x = px(), y = py();
-    // The content in contact with the border, diffused over a few rows.
-    vec3 c = lit(1.5, y) * .4 + (lit(1.5, y - 3.) + lit(1.5, y + 3.)) * .2 + lit(5., y) * .2;
+    // The content in contact with the border, diffused over several rows,
+    // so a line of type pours in as a stream, not a bar.
+    vec3 c = lit(1.5, y) * .25 + (lit(1.5, y - 4.) + lit(1.5, y + 4.)) * .17
+        + (lit(3., y - 9.) + lit(3., y + 9.)) * .1 + lit(5., y) * .21;
     // A soft band across the threshold, no seam at it: wide over the
     // content, which is engulfed, narrow into the sidebar.
-    float spread = x > 0. ? 18. : 16.;
+    float spread = x > 0. ? 28. : 22.;
     float band = exp(-x * x / (2. * spread * spread));
-    d += c * band * .2;
+    d += c * band * amount;
     color = vec4(min(d, vec3(1.6)), 1.);
 }
 `;
@@ -138,19 +183,20 @@ void main() {
     // It fades quickly away from the edge, never getting far: soonest out
     // over the content, later on the sidebar side it was dragged into.
     float x = px();
-    float keep = mix(near, far, x > 0. ? smoothstep(4., 50., x) : smoothstep(8., 70., -x));
+    float keep = mix(near, far, x > 0. ? smoothstep(6., 70., x) : smoothstep(10., 85., -x));
     color = texture(source, from) * keep;
 }
 `;
 
-/** Viscosity: each cell's motion drawn toward its neighbours'. Thick. */
+/** Viscosity: each cell's motion drawn toward its neighbours', by `thick`. */
 const viscositySource = common + `
 uniform sampler2D velocity;
+uniform float thick;
 void main() {
     vec2 v = texture(velocity, uv).xy;
     vec2 around = texture(velocity, uv + vec2(texel.x, 0.)).xy + texture(velocity, uv - vec2(texel.x, 0.)).xy
         + texture(velocity, uv + vec2(0., texel.y)).xy + texture(velocity, uv - vec2(0., texel.y)).xy;
-    color = vec4(mix(v, around * .25, .9), 0., 1.);
+    color = vec4(mix(v, around * .25, thick), 0., 1.);
 }
 `;
 
@@ -183,18 +229,21 @@ void main() {
 }
 `;
 
-/** What is seen: the fluid's light, the content's colours turning to chrome
- *  away from the edge, a slight warm/cool split, and a bright rim where the
- *  body of the fluid ends, so it reads thick rather than as a haze. */
+/** What is seen: molten silver, with the flare glowing around it. The dye's density is the liquid's depth;
+ *  where it is deep enough there is a surface, with a soft but defined edge
+ *  (surface tension), lit like a mirror: the room reflected in it, one
+ *  sharp highlight, a bright Fresnel rim where it curves away, and the
+ *  chrome set tinting its reflections. At the border it still wears the
+ *  content's colours. */
 const displaySource = common + `
 uniform sampler2D dye;
-// The buzz: the liquid shivers sideways along thin scanlines with its colours
-// pulled apart, like the light beam under the sky's glitch, only faster and
-// in passing bursts. CSS px; continuous in time, never a jump cut.
-float buzz(float y) {
-    float lines = sin(y * .9 + time * 53.) * .6 + sin(y * .23 - time * 37.) * .4;
-    float burst = smoothstep(.45, .85, noise(vec2(y * .012, time * 3.)));
-    return lines * burst * 2.5;
+uniform sampler2D flare;
+// The dye smoothed over a few cells, so the liquid reads as one body rather
+// than as fine detail.
+vec3 soft(vec2 at) {
+    vec2 o = texel * 1.6;
+    return texture(dye, at).rgb * .4 + (texture(dye, at + vec2(o.x, 0.)).rgb + texture(dye, at - vec2(o.x, 0.)).rgb
+        + texture(dye, at + vec2(0., o.y)).rgb + texture(dye, at - vec2(0., o.y)).rgb) * .15;
 }
 vec3 chrome(float h) {
     const vec3 stops[5] = vec3[5](vec3(1., .42, .06), vec3(1., .16, .5),
@@ -204,39 +253,49 @@ vec3 chrome(float h) {
     return mix(stops[i], stops[(i + 1) % 5], smoothstep(0., 1., fract(k)));
 }
 void main() {
-    float b = buzz(py());
-    vec2 at = uv + vec2(b / view.x, 0.);
-    vec2 split = vec2(texel.x * 1.2 + abs(b) * .8 / view.x, 0.);
-    vec3 d = vec3(texture(dye, at + split).r, texture(dye, at).g, texture(dye, at - split).b);
-    float l = luma(d);
+    vec2 at = uv;
+    vec2 split = vec2(texel.x * 1.2, 0.);
+    vec3 d = vec3(soft(at + split).r, soft(at).g, soft(at - split).b);
+    float depth = luma(d);
     float x = abs(px()), y = py();
     float h = x * .006 + y * .0011 + time * .02;
-    // Liquid chrome: the light's brightness read as metallic bands of the
-    // chrome set, taking over from the content's own colours away from
-    // the border.
-    vec3 metal = chrome(h + l * 1.8) * (.55 + .45 * cos(l * 9. + time * .4));
-    vec3 c = mix(d, metal * l * 1.7, smoothstep(3., 45., x) * .85);
-    // The rim: where the fluid's body falls away, its surface catches light.
-    vec3 lx = texture(dye, at + vec2(texel.x, 0.)).rgb - texture(dye, at - vec2(texel.x, 0.)).rgb;
-    vec3 ly = texture(dye, at + vec2(0., texel.y)).rgb - texture(dye, at - vec2(0., texel.y)).rgb;
-    float rim = length(vec2(luma(lx), luma(ly)));
-    c += chrome(h + .3) * rim * 1.6;
-    // The coarse layer, only where there is light. A billowy texture like
-    // the clouds', drifting slowly through the liquid.
-    vec2 here = vec2(px(), py());
-    float billow = noise(here * .05 + vec2(time * .05, 0.)) * .55
-        + noise(here * .11 - vec2(0., time * .07)) * .3 + noise(here * .23 + time * .04) * .15;
-    c *= .65 + .7 * billow;
+    // The surface: where the liquid is deep enough to hold together.
+    float body = smoothstep(.05, .2, depth);
+    // Its slope, from the depth around it.
+    vec2 dx = vec2(texel.x * 2., 0.), dy = vec2(0., texel.y * 2.);
+    vec2 slope = vec2(luma(soft(at + dx)) - luma(soft(at - dx)), luma(soft(at + dy)) - luma(soft(at - dy)));
+    vec3 n = normalize(vec3(-slope * 7., 1.));
+    vec3 r = reflect(vec3(0., 0., -1.), n);
+    // The room it reflects: a bright sky above, a dark floor, a soft
+    // horizon, tinted by the chrome set as it turns.
+    float room = smoothstep(-.6, .7, r.y + r.x * .3);
+    vec3 silver = mix(vec3(.05, .06, .08), vec3(.92, .95, 1.), room);
+    silver = mix(silver, silver * chrome(h + r.x * .4 + r.y * .25) * 1.5, .35);
+    // One sharp highlight, and the Fresnel rim where the surface curves away.
+    float spec = pow(max(dot(r, normalize(vec3(-.4, .6, .7))), 0.), 60.);
+    float fresnel = pow(1. - n.z, 2.);
+    vec3 metal = silver * (.55 + .45 * depth) + spec * 1.4 + chrome(h + .3) * fresnel * .8;
+    // At the border it wears the content's colours; away from it, silver.
+    vec3 c = mix(d * 1.2, metal, smoothstep(3., 40., x) * .9) * body;
+    // Thin liquid short of a surface: a faint sheen, so nothing switches.
+    c += d * .25 * (1. - body);
+    // The flare: thin plasma glowing in the chrome set, its colours split a
+    // little, behind the metal and out around it.
+    vec3 f = vec3(texture(flare, uv + split * 2.).r, texture(flare, uv).g, texture(flare, uv - split * 2.).b);
+    float glow = luma(f);
+    vec3 plasma = mix(f, chrome(h + glow * 1.5) * glow * 1.6, smoothstep(3., 30., x) * .8);
+    c += plasma * (1. - body * .7);
+    float rim = fresnel * body;
     // Film grain in clumps of a couple of pixels, new every frame.
     vec2 clump = floor(gl_FragCoord.xy / 2.);
-    c *= .87 + .26 * hash(clump + fract(time * 7.13));
+    c *= .93 + .14 * hash(clump + fract(time * 7.13));
     // Glitch sparkles: rare specks that fade in and out, on the liquid and
     // most of all along its rim.
     float beat = floor(time * 9.);
     float spark = step(.996 - rim * .015, hash(clump * 1.7 + beat));
     float twinkle = sin(fract(time * 9.) * 3.1416);
-    c += chrome(h + hash(clump + 3.1) * .6) * spark * twinkle * (l * 2.5 + rim * 3.);
-    color = vec4(1. - exp(-c * .95), 1.);
+    c += chrome(h + hash(clump + 3.1) * .6) * spark * twinkle * (depth * 2.5 + rim * 3.);
+    color = vec4(1. - exp(-c * .75), 1.);
 }
 `;
 
@@ -347,6 +406,7 @@ export function setupPortal(): () => void {
     const strip = document.createElement("canvas");
     const stripCtx = strip.getContext("2d");
     const programs = gl && {
+        curl: compile(gl, curlSource),
         force: compile(gl, forceSource),
         inject: compile(gl, injectSource),
         advect: compile(gl, advectSource),
@@ -395,10 +455,14 @@ export function setupPortal(): () => void {
         } };
         return field;
     };
-    const velocity = pair(), dye = pair(), pressure = pair();
+    // Each layer keeps its own pressure, the next frame's first guess; they
+    // share the divergence scratch field.
+    const metal = { velocity: pair(), dye: pair(), pressure: pair(), ...METAL };
+    const flare = { velocity: pair(), dye: pair(), pressure: pair(), ...FLARE };
     const divergence = makeTarget();
     const contentTexture = makeTexture();
-    const fields = [velocity.read, velocity.write, dye.read, dye.write, pressure.read, pressure.write, divergence];
+    const fields = [metal, flare].flatMap((l) => [l.velocity, l.dye, l.pressure].flatMap((f) => [f.read, f.write]))
+        .concat(divergence);
 
     let edge = 0, width = 0, height = 0, simW = 1, simH = 1;
     let texts = new WeakMap<Element, { raster: HTMLCanvasElement | null; w: number }>();
@@ -550,27 +614,34 @@ export function setupPortal(): () => void {
             return;
         }
 
-        pass(p.force, velocity.write, { velocity: velocity.read.texture, dye: dye.read.texture }, { speed: speed * SIM_SCALE });
-        velocity.swap();
-        pass(p.viscosity, velocity.write, { velocity: velocity.read.texture });
-        velocity.swap();
-        pass(p.divergence, divergence, { velocity: velocity.read.texture });
-        for (let i = 0; i < PRESSURE_STEPS; i++) {
-            pass(p.pressure, pressure.write, { pressure: pressure.read.texture, divergence: divergence.texture });
-            pressure.swap();
-        }
-        pass(p.gradient, velocity.write, { pressure: pressure.read.texture, velocity: velocity.read.texture });
-        velocity.swap();
-        pass(p.advect, velocity.write, { velocity: velocity.read.texture, source: velocity.read.texture }, { near: 0.99, far: 0.95 });
-        velocity.swap();
-        pass(p.inject, dye.write, { dye: dye.read.texture, content: contentTexture }, { ahead: AHEAD });
-        dye.swap();
         // Fading out: the light thins away gradually, never cut off.
         const fade = Math.min(1, Math.max(0, (clock - lastContent - (LINGER - FADE)) / FADE));
         const keep = 1 - 0.07 * fade;
-        pass(p.advect, dye.write, { velocity: velocity.read.texture, source: dye.read.texture }, { near: 0.976 * keep, far: 0.9 * keep });
-        dye.swap();
-        pass(p.display, null, { dye: dye.read.texture });
+        for (const layer of [metal, flare]) {
+            const { velocity, dye, pressure } = layer;
+            // The curl lands in the divergence field, which is rewritten below.
+            pass(p.curl, divergence, { velocity: velocity.read.texture });
+            pass(p.force, velocity.write, { velocity: velocity.read.texture, dye: dye.read.texture, curl: divergence.texture },
+                { speed: speed * SIM_SCALE, ...layer.force });
+            velocity.swap();
+            pass(p.viscosity, velocity.write, { velocity: velocity.read.texture }, { thick: layer.thick });
+            velocity.swap();
+            pass(p.divergence, divergence, { velocity: velocity.read.texture });
+            for (let i = 0; i < layer.pressureSteps; i++) {
+                pass(p.pressure, pressure.write, { pressure: pressure.read.texture, divergence: divergence.texture });
+                pressure.swap();
+            }
+            pass(p.gradient, velocity.write, { pressure: pressure.read.texture, velocity: velocity.read.texture });
+            velocity.swap();
+            pass(p.advect, velocity.write, { velocity: velocity.read.texture, source: velocity.read.texture }, { near: 0.99, far: 0.95 });
+            velocity.swap();
+            pass(p.inject, dye.write, { dye: dye.read.texture, content: contentTexture }, { ahead: AHEAD, amount: layer.amount });
+            dye.swap();
+            pass(p.advect, dye.write, { velocity: velocity.read.texture, source: dye.read.texture },
+                { near: layer.keep[0] * keep, far: layer.keep[1] * keep });
+            dye.swap();
+        }
+        pass(p.display, null, { dye: metal.dye.read.texture, flare: flare.dye.read.texture });
     };
     raf = requestAnimationFrame(tick);
 
