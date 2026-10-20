@@ -932,15 +932,17 @@ html.lenis, html.lenis body { height: auto; }
    width as the chapter settles (--settle, smoothScroll.ts). The svg holds
    every line to the mark's width (textLength), so only the letterforms
    breathe; nothing around the mark reflows. */
+/* Momentum (--speed, desktop): a fast arrival opens the letters a little
+   wider still, and they ease back on the same spring as the scroll. */
 .chapter-mark text {
     font-family: "Anybody", system-ui, sans-serif;
     font-weight: 700;
-    font-stretch: calc(100% + var(--settle, 1) * 25%);
+    font-stretch: calc(100% + var(--settle, 1) * 25% + var(--speed, 0) * 10%);
     fill: var(--cloud);
 }
 .chapter-mark text.cm-num {
     font-weight: 850;
-    font-stretch: calc(112% + var(--settle, 1) * 28%);
+    font-stretch: calc(112% + var(--settle, 1) * 28% + var(--speed, 0) * 10%);
 }
 html.reduced-motion .chapter-mark text {
     font-stretch: 125%;
@@ -1637,8 +1639,12 @@ html.reduced-motion .chapter-mark text.cm-num {
     }
     /* Out of focus is out of focus: the blur is the depth of field. Desktop
        only, like the ROOS blur, to spare phone GPUs. */
+    /* Speed (--speed, smoothScroll.ts motionTick): in transit the stops
+       soften and stretch a touch along the scroll, the way fast motion
+       blurs, and come back sharp as the page settles. */
     html:not(.reduced-motion) .beam-stop {
-        filter: blur(calc((var(--exit) * 18 - var(--ahead) * 7) * 1px));
+        filter: blur(calc((var(--exit) * 18 - var(--ahead) * 7 + var(--speed, 0) * 2.5) * 1px));
+        scale: 1 calc(1 + var(--speed, 0) * 0.025);
         will-change: transform, opacity, filter;
     }
     .stop-contents {
@@ -1848,12 +1854,17 @@ html.reduced-motion .beam-stop {
     overflow: hidden;
 }
 
-/* Docked preview viewer: quick crossfade when the shown project changes */
-.animate-fade-in-fast {
-    animation: fade-in-fast 0.3s ease;
+/* Docked preview viewer: the new picture comes in from the side of the
+   row that was picked (--from: down the list rises up, up the list drops
+   in), easing to rest without overshoot. */
+.animate-shot-in {
+    animation: shot-in 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
-@keyframes fade-in-fast {
-    from { opacity: 0; }
+@keyframes shot-in {
+    from {
+        opacity: 0;
+        transform: translateY(var(--from, 0px));
+    }
 }
 
 /* Desktop projects listing: a row's name brightens to cloud white on hover
@@ -2228,7 +2239,7 @@ html[data-section="contact"] .site-socials {
    sit outside the scroll engine's reach, so they are silenced here. */
 html.reduced-motion .animate-fade-up,
 html.reduced-motion .animate-fade-in,
-html.reduced-motion .animate-fade-in-fast,
+html.reduced-motion .animate-shot-in,
 html.reduced-motion .animate-pulse {
     animation: none !important;
     opacity: 1 !important;

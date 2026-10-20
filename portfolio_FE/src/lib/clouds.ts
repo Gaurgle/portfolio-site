@@ -333,10 +333,13 @@ ${lensShape}
 out vec4 color;
 const float zoom=.2, displacement=.05, chromatic=.01;
 // Behind settled text a cloud is toned down with this knee (luminance over
-// black): the brightest glare lands near .3, the body of the cloud a little
-// under it. White type keeps its own black halo (global.css), which carries
-// the contrast right at the glyphs; the cloud only loses its glare.
-const float TEXT_KNEE=.45;
+// black), at TEXT_HOLD of its full strength: a light hand, so a bright
+// cloud behind a chapter keeps its body and only loses some glare, the way
+// it looks along the journey's light (where the lens stands down). The
+// full knee carved a dark patch into any cloud behind the about chapter.
+// White type keeps its own black halo (global.css), which carries the
+// contrast right at the glyphs.
+const float TEXT_KNEE=.45, TEXT_HOLD=.45;
 // Thin-film colour: the slow interference sheen of an oil film, one cosine
 // per channel, so it drifts through the spectrum without ever stepping.
 vec3 film(float phase) {
@@ -498,7 +501,7 @@ void main() {
     // with the text settling, so nothing switches.
     vec3 cloud=shaded.rgb*.85;
     float glare=dot(cloud,vec3(.2126,.7152,.0722));
-    cloud*=mix(1.,1./(1.+glare/TEXT_KNEE),lens.x);
+    cloud*=mix(1.,1./(1.+glare/TEXT_KNEE),lens.x*TEXT_HOLD);
     vec4 sky=vec4(cloud+beam,max(raw.a*.85,beamAlpha));
     // Deep space keeps a breath of the same hue: a faint, slow nebular
     // wash, three or four levels above black at most.

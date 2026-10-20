@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { lightboxPair, swapShot } from "../lib/shotTransition";
 import { projects } from "../data/projects";
@@ -79,6 +79,9 @@ export default function ProjectsGrid() {
     /* ------------------------- desktop ls list ------------------------- */
     const [filter, setFilter] = useState<string | null>(null);
     const [active, setActive] = useState<Project | null>(null);
+    // Which way the viewer's picture arrives: from below when the pick is
+    // further down the list than the one shown, from above when it is up.
+    const [arriveFrom, setArriveFrom] = useState(0);
     const warmedRef = useRef(false);
 
     // Curated filter set, matched loosely against tags (case-insensitive
@@ -98,6 +101,13 @@ export default function ProjectsGrid() {
     // (rows never navigate - only the arrow links out). Only a filter with
     // no matches leaves it on the resting statement.
     const shown = active && listed.includes(active) ? active : listed[0] ?? null;
+    const pick = (p: Project) => {
+        if (shown && p !== shown) {
+            setArriveFrom(Math.sign(listed.indexOf(p) - listed.indexOf(shown)) * 18);
+        }
+        setActive(p);
+        setLightboxOpen(false);
+    };
 
     // Warm every preview image into cache once, so row-to-row swaps don't
     // stall on network + decode.
@@ -155,8 +165,8 @@ export default function ProjectsGrid() {
                             return (
                                 <div
                                     key={p.projectTitle}
-                                    onClick={() => { setActive(p); setLightboxOpen(false); }}
-                                    onKeyDown={(e) => { if (e.key === "Enter") { setActive(p); setLightboxOpen(false); } }}
+                                    onClick={() => pick(p)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") pick(p); }}
                                     role="button"
                                     tabIndex={0}
                                     className={`ls-row group flex items-baseline gap-5 py-4 pl-2 pr-12 border-b border-zinc-800/70
@@ -233,7 +243,8 @@ export default function ProjectsGrid() {
                                     {...imageSize(firstImage(shown)!)}
                                     alt=""
                                     decoding="async"
-                                    className="block w-auto h-auto max-w-full max-h-full rounded-md animate-fade-in-fast cursor-zoom-in"
+                                    style={{ "--from": `${arriveFrom}px` } as CSSProperties}
+                                    className="block w-auto h-auto max-w-full max-h-full rounded-md animate-shot-in cursor-zoom-in"
                                 />
                             </button>
                         ) : (

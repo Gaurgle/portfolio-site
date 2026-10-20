@@ -47,6 +47,32 @@ let parallaxTick: (() => void) | null = null;
  *  the top of the frame, before any scroll write, and lit at its end. */
 let lightRead: (() => void) | null = null;
 let lightWrite: (() => void) | null = null;
+/** Per-frame springs that follow Lenis (desktop), set by bindScrollDriven:
+ *  scroll speed for the flights and marks, the journey pointer, and the
+ *  give at the end of the page. `dt` in seconds. */
+let motionTick: ((dt: number) => void) | null = null;
+/** Wheel travel past the end of the page, px, and when it last grew: the
+ *  page gives a little with growing resistance, then springs back. */
+let overscroll = 0;
+let overscrollAt = 0;
+
+/** One frame of a critically damped spring (damping 1.0, Apple's default:
+ *  no overshoot) moving `state.x` toward `target`. `response` is how quick
+ *  it is, in seconds. Substepped so a slow frame stays stable. */
+function springStep(state: { x: number; v: number }, target: number, response: number, dt: number): void {
+    const w = (2 * Math.PI) / response;
+    for (let left = dt; left > 0; left -= 1 / 240) {
+        const h = Math.min(left, 1 / 240);
+        state.v += (-2 * w * state.v - w * w * (state.x - target)) * h;
+        state.x += state.v * h;
+    }
+}
+
+/** Resistance past a boundary: follows less the further it goes, and never
+ *  past about half of `dimension`. */
+function rubberband(over: number, dimension: number, constant = 0.55): number {
+    return (over * dimension * constant) / (dimension + constant * Math.abs(over));
+}
 const observers: IntersectionObserver[] = [];
 const cleanups: Array<() => void> = [];
 
@@ -359,6 +385,9 @@ type CardStack = {
      *  order. The one in focus is marked `is-current`; the list carries the
      *  continuous position as `--stop-at` for its pointer. */
     contents: HTMLElement[];
+    /** Desktop: the contents pointer's spring (motionTick); `target` is the
+     *  flight's position. Without Lenis the pointer follows it directly. */
+    pointer: { x: number; v: number; target: number } | null;
 };
 
 function measureCardStacks(): CardStack[] {
@@ -398,6 +427,7 @@ function measureCardStacks(): CardStack[] {
             contents: Array.from(
                 section.querySelectorAll<HTMLElement>("[data-stack-contents] > *"),
             ),
+            pointer: lenis ? { x: NaN, v: 0, target: 0 } : null,
         });
     }
     return result;
@@ -777,7 +807,8 @@ function focusStack(s: CardStack, local: number): void {
         if (i === current) button?.setAttribute("aria-current", "step");
         else button?.removeAttribute("aria-current");
     });
-    s.contents[0]?.parentElement?.style.setProperty("--stop-at", position.toFixed(3));
+    if (s.pointer) s.pointer.target = position;
+    else s.contents[0]?.parentElement?.style.setProperty("--stop-at", position.toFixed(3));
     s.cards.forEach((card, i) => {
         const offset = position - i;
         const travel = Math.max(0, Math.abs(offset) - FOCUS_DWELL) / (FOCUS_HANDOVER - FOCUS_DWELL);
@@ -986,6 +1017,62 @@ function bindScrollDriven(reduced: boolean): void {
             if (target !== null) springTo(target, 0.4);
         };
         cleanups.push(() => (restTick = null));
+    }
+
+    // Springs that follow the scroll (desktop): they carry the scroll's own
+    // speed into the page, so motion reads as momentum rather than a
+    // readout, and settle without overshoot once the page rests.
+    if (!reduced && lenis && isDesktop()) {
+        // Scroll speed, 0..1, as --speed on the flights (they stretch and
+        // soften a touch in transit) and the chapter marks (their letters
+        // open a little wider on a fast arrival).
+        const speed = { x: 0, v: 0 };
+        const speedEls = Array.from(
+            document.querySelectorAll<HTMLElement>(".flight-stack, .chapter-mark"),
+        );
+        let shownSpeed = -1;
+        // The contact panel gives at the end of the page, then springs back.
+        const give = { x: 0, v: 0 };
+        let shownGive = 0;
+        motionTick = (dt) => {
+            if (!lenis) return;
+            springStep(speed, Math.min(1, Math.abs(lenis.velocity) / 40), 0.35, dt);
+            const sp = Math.max(0, Math.min(1, speed.x));
+            const value = sp < 0.004 ? 0 : Math.round(sp * 1000) / 1000;
+            if (value !== shownSpeed) {
+                shownSpeed = value;
+                speedEls.forEach((el) => el.style.setProperty("--speed", String(value)));
+            }
+
+            for (const s of stacks) {
+                const p = s.pointer;
+                const list = s.contents[0]?.parentElement;
+                if (!p || !list) continue;
+                if (Number.isNaN(p.x)) p.x = p.target;
+                springStep(p, p.target, 0.3, dt);
+                const at = p.x.toFixed(3);
+                if (list.style.getPropertyValue("--stop-at") !== at) list.style.setProperty("--stop-at", at);
+            }
+
+            if (panel) {
+                if (performance.now() - overscrollAt < 90) {
+                    give.x = overscroll;
+                    give.v = 0;
+                } else {
+                    springStep(give, 0, 0.4, dt);
+                    overscroll = Math.max(0, give.x);
+                }
+                const lift = give.x > 0.5 ? rubberband(give.x, viewportH * 0.12) : 0;
+                if (Math.abs(lift - shownGive) > 0.1) {
+                    shownGive = lift;
+                    panel.style.transform = lift ? `translate3d(0, ${(-lift).toFixed(1)}px, 0)` : "";
+                }
+            }
+        };
+        cleanups.push(() => {
+            motionTick = null;
+            if (panel) panel.style.transform = "";
+        });
     }
 
     // Frozen viewport height for all per-frame math. Reading innerHeight
@@ -1488,6 +1575,7 @@ export function destroySmoothScroll(): void {
     anchorBypass = false;
     lenis?.destroy();
     lenis = null;
+    overscroll = 0;
     marquee.track = null;
     marquee.visible = false;
     marquee.half = 0;
@@ -1536,6 +1624,14 @@ export function initSmoothScroll(): void {
                         trackpad += ((fine && gap < 120 ? 1 : 0) - trackpad) * 0.3;
                         lenis.options.lerp = SCROLL_LERP + (TRACKPAD_LERP - SCROLL_LERP) * trackpad;
                     }
+                    // Past the end of the page: the travel the page cannot
+                    // take is kept for the give (motionTick).
+                    if (data.deltaY > 0 && lenis.targetScroll >= lenis.limit - 1) {
+                        overscroll += data.deltaY;
+                        overscrollAt = performance.now();
+                    } else if (data.deltaY < 0 && overscroll > 0) {
+                        overscroll = Math.max(0, overscroll + data.deltaY);
+                    }
                     const target = lenis.targetScroll + data.deltaY;
                     if (!crossesStage(lenis.animatedScroll, target)) return true;
                     // Lenis damps the lead by 1 - e^-lerp per 60Hz frame.
@@ -1560,6 +1656,7 @@ export function initSmoothScroll(): void {
             tickMarquee(frameScale);
             restTick?.();
             parallaxTick?.();
+            motionTick?.(frameScale / 60);
             lightWrite?.();
             rafId = requestAnimationFrame(raf);
         };
