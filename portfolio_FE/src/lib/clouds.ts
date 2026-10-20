@@ -517,8 +517,10 @@ void main() {
     // the sidebar's edge, that cut face catches a thin seam of the portal's
     // chrome, split into its colours and buzzing like the beam's glitch. No
     // flare and no trail: only the cloud's face at the border, while it is
-    // there.
-    if(portal.x>0. && layer==0) {
+    // there. The hero's copy in front of the page carries it as well, or the
+    // copy would hide it.
+    vec3 portalSeam=vec3(0.);
+    if(portal.x>0.) {
         float y=(1.-uv.y)*portal.y, x=(uv.x-portal.x)*aspect*portal.y;
         float lines=sin(y*.9+skyTime*53.)*.6+sin(y*.23-skyTime*37.)*.4;
         float burst=.35+.65*smoothstep(.3,.8,smoothNoise(vec2(y*.015,skyTime*2.5)));
@@ -537,14 +539,16 @@ void main() {
         // Grain like the portal's, new every frame; the sky's pixels are
         // already about the size of the portal's clumps.
         seam*=.7+.6*fract(sin(dot(floor(gl_FragCoord.xy)+fract(skyTime*7.13)*97.,vec2(127.1,311.7)))*43758.5453);
-        cloud+=portalChrome(y*.004+x*.02+skyTime*.08+body*.8)*seam*density*burst*(.75+.25*lines)*.45;
+        portalSeam=portalChrome(y*.004+x*.02+skyTime*.08+body*.8)*seam*density*burst*(.75+.25*lines)*.45;
     }
+    cloud+=portalSeam;
     vec4 sky=vec4(cloud+beam,max(raw.a*.85,beamAlpha));
     // Deep space keeps a breath of the same hue: a faint, slow nebular
     // wash, three or four levels above black at most.
     float wash=texture(noiseVolume,vec3(uv*vec2(aspect,1.)*.3,skyTime*.003+.5)).r;
     sky.rgb+=(skyTint-.86)*.035*(.4+.6*wash)*(1.-sky.a);
-    color=layer==1 ? shaded*lift : sky;
+    // The copy covers the sky's seam by its own alpha; it adds that much back.
+    color=layer==1 ? shaded*lift+vec4(portalSeam*raw.a*lift,0.) : sky;
     // Night: no part of the frame may run brighter than a grey-blue 0.6, so
     // flying through the hero cloud is a dim fog, not a flash. min() scales
     // only what exceeds the cap, so nothing switches at the limit.
