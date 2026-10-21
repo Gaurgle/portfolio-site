@@ -4,6 +4,7 @@ import "../styles/global.css";
 import Banner from "../components/Banner.astro";
 import Sidebar from "../components/Sidebar.astro";
 import SidebarToggle from "../components/SidebarToggle";
+import ChapterRail from "../components/ChapterRail.astro";
 import ParticleLayers from "../components/ParticleLayers.astro";
 import CloudLayers from "../components/CloudLayers.astro";
 import EasterEggs from "../components/EasterEggs";
@@ -70,6 +71,9 @@ const isHome = Astro.url.pathname === "/";
 
 <!-- SIDEBAR -->
 <Sidebar {current} />
+
+<!-- CHAPTER RAIL (phones: the chapters and the CV along the bottom) -->
+<ChapterRail />
 
 <!-- Fixed panel revealed as the page lifts at the end (one-pager contact) -->
 {revealFooter && <slot name="reveal-panel" />}

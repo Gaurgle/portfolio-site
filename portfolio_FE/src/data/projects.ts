@@ -130,17 +130,17 @@ export const projects = [
   {
     projectTitle: "noiz",
     description:
-      "Rain in your terminal. Mix it with white, pink, or brown noise and optional binaural tones, then set a timer and leave it playing while you work.",
+      "Noise in your terminal. White, pink, or brown noise synthesised live, with optional binaural tones and rain on top. Set a timer and leave it playing while you work.",
     tags: ["Rust", "cpal", "ratatui", "DSP", "Audio"],
     image: "/pictures/noiz.webp",
     link: "https://github.com/Gaurgle/noiz",
     details: {
       long:
-        "A small sound mixer that stays in the terminal. Adjust noise, rain, and binaural tones independently, and use a timer to fade out when you're done. Noise and tones are synthesised live; the rain comes from recordings.",
+        "A small noise generator that stays in the terminal. White, pink, and brown noise are synthesised live, with binaural tones and rain recordings as optional layers, each adjusted on its own. A timer fades it out when you're done.",
       highlights: [
-        "Independently adjustable sound layers",
-        "White, pink, and brown noise",
-        "Rain recordings and optional binaural tones",
+        "White, pink, and brown noise, synthesised live",
+        "Independently adjustable layers",
+        "Optional binaural tones and rain recordings",
         "Timed playback with a fade-out"
       ],
     },

@@ -131,19 +131,19 @@ html.is-loading {
 }
 /* Every stage below the hero is hidden too: they are laid out by the scroll
    engine, and until it runs their cards sit as one pile. */
-html.is-loading :is(body > header, #sidebar, #scroll-progress, #bottom-hue,
+html.is-loading :is(body > header, #sidebar, #chapter-rail, #scroll-progress, #bottom-hue,
     .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
     #sidebar-toggle, main > :not(#home)) {
     opacity: 0 !important;
 }
-html.is-revealing :is(body > header, #sidebar, #scroll-progress,
+html.is-revealing :is(body > header, #sidebar, #chapter-rail, #scroll-progress,
     .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
     #sidebar-toggle, main > :not(#home)) {
     transition: opacity 1.4s ease;
 }
 /* Skipped (the visitor scrolled during the loading screen, index.astro): the
    same fade-in, compressed to a quick cross-fade. */
-html.is-skipping :is(body > header, #sidebar, #scroll-progress,
+html.is-skipping :is(body > header, #sidebar, #chapter-rail, #scroll-progress,
     .particle-layers, #cloud-atmosphere, #cloud-foreground, .hero-lines,
     #sidebar-toggle, main > :not(#home), .hero-mark-ghost) {
     transition: opacity 0.25s ease-out;
@@ -1132,6 +1132,115 @@ html.reduced-motion .chapter-mark text.cm-num {
 }
 .nav-link:active {
     opacity: 0.6;
+}
+
+/* Phone chapter rail (ChapterRail.astro): a flat tinted band flush to the
+   bottom edge with a 3px fade, the desktop sidebar's shade. Along its top
+   edge runs the Journey contents' line on its side, across the whole rail:
+   the lit stretch is the reader's progress through the page, settling
+   under each chapter while it is read (--rail-x, set by the rail's
+   script). Replaces the drawer, so the toggle goes. */
+.chapter-rail {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    display: flex;
+    padding: 3px 0.75rem env(safe-area-inset-bottom);
+    background: linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.62) 3px);
+    font-size: 0.875rem;
+    font-weight: 450;
+    letter-spacing: 0.01em;
+    /* Rises in with the scroll once the reader is on their way (--rail-reveal,
+       the rail's script): out of sight over the hero. */
+    opacity: var(--rail-reveal, 0);
+    transform: translate3d(0, calc((1 - var(--rail-reveal, 0)) * 100%), 0);
+}
+.chapter-rail.is-lowering {
+    pointer-events: none;
+}
+.chapter-rail.is-away {
+    visibility: hidden;
+}
+.chapter-rail::before,
+.chapter-rail::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    border-radius: 1px;
+    pointer-events: none;
+}
+.chapter-rail::before {
+    left: 0.75rem;
+    right: 0.75rem;
+    height: 1px;
+    background: rgb(255 255 255 / 0.14);
+}
+.chapter-rail::after {
+    left: 0;
+    width: 2.5rem;
+    height: 2px;
+    background: var(--cloud);
+    box-shadow: 0 0 8px rgb(240 243 247 / 0.5);
+    transform: translateX(var(--rail-x, 0.75rem));
+}
+#sidebar-toggle {
+    display: none;
+}
+.rail-chapters {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+}
+.chapter-rail .rail-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 3rem;
+}
+.chapter-rail .nav-link:hover,
+.chapter-rail .nav-link:focus-visible {
+    transform: none;
+}
+.rail-cv {
+    position: relative;
+    display: flex;
+    padding-left: 0.75rem;
+}
+.rail-cv svg {
+    width: 0.875rem;
+    height: 0.875rem;
+}
+/* The CV choice rises out of its button and settles; closed, it is gone
+   from hit-testing once it has faded. */
+.rail-cv-sheet {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 0.5rem);
+    display: grid;
+    padding: 0.35rem 1rem;
+    border-radius: 0.75rem;
+    background: rgb(0 0 0 / 0.86);
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(6px);
+    visibility: hidden;
+    transition:
+        opacity 0.25s ease,
+        transform 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+        visibility 0s linear 0.4s;
+}
+.rail-cv.is-open .rail-cv-sheet {
+    opacity: 1;
+    transform: none;
+    visibility: visible;
+    transition-delay: 0s;
+}
+.rail-cv-sheet a {
+    padding: 0.7rem 0;
 }
 
 /* Press feedback: a pressed control gives a little the instant it is
@@ -2283,7 +2392,7 @@ html.reduced-motion .hero-mark-ghost {
     display: none;
 }
 
-/* Rough-notation annotations in the about cards.
+/* Rough-notation annotations in the About passages and Journey stops.
    The SVGs are injected at runtime and sit outside the card's reveal
    animation, so without this they paint fully drawn before the text they
    annotate has faded in. They stay invisible until the script has primed

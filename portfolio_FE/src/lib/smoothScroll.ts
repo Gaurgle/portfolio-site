@@ -1480,6 +1480,34 @@ function tickMarquee(frameScale: number): void {
 /* Anchor jumps                                                        */
 /* ------------------------------------------------------------------ */
 
+/** Phones: scrolls to `y` in a time that grows with the distance, so a jump
+ *  across the page still reads as travel. Eased in and out; a touch or a
+ *  wheel takes the page back at once. */
+function glideTo(y: number): void {
+    const from = window.scrollY;
+    const to = Math.max(0, Math.min(y, document.documentElement.scrollHeight - window.innerHeight));
+    const distance = Math.abs(to - from);
+    if (distance < 1) return;
+    const duration = Math.min(2400, 700 + Math.sqrt(distance) * 18);
+    const start = performance.now();
+    let frame = 0;
+    const stop = () => {
+        cancelAnimationFrame(frame);
+        window.removeEventListener("touchstart", stop);
+        window.removeEventListener("wheel", stop);
+    };
+    window.addEventListener("touchstart", stop, { passive: true });
+    window.addEventListener("wheel", stop, { passive: true });
+    const step = (now: number) => {
+        const t = Math.min(1, (now - start) / duration);
+        const eased = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+        window.scrollTo(0, from + (to - from) * eased);
+        if (t < 1) frame = requestAnimationFrame(step);
+        else stop();
+    };
+    frame = requestAnimationFrame(step);
+}
+
 function setupAnchors(): void {
     const links = document.querySelectorAll<HTMLAnchorElement>(
         'a[href^="#"], a[href^="/#"]',
@@ -1526,10 +1554,15 @@ function setupAnchors(): void {
                     // link is pressed and settles without overshoot.
                     springTo(lenis.animatedScroll + top, 0.45, done);
                 }
+            } else if (!prefersReducedMotion() && !isDesktop()) {
+                // Phones: a glide of our own. The browser's covers any
+                // distance in a fixed short time, a blur across the page.
+                // The contact marker only begins the reveal; the panel stands
+                // whole at the very bottom (glideTo clamps to it).
+                glideTo(hash === "#contact" ? Infinity : target.getBoundingClientRect().top + window.scrollY);
             } else {
-                // No Lenis (phones, reduced motion): the browser's own glide,
-                // unless motion is to be kept still.
-                target.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth" });
+                // Reduced motion: straight there.
+                target.scrollIntoView({ behavior: "auto" });
             }
             history.replaceState(null, "", hash);
         };
