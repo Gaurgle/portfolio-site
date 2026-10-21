@@ -965,6 +965,17 @@ html.reduced-motion .chapter-mark text {
 html.reduced-motion .chapter-mark text.cm-num {
     font-stretch: 140%;
 }
+/* Phones: the letters stand at their resting width. Touch scrolling runs
+   ahead of the script, so the width easing with the scroll read as the
+   headlines jerking; only the settled light (.cm-fringe) follows it. */
+@media (max-width: 1023px) {
+    .chapter-mark text {
+        font-stretch: 125%;
+    }
+    .chapter-mark text.cm-num {
+        font-stretch: 140%;
+    }
+}
 /* The light a settled mark catches: its letters drawn again behind it,
    dispersed into a violet and an amber copy (ChapterMark.astro) and
    blurred as one layer, so a soft spectral fringe spills past the glyph
@@ -1334,7 +1345,7 @@ html.reduced-motion .chapter-mark text.cm-num {
         width: 100%;
         /* Stable small-viewport geometry: no content measurement or toolbar-
            driven resize work while the deck is moving. */
-        height: calc(clamp(22rem, calc(100svh - 12rem), 28rem) + var(--deck-n, 3) * 10px);
+        height: calc(clamp(22rem, calc(var(--svh, 100svh) - 12rem), 28rem) + var(--deck-n, 3) * 10px);
     }
     /* Cards fill the stable track; browser toolbar changes cannot resize it. */
     .hscroll-pin .featured-card {
@@ -1698,11 +1709,12 @@ html.reduced-motion .chapter-mark text.cm-num {
     }
     .flight-stack .stack-area {
         width: 100%;
-        height: clamp(22rem, calc(100svh - 10.5rem), 34rem);
+        height: clamp(22rem, calc(var(--svh, 100svh) - 10.5rem), 34rem);
         flex-shrink: 0;
         min-height: 0;
-        /* Its height is svh-based, so a query on it cannot flip while the
-           browser bar moves. */
+        /* Its height is from the frozen small viewport (--svh,
+           smoothScroll.ts), so a query on it cannot flip while the browser
+           bar moves. */
         container-type: size;
     }
     .beam-copy {
@@ -1832,7 +1844,8 @@ html.reduced-motion .beam-stop {
         max-height: 40%;
         flex-shrink: 0;
     }
-    /* The card's height is svh-based (stable under the browser bar). */
+    /* The card's height is from the frozen small viewport (--svh), stable
+       under the browser bar. */
     .hscroll-pin .featured-card {
         container-type: size;
     }
@@ -2019,10 +2032,11 @@ html.reduced-motion .beam-stop {
     left: 0;
     right: 0;
     bottom: 0;
-    /* svh: STABLE under mobile Safari's collapsing URL bar. dvh resized
-       the whole reveal geometry mid-scroll (jitter as the bar animated) */
+    /* The small viewport, frozen in px (--svh, smoothScroll.ts): dvh, and
+       on some iOS Safari builds svh too, resized the whole reveal geometry
+       mid-scroll as the bar animated. */
     height: 88vh;
-    height: 88svh;
+    height: calc(var(--svh, 100svh) * 0.88);
     z-index: 5;
     display: flex;
     flex-direction: column;
@@ -2229,7 +2243,7 @@ html[data-section="contact"] .site-socials {
     background: #000;
     /* Must mirror .contact-panel height (svh: see comment there) */
     margin-bottom: 88vh;
-    margin-bottom: 88svh;
+    margin-bottom: calc(var(--svh, 100svh) * 0.88);
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
 }
 
