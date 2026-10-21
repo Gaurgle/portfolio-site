@@ -91,19 +91,30 @@ const isDesktop = (): boolean =>
  *  the moment of measuring. */
 export function measureViewportHeight(): number {
     if (isDesktop()) return window.innerHeight || 1;
+    return probeHeight("100lvh") || window.innerHeight || 1;
+}
+
+/** A CSS height resolved to px, as the browser has it right now. */
+function probeHeight(css: string): number {
     const probe = document.createElement("div");
     probe.style.cssText =
-        "position:fixed;top:0;width:0;height:100lvh;visibility:hidden;pointer-events:none";
+        `position:fixed;top:0;width:0;height:${css};visibility:hidden;pointer-events:none`;
     document.body.appendChild(probe);
     const height = probe.getBoundingClientRect().height;
     probe.remove();
-    return height || window.innerHeight || 1;
+    return height;
 }
 
 let layoutViewportH = 1;
 
 function updateViewport(): void {
     layoutViewportH = measureViewportHeight();
+    // The small viewport frozen in px (--svh) for what is sized from it.
+    // svh is meant to hold still under the phone's browser bar, but iOS
+    // Safari can move it as the bar animates, which flipped the stages'
+    // container queries (and the headline size with them) mid-scroll.
+    const small = probeHeight("100svh");
+    if (small > 0) document.documentElement.style.setProperty("--svh", `${small}px`);
 }
 
 function nativeProgress(): number {
