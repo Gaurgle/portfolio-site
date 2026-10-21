@@ -18,6 +18,7 @@ type Milestone = {
     n: string;
     cmd: string;
     title: string;
+    /** [[Key words]] are sketched over (AboutSection.astro wires them). */
     paras: string[];
 
 };
@@ -26,29 +27,29 @@ const milestones: Milestone[] = [
     {
         n: "01", cmd: "music", title: "A background in music",
         paras: [
-            "I started playing drums at four. Music has been part of my life ever since, and became my work in 2009. Over the years, that included drums and musical direction for Benjamin Ingrosso, and playback and MIDI engineering for Loreen, Veronica Maggio, and Eva Dahlgren.",
-            "I became increasingly drawn to the technical side: signal paths, synchronisation, and how a whole setup behaves when its parts depend on each other. Years in studios and live production gave me a practical way into systems thinking, and eventually a reason to study software."
+            "I started playing drums at four. Music has been part of my life ever since, and became my work in 2009. Over the years, that included drums and musical direction for Benjamin Ingrosso, and playback and [[MIDI engineering]] for Loreen, Veronica Maggio, and Eva Dahlgren.",
+            "I became increasingly drawn to the technical side: signal paths, synchronisation, and how a whole setup behaves when its parts depend on each other. Years in studios and live production gave me a practical way into [[systems thinking]], and eventually a reason to study software."
         ]
     },
     {
         n: "02", cmd: "studies", title: "Studying software",
         paras: [
-            "That interest took me to Nackademin's Java Developer programme in 2024. I'd spent years relying on software other people had written, and I wanted to know how it actually worked, and to start writing my own.",
-            "I graduated in June 2026, with a foundation in backend development, databases, and testing. Kotlin became my preferred language, and Android gave me a way to work directly with devices as well as the services behind them."
+            "That interest took me to Nackademin's [[Java Developer programme]] in 2024. I'd spent years relying on software other people had written, and I wanted to know how it actually worked, and to start writing my own.",
+            "I graduated in June 2026, with a foundation in [[backend development]], databases, and testing. Kotlin became my preferred language, and Android gave me a way to work directly with devices as well as the services behind them."
         ]
     },
     {
         n: "03", cmd: "sigma", title: "Android and Bluetooth",
         paras: [
-            "During my internship at Sigma Connectivity, I built an Android app for Bluetooth LE testing. Working with real devices took me from scanning and GATT communication into LE Audio: reading the spec and decoding the capabilities a device reports.",
-            "I designed a Lua API for custom test sequences and worked on the platform's backend and dashboard. That combination of Android, wireless devices, audio, and backend systems gave me a technical direction I wanted to keep pursuing."
+            "During my internship at Sigma Connectivity, I built an Android app for [[Bluetooth LE]] testing. Working with real devices took me from scanning and GATT communication into [[LE Audio]]: reading the spec and decoding the capabilities a device reports.",
+            "I designed a [[Lua API]] for custom test sequences and worked on the platform's backend and dashboard. That combination of Android, wireless devices, audio, and backend systems gave me a technical direction I wanted to keep pursuing."
         ]
     },
     {
         n: "04", cmd: "IMRSV", title: "Software at IMRSV",
         paras: [
-            "As Head of Technology at IMRSV Music, I design and build the studio's internal software and infrastructure. I also mix and master records, so the work I'm supporting is familiar. My projects cover automation, integrations, internal services, and the systems for storing and backing up our work.",
-            "That means following a problem beyond the application itself: how information moves between systems, where files live, what colleagues need access to, and what happens when something fails. My audio background helps me understand the work; software gives me more ways to improve it."
+            "As Head of Technology at IMRSV Music, I design and build the studio's internal software and infrastructure. I also mix and master records, so the work I'm supporting is familiar. My projects cover automation, [[integrations]], internal services, and the systems for storing and backing up our work.",
+            "That means following a problem beyond the application itself: how information moves between systems, where files live, what colleagues need access to, and what happens [[when something fails]]. My audio background helps me understand the work; software gives me more ways to improve it."
         ]
     }
 ];
@@ -85,14 +86,16 @@ const milestones: Milestone[] = [
                      data-lens: the sky clears and bends around it (clouds.ts) -->
                 <div class="stack-area" data-lens>
                     {milestones.map((m, i) => (
-                        <article data-stack-card class="beam-stop" style={`--f: ${i === 0 ? 0 : -1}`}>
+                        <article data-stack-card data-rn-card class="beam-stop" style={`--f: ${i === 0 ? 0 : -1}`}>
                             <header class="beam-head">
                                 <div class="passage-head">{m.cmd}</div>
                                 <h3 class="beam-title">{m.title}</h3>
                             </header>
                             <div class="beam-copy">
                                 {m.paras.map((p) => (
-                                    <p>{p}</p>
+                                    <p>{p.split(/\[\[(.+?)\]\]/).map((part, k) => k % 2
+                                        ? <span class="text-white" data-rn="underline">{part}</span>
+                                        : part)}</p>
                                 ))}
                             </div>
                         </article>

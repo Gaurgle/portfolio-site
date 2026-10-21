@@ -33,6 +33,82 @@ const reducedMotion = () =>
 
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
+/** Touch screens have no hover to answer to. */
+export const canHover = () =>
+  typeof window !== "undefined" && !!window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
+
+/** Drawn, ms (the draw itself included). */
+export const TIMER_HOLD = 3200;
+/** Undrawn, ms, before it draws again. */
+const TIMER_REST = 2400;
+
+/**
+ * Touch screens: the sketch draws itself on a timer instead of on hover.
+ * While `target` is well on screen (and `ready`, e.g. its passage in focus)
+ * it draws in, holds, draws out, rests, and goes again; each starts at its
+ * own small offset so neighbours never pulse in step. Off screen it draws
+ * out and waits. Under reduced motion it draws once and stays. `hold` is
+ * how long it stays drawn, ms. Returns a cleanup function.
+ */
+export function sketchOnTimer(
+  target: Element,
+  show: () => void,
+  hide: () => void,
+  ready: () => boolean = () => true,
+  hold: number = TIMER_HOLD,
+): () => void {
+  let visible = false;
+  let drawn = false;
+  let timer = 0;
+  // Leaving `ready` mid-hold (a passage flying on) draws it out at once,
+  // not when the hold would have ended.
+  const watch = window.setInterval(() => {
+    if (!drawn || ready()) return;
+    hide();
+    drawn = false;
+    clearTimeout(timer);
+    timer = visible ? window.setTimeout(step, 400) : 0;
+  }, 100);
+  const step = () => {
+    timer = 0;
+    if (!visible) return;
+    if (!ready()) {
+      if (drawn) hide();
+      drawn = false;
+      timer = window.setTimeout(step, 400);
+      return;
+    }
+    if (drawn) {
+      hide();
+      drawn = false;
+      timer = window.setTimeout(step, TIMER_REST);
+    } else {
+      show();
+      drawn = true;
+      if (!reducedMotion()) timer = window.setTimeout(step, hold);
+    }
+  };
+  const io = new IntersectionObserver(
+    ([entry]) => {
+      visible = entry.isIntersecting;
+      clearTimeout(timer);
+      timer = 0;
+      if (visible) timer = window.setTimeout(step, 300 + Math.random() * 900);
+      else if (drawn) {
+        hide();
+        drawn = false;
+      }
+    },
+    { threshold: 0.6 },
+  );
+  io.observe(target);
+  return () => {
+    io.disconnect();
+    clearTimeout(timer);
+    clearInterval(watch);
+  };
+}
+
 // rough-notation appends one <svg.rough-annotation> per annotation to the element's parent
 function pathsOf(el: HTMLElement): SVGPathElement[] {
   const parent = el.parentElement;
@@ -52,7 +128,8 @@ function prime(paths: SVGPathElement[]): void {
 }
 
 /**
- * Sketch a rough-notation annotation that draws in on hover and reverses on leave.
+ * Sketch a rough-notation annotation that draws in on hover and reverses on
+ * leave; on touch screens it draws on a timer instead (sketchOnTimer).
  * We disable rough-notation's own animation and drive `stroke-dashoffset` ourselves,
  * so the draw can play backwards. Returns a cleanup function.
  */
@@ -86,6 +163,9 @@ export function sketchOnHover(el: HTMLElement, opts: SketchOptions = {}): () => 
       animate: false,
     });
     current.show(); // render the rough strokes statically
+    // rough-notation would redraw on every resize (each move of a phone's
+    // browser bar), undashed: the stroke shown at once. Placed once instead.
+    (current as { detachListeners?: () => void }).detachListeners?.();
     prime(pathsOf(el));
   };
 
@@ -120,6 +200,15 @@ export function sketchOnHover(el: HTMLElement, opts: SketchOptions = {}): () => 
       }, outMs + 60);
     }
   };
+
+  if (!canHover()) {
+    const stop = sketchOnTimer(region, onEnter, onLeave);
+    return () => {
+      stop();
+      clearTimeout(removeTimer);
+      current?.remove();
+    };
+  }
 
   region.addEventListener("mouseenter", onEnter);
   region.addEventListener("mouseleave", onLeave);

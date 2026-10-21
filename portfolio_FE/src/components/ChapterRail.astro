@@ -1,0 +1,120 @@
+---
+/**
+ * Phones: the chapters along the bottom, where the thumb is, instead of a
+ * drawer behind a hamburger. The Journey contents' motif turned on its
+ * side: a thin line across the rail with a lit stretch that is the
+ * reader's progress through the page. It settles under each chapter while
+ * that chapter is read, travels to the next between them, and reaches the
+ * end of the line with the page. The CV, the one thing a visitor most
+ * often wants to take with them, sits at the end.
+ */
+const chapters = [
+    { spy: "about", label: "About" },
+    { spy: "journey", label: "Journey" },
+    { spy: "projects", label: "Work" },
+    { spy: "contact", label: "Contact" },
+];
+---
+<nav id="chapter-rail" class="chapter-rail lg:hidden" aria-label="Chapters">
+    <div class="rail-chapters">
+        {chapters.map(({ spy, label }) => (
+            <a class="rail-link nav-link" data-spy={spy} href={`/#${spy}`}>{label}</a>
+        ))}
+    </div>
+    <div class="rail-cv">
+        <button type="button" class="rail-link nav-link" aria-expanded="false" aria-controls="rail-cv-sheet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 4v13M6 11l6 6 6-6M5 21h14" />
+            </svg>
+            CV
+        </button>
+        <div id="rail-cv-sheet" class="rail-cv-sheet">
+            <a class="nav-link" href="/cv/andreas-roos-cv-en.pdf" download>English PDF</a>
+            <a class="nav-link" href="/cv/andreas-roos-cv-sv.pdf" download>Svensk PDF</a>
+        </div>
+    </div>
+</nav>
+
+<script>
+    /** How strongly the stretch settles under a chapter: the higher, the
+     *  longer it holds there and the quicker it travels between. */
+    const SETTLE = 2.5;
+    /** The rail rises in over this stretch of scroll, in screen heights:
+     *  out of sight at the top of the page, there once the reader is on
+     *  their way. */
+    const REVEAL_FROM = 0.9, REVEAL_TO = 1.5;
+
+    let bound: AbortController | undefined;
+    document.addEventListener("astro:page-load", () => {
+        bound?.abort();
+        bound = new AbortController();
+        const { signal } = bound;
+        // The CV sheet: opened by its button, closed by a choice, a tap
+        // anywhere else, or scrolling on.
+        const cv = document.querySelector<HTMLElement>("#chapter-rail .rail-cv");
+        const button = cv?.querySelector("button");
+        if (!cv || !button) return;
+        const set = (open: boolean) => {
+            cv.classList.toggle("is-open", open);
+            button.setAttribute("aria-expanded", String(open));
+        };
+        button.addEventListener("click", () => set(!cv.classList.contains("is-open")));
+        cv.querySelectorAll(".rail-cv-sheet a").forEach((a) => a.addEventListener("click", () => set(false)));
+        document.addEventListener("pointerdown", (e) => {
+            if (!cv.contains(e.target as Node)) set(false);
+        }, { signal });
+        window.addEventListener("scroll", () => set(false), { passive: true, signal });
+
+        // The progress stretch. Anchors pair a scroll position with where the
+        // stretch stands: the line's start at the top, each chapter's label
+        // while the middle of that chapter is on screen (the contact panel
+        // half revealed), the line's end at the bottom of the page.
+        const rail = document.getElementById("chapter-rail");
+        const links = Array.from(document.querySelectorAll<HTMLElement>("#chapter-rail .rail-chapters a"));
+        if (!rail || !links.length) return;
+        let frame = 0;
+        const update = () => {
+            frame = 0;
+            // Hidden on desktop: nothing to place.
+            if (!rail.offsetWidth) return;
+            const box = rail.getBoundingClientRect();
+            // The stretch's width (global.css, .chapter-rail::after: 2.5rem).
+            const stretch = 2.5 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+            const inset = parseFloat(getComputedStyle(rail).paddingLeft);
+            const y = window.scrollY;
+            const vh = document.documentElement.clientHeight;
+            const max = Math.max(1, document.documentElement.scrollHeight - vh);
+            const rise = Math.min(1, Math.max(0, (y / vh - REVEAL_FROM) / (REVEAL_TO - REVEAL_FROM)));
+            const reveal = rise * rise * (3 - 2 * rise);
+            rail.style.setProperty("--rail-reveal", reveal.toFixed(3));
+            rail.classList.toggle("is-away", reveal === 0);
+            rail.classList.toggle("is-lowering", reveal < 0.5);
+            const anchors: Array<[number, number]> = [[0, inset]];
+            for (const link of links) {
+                const r = link.getBoundingClientRect();
+                const x = r.left + r.width / 2 - box.left - stretch / 2;
+                const section = document.getElementById(link.dataset.spy ?? "");
+                let at: number;
+                if (link.dataset.spy === "contact" || !section) at = max - vh * 0.44;
+                else {
+                    const s = section.getBoundingClientRect();
+                    at = s.top + y + (s.height - vh) / 2;
+                }
+                anchors.push([Math.max(at, anchors[anchors.length - 1][0] + 1), x]);
+            }
+            anchors.push([Math.max(max, anchors[anchors.length - 1][0] + 1), box.width - inset - stretch]);
+            let i = 1;
+            while (i < anchors.length - 1 && y > anchors[i][0]) i++;
+            const [a0, x0] = anchors[i - 1], [a1, x1] = anchors[i];
+            const t = Math.min(1, Math.max(0, (y - a0) / (a1 - a0)));
+            const eased = t ** SETTLE / (t ** SETTLE + (1 - t) ** SETTLE);
+            rail.style.setProperty("--rail-x", `${(x0 + (x1 - x0) * eased).toFixed(1)}px`);
+        };
+        const schedule = () => (frame ||= requestAnimationFrame(update));
+        window.addEventListener("scroll", schedule, { passive: true, signal });
+        window.addEventListener("resize", schedule, { signal });
+        signal.addEventListener("abort", () => cancelAnimationFrame(frame));
+        update();
+    });
+</script>

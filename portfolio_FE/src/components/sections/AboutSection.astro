@@ -22,19 +22,19 @@ import ChapterMark from "./ChapterMark.astro";
                     <article data-stack-card data-rn-card class="beam-stop" style="--f: 0">
                         <header class="beam-head"><h3 class="beam-title">Software development</h3></header>
                         <div class="beam-copy">
-                            <p>I'm Andreas, a <span class="text-white" data-rn="underline">software developer</span> in <span class="text-white" data-rn="underline">Stockholm</span>.
-                                I work mainly in <span class="text-white" data-rn="underline">Kotlin</span> and <span class="text-white" data-rn="underline">Java</span>, building <span class="text-white" data-rn="underline">backend services</span>, <span class="text-white" data-rn="underline">Android</span> apps, and tools.
+                            <p>I'm Andreas, a software developer in Stockholm.
+                                I work mainly in <span class="text-white" data-rn="underline">Kotlin</span> and Java, building <span class="text-white" data-rn="underline">backend services</span>, <span class="text-white" data-rn="underline">Android</span> apps, and tools.
                                 I like getting into the details of how software works, and having a say in how it's put together.
-                                Audio and Bluetooth are particular interests, alongside a growing collection of projects of my own.</p>
+                                <span class="text-white" data-rn="underline">Audio and Bluetooth</span> are particular interests, alongside a growing collection of projects of my own.</p>
                         </div>
                     </article>
                     <article data-stack-card data-rn-card class="beam-stop" style="--f: -1">
                         <header class="beam-head"><h3 class="beam-title">Work and projects</h3></header>
                         <div class="beam-copy">
-                            <p>I'm <span class="text-white" data-rn="underline">Head of Technology</span> at <span class="text-white" data-rn="underline">IMRSV Music</span>, where I also mix and master records.
-                                I design and build <span class="text-white" data-rn="underline">internal software</span>, automate workflows, connect services, and develop the <span class="text-white" data-rn="underline">infrastructure</span> they run on.
+                            <p>I'm Head of Technology at <span class="text-white" data-rn="underline">IMRSV Music</span>, where I also mix and master records.
+                                I design and build internal software, <span class="text-white" data-rn="underline">automate workflows</span>, connect services, and develop the infrastructure they run on.
                                 The work takes me from writing Kotlin to deploying services and planning storage and backups.
-                                Outside work, I build <span class="text-white" data-rn="underline">CLI and TUI</span> tools in <span class="text-white" data-rn="underline">Rust</span> for my own workflow. One makes rain sounds.</p>
+                                Outside work, I build CLI and TUI tools in <span class="text-white" data-rn="underline">Rust</span> for my own workflow. One makes noise.</p>
                         </div>
                     </article>
                 </div>
@@ -45,6 +45,7 @@ import ChapterMark from "./ChapterMark.astro";
 
 <script>
     import { annotate, annotationGroup } from "rough-notation";
+    import { canHover, sketchOnTimer, TIMER_HOLD } from "../../lib/sketch";
 
     // One ink for every annotation: the cloud-shade accent.
     const INK = "rgb(184 197 214)";
@@ -55,7 +56,8 @@ import ChapterMark from "./ChapterMark.astro";
         return 2;
     }
 
-    // Wire one card: build its annotation group, reveal on hover, clear on leave
+    // Wire one card (the About passages and the Journey stops): build its
+    // annotation group, reveal on hover, clear on leave
     function setupCard(card) {
         const els = Array.from(card.querySelectorAll("[data-rn]"));
         if (els.length === 0) return;
@@ -76,12 +78,36 @@ import ChapterMark from "./ChapterMark.astro";
         });
 
         const group = annotationGroup(annotations);
-        group.show(); // create the SVGs once (fully drawn); we hide them via dashoffset below
+        // Create the SVGs (fully drawn; hidden via dashoffset below). Left to
+        // itself rough-notation redraws them on every window resize (each
+        // move of a phone's browser bar) and every change to a word's box,
+        // measuring the words through the passage's flight transform and
+        // leaving the new strokes undashed: strokes drawn at once, in the
+        // wrong places. Its listeners go; reflows are handled below.
+        const render = () => {
+            group.show();
+            annotations.forEach((a) => a.detachListeners?.());
+        };
+        render();
 
         const DRAW_MS = 500; // draw-in on hover
         const UNDRAW_MS = 260; // reverse-draw on leave
         const LINGER_MS = 1500; // stay drawn after the cursor leaves
         const STAGGER_MS = 110; // delay between each word
+        const READ_RATE = 45; // characters a reader gets through per second
+        const FIRST_MS = 300; // the first word, after the passage has landed
+
+        // When a reader reaches each word, ms from the start of the passage:
+        // on the timer the words draw at that pace, pointing the way on
+        // through the text rather than lighting up all at once. The first
+        // comes almost at once; the rest keep their distance from it.
+        const copy = card.querySelector(".beam-copy") ?? card;
+        const readAt = els.map((el) => {
+            const before = document.createRange();
+            before.setStart(copy, 0);
+            before.setEndBefore(el);
+            return (before.toString().replace(/\s+/g, " ").trim().length / READ_RATE) * 1000;
+        }).map((at, _, all) => at - all[0] + FIRST_MS);
 
         // One <svg.rough-annotation> per annotated word; stagger by word, not by path
         const words = () => card.querySelectorAll("svg.rough-annotation");
@@ -125,14 +151,15 @@ import ChapterMark from "./ChapterMark.astro";
             return true;
         };
 
-        const drawIn = () => {
+        /** `paced`: each word at its reading time (readAt), not a quick sweep. */
+        const drawIn = (paced = false) => {
             if (!prime()) return;
             // The retracted state has to paint before the transition starts,
             // otherwise the browser coalesces both into one frame and the
             // annotation simply appears, fully drawn, with no draw at all.
             requestAnimationFrame(() => {
                 words().forEach((svg, i) => {
-                    const delay = i * STAGGER_MS; // left-to-right
+                    const delay = paced ? readAt[i] ?? 0 : i * STAGGER_MS; // left-to-right
                     svg.querySelectorAll("path").forEach((p) => {
                         p.style.transition = `stroke-dashoffset ${DRAW_MS}ms ease ${delay}ms`;
                         p.style.strokeDashoffset = "0";
@@ -154,15 +181,40 @@ import ChapterMark from "./ChapterMark.astro";
             });
         };
 
+        // The strokes are placed where each word stands. If the text reflows
+        // afterwards (a font settling, a size change) they are stale, and
+        // are placed again the next time the passage stands exactly in its
+        // seat, untransformed; until then it does not draw, so an underline
+        // never shows under some other word. The layout box ignores
+        // transforms, so the flight itself is no reflow.
+        let copyWidth = -1, copyHeight = -1, stale = false;
+        new ResizeObserver(([entry]) => {
+            const { width, height } = entry.contentRect;
+            if (copyWidth >= 0 && (Math.abs(width - copyWidth) > 1 || Math.abs(height - copyHeight) > 1)) stale = true;
+            copyWidth = width;
+            copyHeight = height;
+        }).observe(copy);
+        const seated = () =>
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+            parseFloat(card.style.getPropertyValue("--f")) === 0;
+        /** Strokes fit to draw: placed again first if stale. */
+        const fresh = () => {
+            if (!stale) return true;
+            if (!seated()) return false;
+            group.hide();
+            render();
+            primed = false;
+            stale = false;
+            return true;
+        };
+
         // Desktop: the text stands on its own and the annotation is a reward for
         // hovering. Touch devices have no hover, so there the card draws itself
-        // in once when it is properly on screen.
-        const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-
-        if (canHover) {
+        // on a timer while it is in focus.
+        if (canHover()) {
             card.addEventListener("mouseenter", () => {
                 clearTimeout(lingerTimer);
-                drawIn();
+                if (fresh()) drawIn();
             });
 
             card.addEventListener("mouseleave", () => {
@@ -172,17 +224,9 @@ import ChapterMark from "./ChapterMark.astro";
             return;
         }
 
-        const io = new IntersectionObserver(
-            (entries) => {
-                for (const entry of entries) {
-                    if (!entry.isIntersecting) continue;
-                    io.disconnect();
-                    drawIn();
-                }
-            },
-            { threshold: 0.6 },
-        );
-        io.observe(card);
+        // In focus: the flight has it at (or within a breath of) its seat.
+        const inFocus = () => Math.abs(parseFloat(card.style.getPropertyValue("--f")) || 0) < 0.15;
+        sketchOnTimer(card, () => fresh() && drawIn(true), drawOut, inFocus, Math.max(...readAt) + TIMER_HOLD);
     }
 
     /**
