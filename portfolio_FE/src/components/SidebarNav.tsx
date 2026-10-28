@@ -35,6 +35,20 @@ export default function SidebarNav() {
         let scheduled = 0;
         let running = 0;
         let last = 0;
+        const ruler = document.createElement("canvas").getContext("2d");
+
+        // Where a link's word stands: the middle of its capitals, which sit
+        // above the middle of the line box.
+        const capMiddle = (link: HTMLAnchorElement): number => {
+            const label = link.firstElementChild as HTMLElement | null;
+            const box = link.offsetParent?.getBoundingClientRect();
+            if (!label || !box || !ruler) return link.offsetTop + link.offsetHeight / 2;
+            const style = getComputedStyle(label);
+            ruler.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+            const cap = ruler.measureText("H");
+            const baseline = label.getBoundingClientRect().top + cap.fontBoundingBoxAscent;
+            return baseline - cap.actualBoundingBoxAscent / 2 - box.top;
+        };
 
         const targetFor = (y: number): number | null => {
             const links = linkRefs.current.filter((l): l is HTMLAnchorElement => !!l);
@@ -44,7 +58,7 @@ export default function SidebarNav() {
             // Per link: the scroll range it rests over, and where it stands.
             const zones = links.map((link) => {
                 const spy = link.dataset.spy;
-                const at = link.offsetTop + link.offsetHeight / 2;
+                const at = capMiddle(link);
                 if (spy === "contact") return { from: max - vh * 0.44, to: max, at };
                 const section = document.getElementById(spy ?? "");
                 if (!section) return { from: 0, to: 0, at };
