@@ -7,21 +7,11 @@ import ContactPanel from "../components/sections/ContactPanel.astro";
 import FeaturedShowcase from "../components/sections/FeaturedShowcase.astro";
 import TechMarquee from "../components/TechMarquee.tsx";
 import ProjectsGrid from "../components/ProjectsGrid.tsx";
+import { ROOS, ROOS_OUTLINE } from "../data/roos";
 
-// Rendered three times: the mark itself, its reflection on the ground line
-// it rises through on arrival (global.css, .hero-mark-ground), and its ghost
-// on the loading screen. The letters are drawn with box pieces for their
-// outline and solid blocks for their body, so blanking the blocks leaves an
-// outline the loading screen fills in.
-const ROOS = `
-██████╗  ██████╗  ██████╗ ███████╗
-██╔══██╗██╔═══██╗██╔═══██╗██╔════╝
-██████╔╝██║   ██║██║   ██║███████╗
-██╔══██╗██║   ██║██║   ██║╚════██║
-██║  ██║╚██████╔╝╚██████╔╝███████║
-╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝
-`;
-const ROOS_OUTLINE = ROOS.replace(/█/g, " ");
+// The mark is rendered three times: itself, its reflection on the ground
+// line it rises through on arrival (global.css, .hero-mark-ground), and its
+// ghost on the loading screen.
 ---
 <BaseLayout title="Andreas Roos | Software Developer" current="/" revealFooter>
     <ContactPanel slot="reveal-panel" />

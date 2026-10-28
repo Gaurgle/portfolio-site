@@ -1,6 +1,16 @@
 ---
 import SidebarNav from "./SidebarNav";
+import { ROOS } from "../data/roos";
 ---
+
+<!-- Desktop: the ROOS mark as a small banner at the top of the sidebar.
+     On the home page it fades in where it stands once the intro is over
+     (the hero's curtain cloud has cleared); on other pages it is there from
+     the start. Outside the sidebar and above the header, which would
+     otherwise cover it. Plain ASCII, no glow. -->
+<a href="/#home" class="roos-banner" aria-label="Andreas Roos, back to the top">
+    <pre class="font-mono ascii-art select-none" aria-hidden="true" set:html={ROOS} />
+</a>
 
 <!-- Phones: a drawer that slides in over a scrim (SidebarToggle owns the
      open state, aria-hidden and inert). Desktop: always there, a flat dark
@@ -16,7 +26,7 @@ import SidebarNav from "./SidebarNav";
      touch-pan-y lg:touch-auto
      -translate-x-full lg:translate-x-0">
 
-    <nav class="relative h-full p-8 pt-[88px] lg:pl-6 lg:pr-2 lg:pt-[110px]">
+    <nav class="relative h-full p-8 pt-[88px] lg:pl-6 lg:pr-2 lg:pt-[160px]">
         <!-- Links -->
         <SidebarNav client:load />
 
@@ -46,6 +56,35 @@ import SidebarNav from "./SidebarNav";
 
 <script>
     import { sketchOnHover } from "../lib/sketch";
+
+    /** Scroll (in viewport heights) past which the banner appears, and below
+     *  which it leaves again: the hero's curtain cloud reaches the camera at
+     *  about 1.15 (index.astro). The gap keeps it from flickering at the line. */
+    const DOCK_AT = 1.1;
+    const UNDOCK_AT = 1.0;
+
+    let stopBanner: (() => void) | null = null;
+    document.addEventListener("astro:page-load", () => {
+        stopBanner?.();
+        stopBanner = null;
+        const banner = document.querySelector<HTMLElement>(".roos-banner");
+        if (!banner) return;
+        // Off the home page there is no intro: the banner simply stands.
+        if (!document.getElementById("home")) {
+            banner.classList.add("is-static", "is-docked");
+            return;
+        }
+        banner.classList.remove("is-static");
+        const update = () => {
+            const at = window.scrollY / window.innerHeight;
+            const docked = banner.classList.contains("is-docked");
+            if (!docked && at > DOCK_AT) banner.classList.add("is-docked");
+            else if (docked && at < UNDOCK_AT) banner.classList.remove("is-docked");
+        };
+        update();
+        window.addEventListener("scroll", update, { passive: true });
+        stopBanner = () => window.removeEventListener("scroll", update);
+    });
 
     // CV downloads: the nav's rough underline on hover, in the cloud-shade ink
     document.addEventListener("astro:page-load", () => {
