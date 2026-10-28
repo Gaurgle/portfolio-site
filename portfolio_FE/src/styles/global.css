@@ -1254,6 +1254,33 @@ html.reduced-motion .chapter-mark .cm-title {
     opacity: 0.6;
 }
 
+/* The reader's progress beside the desktop links (SidebarNav.tsx): a small
+   point of cloud light that rests by each chapter's link while it is read
+   and travels to the next between them. Its top is the links' top; the
+   script sets how far down it stands. Desktop only: phones have the rail. */
+.nav-dot {
+    display: none;
+}
+@media (min-width: 1024px) {
+    .nav-dot {
+        position: absolute;
+        top: -2.5px;
+        left: -0.875rem;
+        display: block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--cloud);
+        box-shadow: 0 0 6px rgb(240 243 247 / 0.7), 0 0 14px rgb(184 197 214 / 0.35);
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        pointer-events: none;
+    }
+    .nav-dot.is-placed {
+        opacity: 1;
+    }
+}
+
 /* Phone chapter rail (ChapterRail.astro): a flat tinted band flush to the
    bottom edge with a 3px fade, the desktop sidebar's shade. Along its top
    edge runs the Journey contents' line on its side, across the whole rail:
