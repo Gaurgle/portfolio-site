@@ -747,7 +747,7 @@ type MarkDrift = {
 };
 
 /**
- * The chapter numerals + hook lines get two drift phases:
+ * The chapter marks get two drift phases:
  * - APPROACH: a slight lag behind the section's content (parallax depth),
  *   converging to zero moments after entering. Marks rigidly paired with
  *   content skip this - the journey mark's top must equal the first
@@ -1143,7 +1143,11 @@ function bindScrollDriven(reduced: boolean): void {
     // ramps the mark's light and its width axis with it. Measured on the
     // mark's parent, which no drift transform moves. The contact mark stands
     // still in its fixed panel, so it settles with the reveal instead.
-    const marks = Array.from(document.querySelectorAll<HTMLElement>(".chapter-mark"));
+    // Desktop only: on phones touch scrolling runs ahead of the script, and
+    // a light written from it lags the letters it sits on.
+    const marks = isDesktop()
+        ? Array.from(document.querySelectorAll<HTMLElement>(".chapter-mark"))
+        : [];
     const contactMark = panel?.querySelector<HTMLElement>(".chapter-mark") ?? null;
 
     // DOM depth (desktop): `data-depth` content drifts by that share of its

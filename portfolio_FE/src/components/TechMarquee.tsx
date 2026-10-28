@@ -54,7 +54,7 @@ export default function TechMarquee() {
                                     : "w-14 h-14 grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
                             }
                         />
-                        <span className="font-mono text-base text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+                        <span className="text-base text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
                             {name}
                         </span>
                     </div>

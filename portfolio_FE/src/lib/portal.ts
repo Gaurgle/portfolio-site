@@ -40,7 +40,7 @@ const EXCLUDE = [
 /** How far of the content side is read, CSS px. */
 const AHEAD = 24;
 /** How far the fluid can reach out over the content, CSS px. */
-const REACH = 100;
+const REACH = 44;
 /** The simulation's resolution relative to the canvas. */
 const SIM_SCALE = 0.5;
 /** The two layers: how each is pushed (force shader), how thick it is,
@@ -49,18 +49,18 @@ const SIM_SCALE = 0.5;
  *  (more is more fluid, and more work). */
 const METAL = {
     // Heavy: launched hard, pulled back hard, keeps its momentum, splashes.
-    force: { launch: .045, pull: .016, rise: .0007, vortex: .25, splash: .05, churn: .012, hold: .97 },
-    thick: .6, amount: .14, keep: [.976, .9], pressureSteps: 16,
+    force: { launch: .024, pull: .03, rise: .0016, vortex: .2, splash: .025, churn: .008, hold: .95 },
+    thick: .6, amount: .07, keep: [.962, .82], pressureSteps: 16,
 };
 const FLARE = {
     // Light: buoyant, barely held back, curls, and thins away quickly.
-    force: { launch: .035, pull: .007, rise: .0003, vortex: .35, splash: .015, churn: .025, hold: .94 },
-    thick: .9, amount: .07, keep: [.96, .86], pressureSteps: 8,
+    force: { launch: .02, pull: .014, rise: .0008, vortex: .3, splash: .008, churn: .015, hold: .92 },
+    thick: .9, amount: .045, keep: [.945, .8], pressureSteps: 8,
 };
 /** Seconds the fluid is kept alive after the last content left the edge;
  *  over the last FADE of them it fades to nothing before it stops. */
-const LINGER = 2.2;
-const FADE = 1;
+const LINGER = 1.4;
+const FADE = 0.7;
 
 const vertexSource = `#version 300 es
 in vec2 position;
@@ -114,7 +114,7 @@ void main() {
     v += light * launch * erupt * vec2(cos(slant), sin(slant));
     // Shear above the surface: the further a plume rises, the more it is
     // bent along the border, one way here and the other there.
-    v.y += (noise(vec2(y * .012 - 3.1, time * .2)) - .5) * .05 * smoothstep(0., 40., x);
+    v.y += (noise(vec2(y * .012 - 3.1, time * .2)) - .5) * .03 * smoothstep(0., 16., x);
     // Gravity, toward the surface from either side, harder the higher the
     // liquid has risen, so arcs fall back in instead of spreading out;
     // lighter on the sidebar side, so what is dragged in stays in a while.
@@ -128,7 +128,7 @@ void main() {
     // The crossing content drags the liquid in with it on the sidebar side,
     // and its impact splashes the liquid back out on the content side, more
     // in some places than others.
-    float hit = speed * exp(-x * x / 400.);
+    float hit = speed * exp(-x * x / 150.);
     v.x -= hit * .15 * smoothstep(4., -4., x);
     v.x += hit * light * splash * smoothstep(-4., 4., x) * (.3 + noise(vec2(y * .05, time * 2.)));
     // A faint churn, so nothing settles into stillness.
@@ -163,11 +163,11 @@ void main() {
     float x = px(), y = py();
     // The content in contact with the border, diffused over several rows,
     // so a line of type pours in as a stream, not a bar.
-    vec3 c = lit(1.5, y) * .25 + (lit(1.5, y - 4.) + lit(1.5, y + 4.)) * .17
-        + (lit(3., y - 9.) + lit(3., y + 9.)) * .1 + lit(5., y) * .21;
+    vec3 c = lit(1.5, y) * .25 + (lit(1.5, y - 2.) + lit(1.5, y + 2.)) * .17
+        + (lit(3., y - 4.) + lit(3., y + 4.)) * .1 + lit(5., y) * .21;
     // A soft band across the threshold, no seam at it: wide over the
     // content, which is engulfed, narrow into the sidebar.
-    float spread = x > 0. ? 28. : 22.;
+    float spread = x > 0. ? 12. : 9.;
     float band = exp(-x * x / (2. * spread * spread));
     d += c * band * amount;
     color = vec4(min(d, vec3(1.6)), 1.);
@@ -183,7 +183,7 @@ void main() {
     // It fades quickly away from the edge, never getting far: soonest out
     // over the content, later on the sidebar side it was dragged into.
     float x = px();
-    float keep = mix(near, far, x > 0. ? smoothstep(6., 70., x) : smoothstep(10., 85., -x));
+    float keep = mix(near, far, x > 0. ? smoothstep(3., 28., x) : smoothstep(4., 32., -x));
     color = texture(source, from) * keep;
 }
 `;
@@ -258,7 +258,7 @@ void main() {
     vec3 d = vec3(soft(at + split).r, soft(at).g, soft(at - split).b);
     float depth = luma(d);
     float x = abs(px()), y = py();
-    float h = x * .006 + y * .0011 + time * .02;
+    float h = x * .014 + y * .0011 + time * .02;
     // The surface: where the liquid is deep enough to hold together.
     float body = smoothstep(.05, .2, depth);
     // Its slope, from the depth around it.
@@ -276,14 +276,14 @@ void main() {
     float fresnel = pow(1. - n.z, 2.);
     vec3 metal = silver * (.55 + .45 * depth) + spec * 1.4 + chrome(h + .3) * fresnel * .8;
     // At the border it wears the content's colours; away from it, silver.
-    vec3 c = mix(d * 1.2, metal, smoothstep(3., 40., x) * .9) * body;
+    vec3 c = mix(d * 1.2, metal, smoothstep(2., 18., x) * .9) * body;
     // Thin liquid short of a surface: a faint sheen, so nothing switches.
     c += d * .25 * (1. - body);
     // The flare: thin plasma glowing in the chrome set, its colours split a
     // little, behind the metal and out around it.
     vec3 f = vec3(texture(flare, uv + split * 2.).r, texture(flare, uv).g, texture(flare, uv - split * 2.).b);
     float glow = luma(f);
-    vec3 plasma = mix(f, chrome(h + glow * 1.5) * glow * 1.6, smoothstep(3., 30., x) * .8);
+    vec3 plasma = mix(f, chrome(h + glow * 1.5) * glow * 1.6, smoothstep(2., 14., x) * .85);
     c += plasma * (1. - body * .7);
     float rim = fresnel * body;
     // Film grain in clumps of a couple of pixels, new every frame.

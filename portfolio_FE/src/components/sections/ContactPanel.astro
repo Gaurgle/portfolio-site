@@ -2,8 +2,8 @@
 /**
  * Contact: the closing chapter, revealed under the page as it lifts away.
  * Nothing is boxed: the form is loose text in the panel's black, and the
- * ways to reach Andreas sit under the 04 mark as a plain list, the way the
- * journey lists its stops under 02. The header's GitHub and LinkedIn fade
+ * ways to reach Andreas sit under the chapter mark as a plain list, the way
+ * the journey lists its stops under its own. The header's GitHub and LinkedIn fade
  * out while this chapter is active (global.css, .site-socials), so the
  * links live here once the visitor arrives.
  */
@@ -38,8 +38,7 @@ const links = [
         <!-- Chapter mark on the right (above the form when stacked), with
              the direct lines under it -->
         <div class="shrink-0 order-first lg:order-none flex flex-col items-center lg:items-start gap-3 lg:gap-6">
-            <ChapterMark n="04" label="CONTACT"
-                         line1="Get in" line2="touch"
+            <ChapterMark line1="Get in" line2="touch"
                          width="w-[min(11rem,50vw)] lg:w-[min(24rem,26vw)]" />
             <ul class="contact-links">
                 {links.map((l) => (

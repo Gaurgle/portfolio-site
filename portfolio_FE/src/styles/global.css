@@ -17,8 +17,8 @@
     font-display: swap;
 }
 
-/* Victor Mono: a slim, light monospace for the chrome (nav, listing, small
-   print) and the ROOS mark. */
+/* Victor Mono: a slim, light monospace for the ROOS mark and the hidden
+   places (the mini terminal, the 404). Nothing on the page reads in it. */
 @font-face {
     font-family: "Victor Mono";
     src: url("/fonts/victor-mono-latin-var.woff2") format("woff2");
@@ -555,7 +555,10 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
 
 /* Terminal card chrome (compose window, mini terminal): sharp, flat */
 .terminal-card {
-    @apply border border-zinc-700 rounded-md overflow-hidden bg-black/70;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 2px;
+    background: rgb(0 0 0 / 0.72);
 }
 
 /* Featured projects have no surface either: a screenshot and its copy,
@@ -592,7 +595,7 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     overflow: hidden;
     text-shadow: 0 0 4px rgb(0 0 0 / 0.95), 0 0 16px rgb(0 0 0 / 0.85);
 }
-/* Small mono uppercase info columns under the title */
+/* Info columns under the title */
 .edit-cols {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -602,19 +605,97 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     color: rgb(161 161 170); /* zinc-400 */
 }
 .project-stack {
-    font-family: theme("fontFamily.mono");
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     line-height: 1.6;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
 }
 
+/* Pane chrome (mini terminal, screenshot viewer, 404): the sidebar's flat
+   shade and a hairline, the title in the site's face, and where the pane
+   closes, a thin drawn cross at the right. No window buttons. */
 .terminal-bar {
-    @apply flex items-center gap-1.5 px-4 py-2.5 bg-zinc-900/80 border-b border-zinc-800;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 2.5rem;
+    padding: 0 0.5rem 0 1rem;
+    border-bottom: 1px solid rgb(255 255 255 / 0.08);
+    background: rgb(255 255 255 / 0.03);
+    font-size: 0.8125rem;
+    color: rgb(161 161 170); /* zinc-400 */
 }
-
-.terminal-dot {
-    @apply w-2.5 h-2.5 rounded-full;
+.pane-close {
+    position: relative;
+    flex: none;
+    width: 2rem;
+    height: 2rem;
+    color: rgb(161 161 170); /* zinc-400 */
+    transition: color 0.2s ease;
+}
+.pane-close::before,
+.pane-close::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0.875rem;
+    height: 1.5px;
+    background: currentColor;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+.pane-close::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+.pane-close:hover,
+.pane-close:focus-visible {
+    color: var(--cloud);
+}
+.pane-close:focus-visible {
+    outline: 1px solid var(--cloud);
+    outline-offset: -4px;
+}
+/* Screenshot viewer: the pane over a dimmed page. Stepping through shots is
+   a bare chevron held by the halo, and the position a row of short lines,
+   the lit one brighter. */
+.shot-pane {
+    position: relative;
+    width: 85vw;
+    max-width: 64rem;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 2px;
+    background: rgb(5 6 9 / 0.96);
+    box-shadow: 0 30px 80px rgb(0 0 0 / 0.6);
+}
+.shot-step {
+    position: absolute;
+    top: 50%;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    font-size: 2.25rem;
+    line-height: 1;
+    color: rgb(255 255 255 / 0.75);
+    text-shadow: var(--halo);
+    transition: color 0.2s ease;
+}
+.shot-step:hover,
+.shot-step:focus-visible {
+    color: #fff;
+}
+.shot-tick {
+    display: block;
+    width: 1rem;
+    height: 2px;
+    background: rgb(255 255 255 / 0.3);
+    box-shadow: 0 0 4px rgb(0 0 0 / 0.8);
+    transition: background-color 0.3s ease;
+}
+.shot-tick.is-on {
+    background: rgb(255 255 255 / 0.9);
 }
 
 /* ASCII art — close gaps between Unicode block chars */
@@ -861,6 +942,9 @@ html.lenis, html.lenis body { height: auto; }
 .hero-tagline {
     position: relative;
     z-index: 0;
+    font-weight: 400;
+    font-stretch: 118%;
+    letter-spacing: 0.01em;
     text-shadow: var(--halo);
 }
 /* Scroll controls both effects so they reverse cleanly. Diffuse and recede
@@ -941,39 +1025,38 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
-/* Chapter mark: one voice, Anybody opened out wide. The numeral is the
-   heaviest weight on the page, the title lines a step lighter, both in
-   cloud white. (The svg stretches each line to the mark's width, so the
-   width axis sets the letters' proportions, not the line's length.) */
+/* Chapter mark: one voice, Anybody opened out wide and heavy, in cloud
+   white. The type is sized from the mark's width (--cm-size, cqw), so the
+   longer line spans it once the letters have settled. */
 /* Width axis: the letters ease open from a condensed cut to their resting
-   width as the chapter settles (--settle, smoothScroll.ts). The svg holds
-   every line to the mark's width (textLength), so only the letterforms
-   breathe; nothing around the mark reflows. */
-.chapter-mark text {
+   width as the chapter settles (--settle, smoothScroll.ts). The lines don't
+   wrap and the mark's width is fixed, so nothing around it reflows. */
+.chapter-mark {
+    container-type: inline-size;
+}
+.chapter-mark .cm-title {
+    margin: 0;
     font-family: "Anybody", system-ui, sans-serif;
-    font-weight: 700;
+    font-size: var(--cm-size);
+    font-weight: 760;
     font-stretch: calc(100% + var(--settle, 1) * 25%);
-    fill: var(--cloud);
+    line-height: 1.02;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    color: var(--cloud);
 }
-.chapter-mark text.cm-num {
-    font-weight: 850;
-    font-stretch: calc(112% + var(--settle, 1) * 28%);
+.chapter-mark .cm-line {
+    display: block;
 }
-html.reduced-motion .chapter-mark text {
+html.reduced-motion .chapter-mark .cm-title {
     font-stretch: 125%;
 }
-html.reduced-motion .chapter-mark text.cm-num {
-    font-stretch: 140%;
-}
 /* Phones: the letters stand at their resting width. Touch scrolling runs
-   ahead of the script, so the width easing with the scroll read as the
-   headlines jerking; only the settled light (.cm-fringe) follows it. */
+   ahead of the script, so anything eased from the scroll there reads as
+   the headline jerking. */
 @media (max-width: 1023px) {
-    .chapter-mark text {
+    .chapter-mark .cm-title {
         font-stretch: 125%;
-    }
-    .chapter-mark text.cm-num {
-        font-stretch: 140%;
     }
 }
 /* The light a settled mark catches: its letters drawn again behind it,
@@ -993,19 +1076,23 @@ html.reduced-motion .chapter-mark text.cm-num {
 .chapter-mark.has-light .cm-fringe {
     visibility: visible;
 }
+.cm-fringe .cm-title {
+    position: absolute;
+    inset: 0;
+}
 .cm-fringe .cm-cool {
-    fill: rgb(var(--prism-violet));
+    color: rgb(var(--prism-violet));
+    transform: translateX(-0.7cqw);
 }
 .cm-fringe .cm-warm {
-    fill: rgb(var(--prism-amber));
+    color: rgb(var(--prism-amber));
+    transform: translateX(0.7cqw);
 }
 /* Hover: a chromatic split, the clouds' effect in miniature. Red and blue
    copies part along the pointer's direction from the mark's centre
    (--cm-x/--cm-y, set in ChapterMark.astro). Filter, not transform: the
    scroll drift owns the mark's inline transform. The long ease lets the
-   fringe trail the pointer and fade out instead of switching. The numeral
-   splits much wider than the hook lines, scaled to the mark's width (cqw)
-   so the slim pinned marks and the full-width covers read alike.
+   fringe trail the pointer and fade out instead of switching.
    Grain: a noise mask unioned with a flat layer whose alpha is 1 - grain.
    At rest the flat layer hides the noise entirely; the registered
    --cm-grain eases up on hover, so the speckle fades in with the split. */
@@ -1021,9 +1108,6 @@ html.reduced-motion .chapter-mark text.cm-num {
     initial-value: 0;
 }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-    .chapter-mark {
-        container-type: inline-size;
-    }
     .chapter-mark .cm-split {
         --cm-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.2 0 0 0 -.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
         --cm-flat: linear-gradient(rgb(0 0 0 / calc(1 - var(--cm-grain))), rgb(0 0 0 / calc(1 - var(--cm-grain))));
@@ -1043,11 +1127,6 @@ html.reduced-motion .chapter-mark text.cm-num {
         filter:
             drop-shadow(calc(var(--cm-x, 0.7) * 1.5px) calc(var(--cm-y, 0.7) * 1.5px) 2px rgb(255 70 90 / 0.45))
             drop-shadow(calc(var(--cm-x, 0.7) * -1.5px) calc(var(--cm-y, 0.7) * -1.5px) 2px rgb(70 190 255 / 0.45));
-    }
-    .chapter-mark:hover .cm-split.cm-num-box {
-        filter:
-            drop-shadow(calc(var(--cm-x, 0.7) * 1.1cqw) calc(var(--cm-y, 0.7) * 1.1cqw) 0.8cqw rgb(255 60 90 / 0.6))
-            drop-shadow(calc(var(--cm-x, 0.7) * -1.1cqw) calc(var(--cm-y, 0.7) * -1.1cqw) 0.8cqw rgb(60 190 255 / 0.6));
     }
 }
 /* Pinned dwell pages: the viewport-sized child sticks while the section's
@@ -1727,10 +1806,6 @@ html.reduced-motion .chapter-mark text.cm-num {
     color: inherit;
     cursor: pointer;
 }
-.stop-contents .stop-n {
-    font-variant-numeric: tabular-nums;
-    opacity: 0.55;
-}
 @media (hover: hover) and (pointer: fine) {
     .stop-contents li:not(.is-current):not(.on-cloud) button:hover {
         color: rgb(228 228 231); /* zinc-200 */
@@ -1755,7 +1830,7 @@ html.reduced-motion .chapter-mark text.cm-num {
     .flight-stack .flight-viewport {
         height: 100vh;
         /* Clear the fixed sidebar: without this the centered composition
-           slides under the nav (the numeral over the links, the headline's
+           slides under the nav (the mark over the links, the headline's
            first letters swallowed by the backdrop blur) */
         padding-left: 9.5rem;
     }
@@ -1784,7 +1859,7 @@ html.reduced-motion .chapter-mark text.cm-num {
     /* In flight, the eyebrow hangs above its headline, so the headline
        itself stands flush with the top of the mark beside it. Laid out in
        flow (reduced motion) it simply leads its stop. */
-    /* Optical flush, capitals to digits: the numeral's digits start a
+    /* Optical flush, capitals to capitals: the mark's capitals start a
        little below the top of their box (about 2.6% of the mark's width),
        and the headline's capitals sit a little below its own (its tight
        leading). Ascenders (f, b, k) rise above the line, as they should. */
@@ -2007,6 +2082,54 @@ html.reduced-motion .beam-stop {
    cloud with the page's black halo. */
 .ls-name {
     text-shadow: var(--halo);
+}
+/* Links out (source, live site): plain words with a hairline underline
+   that brightens with the text. */
+.text-link {
+    color: rgb(161 161 170); /* zinc-400 */
+    text-decoration: underline;
+    text-decoration-color: rgb(161 161 170 / 0.4);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+.text-link:hover,
+.text-link:focus-visible {
+    color: var(--cloud);
+    text-decoration-color: rgb(240 243 247 / 0.8);
+}
+/* Listing filters: plain words, not chips. The one that is on carries a
+   short lit line beneath it, the journey contents' lit stretch in small. */
+.filter-tag {
+    position: relative;
+    padding: 0.15rem 0;
+    color: rgb(161 161 170); /* zinc-400 */
+    text-shadow: var(--halo);
+    transition: color 0.3s ease;
+}
+.filter-tag::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.15rem;
+    height: 1px;
+    background: var(--cloud);
+    box-shadow: 0 0 6px rgb(240 243 247 / 0.6);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.filter-tag.is-on {
+    color: var(--cloud);
+}
+.filter-tag.is-on::after {
+    transform: scaleX(1);
+}
+@media (hover: hover) and (pointer: fine) {
+    .filter-tag:not(.is-on):hover {
+        color: rgb(228 228 231); /* zinc-200 */
+    }
 }
 .ls-row:hover .ls-name,
 .ls-row:focus-visible .ls-name,
@@ -2286,15 +2409,14 @@ html.reduced-motion .beam-stop {
         font-size: 1.25rem;
     }
 }
-/* The direct lines under the 04 mark: a row when stacked, a plain list
-   beneath the mark on desktop, like the journey stops under 02. */
+/* The direct lines under the contact mark: a row when stacked, a plain list
+   beneath the mark on desktop, like the journey stops under theirs. */
 .contact-links {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 0.25rem 1.25rem;
-    font-family: theme("fontFamily.mono");
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     line-height: 1.6;
     color: rgb(212 212 216); /* zinc-300 */
 }
@@ -2336,7 +2458,7 @@ html.reduced-motion .beam-stop {
 }
 
 /* The header's GitHub and LinkedIn give way once the visitor reaches the
-   contact chapter, where the same links stand under the 04 mark. The scroll
+   contact chapter, where the same links stand under the contact mark. The scroll
    spy names the active chapter on <html> (smoothScroll.ts). */
 .site-socials {
     transition: opacity 0.6s ease;
@@ -2423,31 +2545,13 @@ svg.rough-annotation.rn-primed {
     }
 }
 
-/* Phones: the three content chapters wear a compact mark, numeral and
-   title side by side instead of stacked, about half the height, so the
-   pinned stages under it get the room. The numeral keeps its proportions:
-   its padding is a share of the whole mark's width, so it shrinks with the
-   numeral's share (0.4167 of its own width x 42%). */
+/* Phones: the three content chapters wear a compact mark, so the pinned
+   stages under it get the room. */
 @media (max-width: 1023px) {
     #about .chapter-mark,
     #journey .chapter-mark,
     #projects .chapter-mark {
-        width: min(13rem, 60vw);
-        --cm-num-pad: 17.5%;
-    }
-    :is(#about, #journey, #projects) .chapter-mark .cm-layer {
-        display: flex;
-        align-items: center;
-        gap: 5%;
-    }
-    :is(#about, #journey, #projects) .chapter-mark .cm-num-row {
-        flex: none;
-        width: 42%;
-        margin-left: 0;
-    }
-    :is(#about, #journey, #projects) .chapter-mark .cm-title {
-        flex: 1;
-        margin-top: 0;
+        width: min(10rem, 48vw);
     }
 }
 
@@ -2508,28 +2612,21 @@ html.shot-transition::view-transition {
     animation-duration: 0.35s;
 }
 
-/* Work in progress: a small, quiet pill, right-aligned on its row or card.
-   A hairline and a breath of fill in the page's own greys, plain type. */
-.wip-pill {
-    display: inline-block;
-    padding: 0.2rem 0.55rem;
-    border: 1px solid rgb(255 255 255 / 0.16);
-    border-radius: 999px;
-    background: rgb(255 255 255 / 0.03);
-    font-family: theme("fontFamily.sans");
-    font-size: 0.6875rem;
-    font-weight: 500;
+/* Work in progress: a quiet note in the copy's voice, not a badge. Over a
+   screenshot it is held by the halo instead of a ground. */
+.wip-note {
+    font-size: 0.8125rem;
+    font-weight: 450;
     line-height: 1;
-    letter-spacing: 0.02em;
-    color: rgb(212 212 216 / 0.75);
-    text-transform: none;
+    color: rgb(212 212 216 / 0.7);
+    white-space: nowrap;
 }
-/* Over a screenshot (phone cards) it needs a darker ground to read. */
-.wip-pill-over {
-    background: rgb(0 0 0 / 0.6);
+.wip-note-over {
+    color: rgb(244 244 245);
+    text-shadow: var(--halo);
 }
 /* A screenshot box shrunk to the picture itself (contain, left-anchored like
-   the others), so a pill pinned to its corner sits on the image, not on the
+   the others), so a note pinned to its corner sits on the image, not on the
    empty band beside it. */
 .edit-media {
     container-type: size;

@@ -1,6 +1,6 @@
 ---
 /**
- * About: the chapter mark (01 + name) stays on the left of the pinned
+ * About: the chapter mark (the name) stays on the left of the pinned
  * viewport while the visitor flies through two passages in depth, the same
  * flight as the journey (JourneySection.astro, global.css .flight-stack).
  * Nothing is boxed: each passage is loose text the sky clears behind
@@ -15,8 +15,7 @@ import ChapterMark from "./ChapterMark.astro";
         <div class="flight-viewport">
             <div class="relative z-10 w-full flex flex-col lg:flex-row items-center lg:items-start lg:justify-center gap-5 lg:gap-[4vw] px-4 lg:px-[2vw] py-4 lg:py-0">
                 <div class="shrink-0 text-center lg:text-left">
-                    <ChapterMark n="01" label="ABOUT"
-                                 line1="Andreas" line2="Roos" />
+                    <ChapterMark line1="Andreas" line2="Roos" />
                 </div>
                 <div class="stack-area" data-lens>
                     <article data-stack-card data-rn-card class="beam-stop" style="--f: 0">

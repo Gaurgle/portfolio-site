@@ -1,76 +1,51 @@
 ---
 /**
- * Chapter mark as one rectangle, numeral on top: the number is SVG text
- * stretched to the full rectangle width, with the title line(s) beneath.
- * One voice throughout: the same face, weight and white in every line, no
- * accent word.
+ * Chapter mark: the chapter's title in one or two lines, one voice
+ * throughout: the same face, weight and white in every line, no accent
+ * word and no number.
  *
  * The title is set, not stretched: both lines share one size and the
- * font's own spacing, flush left, sized so the longer line spans the
- * numeral once the letters have settled open (global.css, --settle).
+ * font's own spacing, flush left, sized so the longer line spans the mark
+ * once the letters have settled open (global.css, --settle). Plain HTML
+ * text, not SVG: WebKit re-snaps SVG glyphs as the layer moves by
+ * fractions of a pixel, which read as the headlines shivering under touch
+ * scrolling.
  *
- * `width` sizes the whole rectangle; everything inside scales via
- * aspect-ratio, so the mark stays one proportional unit. `label` names the
- * chapter for assistive tech only. A soft lens (data-lens, clouds.ts) dims
- * the cloud behind the mark while it stands in place.
+ * `width` sizes the mark; the type scales with it (cqw), so the mark stays
+ * one proportional unit. A soft lens (data-lens, clouds.ts) dims the cloud
+ * behind the mark while it stands in place.
  */
 const {
-    n,
-    label,
     line1,
     line2,
     width = "w-[min(18rem,84vw)] lg:w-[min(28rem,36vw)]",
 } = Astro.props;
 
-/** Title size in the 720-unit-wide title box: the longer line fills it at
- *  the settled width, measured at about 0.86 of the size per character. */
-const longest = Math.max(...[line1, line2].filter(Boolean).map((l: string) => l.length));
-const titleSize = Math.round(720 / (0.86 * longest));
-const linePitch = Math.round(titleSize * 1.08);
-
 const lines = [line1, line2].filter(Boolean) as string[];
-// Boxes are sized with the padding-top hack instead of CSS aspect-ratio:
-// the numeral's viewBox deliberately differs from its box ratio (stretched
-// via preserveAspectRatio="none"), and WebKit lets an svg's intrinsic
-// viewBox ratio beat CSS aspect-ratio, collapsing the row. Percentages are
-// relative to the box's width. The title box has its viewBox's own ratio,
-// so its letters keep their shapes.
-const titleHeight = linePitch * lines.length;
-const titlePad = `${((titleHeight / 720) * 100).toFixed(3)}%`;
+/** The longer line fills the mark at the settled width, measured at about
+ *  0.86 of the size per character. As a share of the mark's width. */
+const longest = Math.max(...lines.map((l) => l.length));
+const titleSize = `${(100 / (0.86 * longest)).toFixed(3)}cqw`;
 
 // The mark is drawn twice: the letters themselves, and behind them the
 // light they catch once their chapter settles (global.css .cm-fringe,
 // smoothScroll.ts --settle). The fringe copy disperses each line into a cool
-// and a warm copy a few units either side, blurred as one layer.
+// and a warm copy either side, blurred as one layer.
 const layers = ["body", "fringe"] as const;
-const shifts = (layer: (typeof layers)[number]): Array<[number, string | undefined]> =>
-    layer === "body" ? [[0, undefined]] : [[-5, "cm-cool"], [5, "cm-warm"]];
+const tones = (layer: (typeof layers)[number]) =>
+    layer === "body" ? [undefined] : ["cm-cool", "cm-warm"];
 ---
 
 <div class:list={["chapter-mark relative isolate inline-block select-none", width]} data-lens
-     aria-label={`${n} ${label}: ${lines.join(" ")}`}>
+     style={`--cm-size: ${titleSize}`}>
     {layers.map((layer) => (
-        <div class:list={["cm-layer", { "cm-fringe": layer === "fringe" }]} aria-hidden={layer === "fringe" ? "true" : undefined}>
-            <!-- Numeral: slightly WIDER than the title lines (optical alignment reads
-                 better with a small overhang than with exact equal widths) -->
-            <div class:list={[{ "cm-split cm-num-box": layer === "body" }, "cm-num-row relative w-[106%] -ml-[3%]"]} style="padding-top: var(--cm-num-pad, 44.17%)">
-                <svg class="absolute inset-0 h-full w-full" viewBox="0 0 720 300" preserveAspectRatio="none" aria-hidden="true">
-                    {shifts(layer).map(([dx, tone]) => (
-                        <text class:list={["cm-num", tone]} x={-8 + dx} y="290" font-size="400" textLength="736" lengthAdjust="spacingAndGlyphs">{n}</text>
-                    ))}
-                </svg>
-            </div>
-
-            <!-- Title: one or two lines in one size, flush left -->
-            <div class:list={[{ "cm-split": layer === "body" }, "cm-title mt-[4%]"]}>
-                <div class="relative w-full" style={`padding-top: ${titlePad}`}>
-                    <svg class="absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 720 ${titleHeight}`} preserveAspectRatio="xMinYMin meet" aria-hidden="true">
-                        {lines.map((line, i) => shifts(layer).map(([dx, tone]) => (
-                            <text class={tone} x={dx} y={Math.round(i * linePitch + titleSize * 0.84)} font-size={titleSize}>{line}</text>
-                        )))}
-                    </svg>
-                </div>
-            </div>
+        <div class:list={["cm-layer", { "cm-split": layer === "body", "cm-fringe": layer === "fringe" }]}
+             aria-hidden={layer === "fringe" ? "true" : undefined}>
+            {tones(layer).map((tone) => (
+                <p class:list={["cm-title", tone]}>
+                    {lines.map((line) => <span class="cm-line">{line}</span>)}
+                </p>
+            ))}
         </div>
     ))}
 </div>
