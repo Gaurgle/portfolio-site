@@ -513,6 +513,47 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     }
 }
 
+/* The ROOS banner (Sidebar.astro), desktop only: it fades in where it
+   stands at the top of the sidebar once the intro is over, and out again
+   if the visitor returns to the hero. The box glyphs sit at the hero's
+   proportions (.ascii-art); one em is sized so the mark spans the sidebar's
+   text column. */
+.roos-banner {
+    display: none;
+}
+@media (min-width: 1024px) {
+    .roos-banner {
+        position: fixed;
+        top: 2rem;
+        left: 1.5rem;
+        z-index: 60;
+        display: block;
+        font-size: 5.6px;
+        color: rgb(228 228 231); /* zinc-200 */
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.6s ease, color 0.2s ease, visibility 0s linear 0.6s;
+    }
+    .roos-banner.is-docked {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transition: opacity 0.6s ease, color 0.2s ease, visibility 0s;
+    }
+    .roos-banner.is-static {
+        transition: none;
+    }
+    .roos-banner:hover,
+    .roos-banner:focus-visible {
+        color: #fff;
+    }
+    .roos-banner:focus-visible {
+        outline: 1px solid var(--cloud);
+        outline-offset: 6px;
+    }
+}
+
 /* The portal at the sidebar's edge (portal.ts): its light adds to whatever
    is crossing beneath it (black adds nothing). Above the sidebar, under
    the header. */
