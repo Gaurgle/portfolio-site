@@ -72,7 +72,7 @@ export default function ProjectsGrid() {
         if (barRef.current) barRef.current.style.transform = `scaleX(${t})`;
         if (countRef.current) {
             const i = Math.round(t * (rest.length - 1)) + 1;
-            countRef.current.textContent = String(i).padStart(2, "0");
+            countRef.current.textContent = String(i);
         }
     };
 
@@ -124,19 +124,16 @@ export default function ProjectsGrid() {
         <div>
             {/* ==================== desktop: ls listing ==================== */}
             <div className="hidden lg:block">
-                <div className="flex flex-wrap gap-1.5 mb-6">
+                <div className="flex flex-wrap gap-x-6 gap-y-2 mb-6">
                     {chips.map((tag) => (
                         <button
                             key={tag}
                             type="button"
                             onClick={() => setFilter(filter === tag ? null : tag)}
                             aria-pressed={filter === tag}
-                            className={`press px-2.5 py-0.5 text-xs font-mono rounded-sm border
-                                ${filter === tag
-                                    ? "bg-white/10 text-white border-white/40"
-                                    : "bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:border-zinc-600 hover:text-zinc-200"}`}
+                            className={`press filter-tag text-sm ${filter === tag ? "is-on" : ""}`}
                         >
-                            {tag.toLowerCase()}
+                            {tag}
                         </button>
                     ))}
                 </div>
@@ -155,8 +152,8 @@ export default function ProjectsGrid() {
                         style={{ minHeight: `${rest.length * 3.75}rem` }}
                     >
                         {listed.length === 0 && (
-                            <div className="py-6 px-2 font-mono text-sm text-zinc-500">
-                                no projects match
+                            <div className="py-6 px-2 text-sm text-zinc-500">
+                                No projects match
                             </div>
                         )}
                         {listed.map((p) => {
@@ -170,16 +167,16 @@ export default function ProjectsGrid() {
                                     role="button"
                                     tabIndex={0}
                                     className={`ls-row group flex items-baseline gap-5 py-4 pl-2 pr-12 border-b border-zinc-800/70
-                                               font-mono cursor-pointer
+                                               cursor-pointer
                                                ${selected ? "ls-row-active bg-white/[0.03]" : ""}`}
                                 >
                                     <span className="ls-name whitespace-nowrap text-lg text-zinc-200 transition-colors duration-200">
-                                        {p.projectTitle.toLowerCase().replaceAll(" ", "-")}
+                                        {p.projectTitle}
                                     </span>
                                     <span className="ml-auto" aria-hidden="true"></span>
                                     {/* Right-aligned beside the fixed-width link
-                                        cell, so the pills line up down the list. */}
-                                    {p.wip && <span className="wip-pill shrink-0 self-center">WIP</span>}
+                                        cell, so the notes line up down the list. */}
+                                    {p.wip && <span className="wip-note shrink-0 self-center">In progress</span>}
                                     {href ? (
                                         <a
                                             href={href}
@@ -209,9 +206,8 @@ export default function ProjectsGrid() {
                         resizes between projects - only content swaps. */}
                     <div className="w-[clamp(34rem,46%,64rem)] shrink-0 relative flex flex-col [container-type:inline-size]">
                         {shown && (
-                            <p className="absolute bottom-full left-0 mb-1 font-mono text-base text-white">
-                                {shown.projectTitle.toLowerCase().replaceAll(" ", "-")}
-                                .
+                            <p className="absolute bottom-full left-0 mb-1 text-base text-white">
+                                {shown.projectTitle}
                             </p>
                         )}
                         {!shown ? (
@@ -221,8 +217,8 @@ export default function ProjectsGrid() {
                                     <br />
                                     projects.
                                 </p>
-                                <p className="font-mono text-xs text-zinc-500">
-                                    click a row to open it here
+                                <p className="text-sm text-zinc-500">
+                                    Click a row to open it here
                                 </p>
                             </div>
                         ) : firstImage(shown) ? (
@@ -248,7 +244,7 @@ export default function ProjectsGrid() {
                                 />
                             </button>
                         ) : (
-                            <div style={viewerFrame} className="w-full flex items-center justify-center bg-zinc-900/30 border border-zinc-800 rounded-md font-mono text-xs text-zinc-600">
+                            <div style={viewerFrame} className="w-full flex items-center justify-center bg-zinc-900/30 border border-zinc-800 rounded-md text-sm text-zinc-500">
                                 <span>No preview yet</span>
                             </div>
                         )}
@@ -257,29 +253,29 @@ export default function ProjectsGrid() {
                                 <p className="text-base 2xl:text-lg text-zinc-300 leading-relaxed line-clamp-6">
                                     {shown.description}
                                 </p>
-                                {/* Each tag holds together with the dot after it, so a
+                                {/* Each tag holds together with the comma after it, so a
                                     long list wraps between tags, never inside one or
-                                    before a dot. */}
-                                <p className="font-mono text-xs text-zinc-400">
+                                    before a comma. */}
+                                <p className="text-sm text-zinc-400">
                                     {(shown.tags ?? []).map((tag, i, all) => (
                                         <Fragment key={tag}>
                                             <span className="whitespace-nowrap">
-                                                {tag.toLowerCase()}{i < all.length - 1 && " ·"}
+                                                {tag}{i < all.length - 1 && ","}
                                             </span>{" "}
                                         </Fragment>
                                     ))}
                                 </p>
-                                <div className="flex items-center gap-5 pt-1 font-mono text-xs">
+                                <div className="flex items-center gap-5 pt-1 text-sm">
                                     {shown.link && shown.link !== "#" && (
                                         <a href={shown.link} target="_blank" rel="noopener noreferrer"
-                                           className="text-zinc-400 hover:text-white transition-colors duration-200">
-                                            GitHub &rarr;
+                                           className="text-link">
+                                            Source on GitHub
                                         </a>
                                     )}
                                     {shown.demoUrl && (
                                         <a href={shown.demoUrl} target="_blank" rel="noopener noreferrer"
-                                           className="text-zinc-400 hover:text-white transition-colors duration-200">
-                                            Visit site &rarr;
+                                           className="text-link">
+                                            Visit site
                                         </a>
                                     )}
                                 </div>
@@ -318,15 +314,15 @@ export default function ProjectsGrid() {
 
                 {/* Swipe indicator: counter + progress bar + hint */}
                 <div className="mt-4 flex items-center gap-3 px-1" aria-hidden="true">
-                    <span className="font-mono text-[11px] tracking-widest text-zinc-400 select-none">
-                        <span ref={countRef}>01</span>
-                        <span className="text-zinc-500"> / {String(rest.length).padStart(2, "0")}</span>
+                    <span className="text-xs text-zinc-400 tabular-nums select-none">
+                        <span ref={countRef}>1</span>
+                        <span className="text-zinc-500"> of {rest.length}</span>
                     </span>
                     <div className="flex-1 h-0.5 rounded bg-zinc-800 overflow-hidden">
                         <div ref={barRef} className="carousel-progress-bar" />
                     </div>
-                    <span className="font-mono text-[11px] tracking-widest text-zinc-400 select-none">
-                        Swipe for more &rarr;
+                    <span className="text-xs text-zinc-400 select-none">
+                        Swipe for more
                     </span>
                 </div>
             </div>

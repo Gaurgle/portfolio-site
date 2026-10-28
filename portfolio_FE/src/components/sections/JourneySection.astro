@@ -1,11 +1,11 @@
 ---
 /**
- * Journey: the chapter mark (02 JOURNEY + hook) stays on the left of the
+ * Journey: the chapter mark (its hook line) stays on the left of the
  * pinned viewport while the visitor flies through the milestones in depth.
  * Nothing is boxed: each milestone is loose text in the sky that approaches
  * from far off, holds in focus, then passes the camera the way ROOS does
  * (smoothScroll.ts reports --f per milestone, global.css does the flight).
- * Under the mark sits the contents of the four stops, numbered, with a
+ * Under the mark sits the contents of the four stops, with a
  * pointer riding a rail to the one in focus; each entry flies to its stop.
  * The right
  * margin stays empty, because that is where the prism's light flares. The
@@ -15,7 +15,6 @@
 import ChapterMark from "./ChapterMark.astro";
 
 type Milestone = {
-    n: string;
     cmd: string;
     title: string;
     /** [[Key words]] are sketched over (AboutSection.astro wires them). */
@@ -25,28 +24,28 @@ type Milestone = {
 
 const milestones: Milestone[] = [
     {
-        n: "01", cmd: "music", title: "A background in music",
+        cmd: "music", title: "A background in music",
         paras: [
             "I started playing drums at four. Music has been part of my life ever since, and became my work in 2009. Over the years, that included drums and musical direction for Benjamin Ingrosso, and playback and [[MIDI engineering]] for Loreen, Veronica Maggio, and Eva Dahlgren.",
             "I became increasingly drawn to the technical side: signal paths, synchronisation, and how a whole setup behaves when its parts depend on each other. Years in studios and live production gave me a practical way into [[systems thinking]], and eventually a reason to study software."
         ]
     },
     {
-        n: "02", cmd: "studies", title: "Studying software",
+        cmd: "studies", title: "Studying software",
         paras: [
             "That interest took me to Nackademin's [[Java Developer programme]] in 2024. I'd spent years relying on software other people had written, and I wanted to know how it actually worked, and to start writing my own.",
             "I graduated in June 2026, with a foundation in [[backend development]], databases, and testing. Kotlin became my preferred language, and Android gave me a way to work directly with devices as well as the services behind them."
         ]
     },
     {
-        n: "03", cmd: "sigma", title: "Android and Bluetooth",
+        cmd: "sigma", title: "Android and Bluetooth",
         paras: [
             "During my internship at Sigma Connectivity, I built an Android app for [[Bluetooth LE]] testing. Working with real devices took me from scanning and GATT communication into [[LE Audio]]: reading the spec and decoding the capabilities a device reports.",
             "I designed a [[Lua API]] for custom test sequences and worked on the platform's backend and dashboard. That combination of Android, wireless devices, audio, and backend systems gave me a technical direction I wanted to keep pursuing."
         ]
     },
     {
-        n: "04", cmd: "IMRSV", title: "Software at IMRSV",
+        cmd: "IMRSV", title: "Software at IMRSV",
         paras: [
             "As Head of Technology at IMRSV Music, I design and build the studio's internal software and infrastructure. I also mix and master records, so the work I'm supporting is familiar. My projects cover automation, [[integrations]], internal services, and the systems for storing and backing up our work.",
             "That means following a problem beyond the application itself: how information moves between systems, where files live, what colleagues need access to, and what happens [[when something fails]]. My audio background helps me understand the work; software gives me more ways to improve it."
@@ -66,15 +65,13 @@ const milestones: Milestone[] = [
                 <!-- Chapter mark: stays for the whole flight, with the
                      contents of the journey set under it -->
                 <div class="shrink-0 text-center lg:text-left">
-                    <ChapterMark n="02" label="JOURNEY"
-                                 line1="How I" line2="got here"
- />
+                    <ChapterMark line1="How I" line2="got here" />
                     <nav aria-label="Journey stops">
                         <ol data-stack-contents class="stop-contents">
                             {milestones.map((m) => (
                                 <li data-sky-adapt>
                                     <button type="button" class="press">
-                                        <span class="stop-n">{m.n}</span>{m.cmd}
+                                        {m.cmd}
                                     </button>
                                 </li>
                             ))}

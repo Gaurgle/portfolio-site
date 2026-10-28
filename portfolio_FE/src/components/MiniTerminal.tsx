@@ -198,10 +198,7 @@ export default function MiniTerminal() {
             onClick={() => inputRef.current?.focus()}
         >
             <div className="terminal-bar">
-                <span className="terminal-dot bg-ctp-red/80"></span>
-                <span className="terminal-dot bg-ctp-yellow/80"></span>
-                <span className="terminal-dot bg-ctp-green/80"></span>
-                <span className="font-mono text-[10px] text-zinc-400 ml-2">~/portfolio</span>
+                <span>~/portfolio</span>
             </div>
             <div ref={scrollRef} className="p-3 font-mono text-xs max-h-80 overflow-y-auto space-y-1">
                 <div className="text-zinc-500">A small terminal. Try help.</div>

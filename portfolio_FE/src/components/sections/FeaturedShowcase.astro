@@ -27,19 +27,14 @@ const allImages = (p: (typeof projects)[number]) =>
              card arrives and pushes it out left -->
         <div class="absolute inset-0 hidden lg:flex items-center justify-center z-0">
             <div data-cover-content class="will-change-transform">
-                <ChapterMark n="03" label="PROJECTS"
-                             line1="Selected" line2="work" />
+                <ChapterMark line1="Selected" line2="work" />
             </div>
         </div>
 
         <!-- Mobile: compact chapter header sharing the pinned screen with
              the deck (the mark is slimmed via .hscroll-pin .chapter-mark) -->
         <div class="lg:hidden px-4 pb-5 text-center">
-            <ChapterMark n="03" label="PROJECTS"
-                         line1="Selected" line2="work" />
-            <h3 class="section-head mt-3 uppercase tracking-[0.12em] text-sm text-white/90 select-none">
-                A closer look
-            </h3>
+            <ChapterMark line1="Selected" line2="work" />
         </div>
 
         <div data-hscroll-track class="relative z-10 px-4" style="--deck-n: 0">
@@ -59,7 +54,7 @@ const allImages = (p: (typeof projects)[number]) =>
                                         <span class="shot-frame" style={`--shot-ratio: ${imageSize(firstImage(p)!).width ?? 16} / ${imageSize(firstImage(p)!).height ?? 9}`}>
                                             <img src={firstImage(p)} {...imageSize(firstImage(p)!)} alt={`${p.projectTitle} screenshot`} loading="lazy" decoding="async"
                                                  class="h-full w-full object-contain transition-all duration-500 cursor-zoom-in" />
-                                            <span class="wip-pill wip-pill-over absolute top-2 right-2">Mockup</span>
+                                            <span class="wip-note wip-note-over absolute top-2 right-2">Mockup</span>
                                         </span>
                                     ) : (
                                         <img src={firstImage(p)} {...imageSize(firstImage(p)!)} alt={`${p.projectTitle} screenshot`} loading="lazy" decoding="async"
@@ -68,7 +63,7 @@ const allImages = (p: (typeof projects)[number]) =>
                                 </button>
                             </div>
                         ) : (
-                            <div class="edit-media flex items-center justify-center font-mono text-xs text-zinc-600">
+                            <div class="edit-media flex items-center justify-center text-sm text-zinc-500">
                                 <span>No preview yet</span>
                             </div>
                         )}
@@ -89,15 +84,15 @@ const allImages = (p: (typeof projects)[number]) =>
                                     <div class="flex items-start gap-4">
                                         <p class="project-stack text-zinc-400">
                                             {p.tags?.map((tag, i, all) => (
-                                                <><span class="whitespace-nowrap">{tag.toLowerCase()}{i < all.length - 1 && " ·"}</span>{" "}</>
+                                                <><span class="whitespace-nowrap">{tag}{i < all.length - 1 && ","}</span>{" "}</>
                                             ))}
                                         </p>
-                                        {p.wip && <span class="wip-pill ml-auto shrink-0">WIP</span>}
+                                        {p.wip && <span class="wip-note ml-auto shrink-0">In progress</span>}
                                     </div>
                                     {p.link && p.link !== "#" && (
                                         <a href={p.link} target="_blank" rel="noopener noreferrer"
-                                           class="inline-block text-sm text-zinc-400 hover:text-white transition-colors duration-200">
-                                            Code &rarr;
+                                           class="text-link inline-block text-sm">
+                                            Source on GitHub
                                         </a>
                                     )}
                                 </div>
@@ -136,35 +131,21 @@ const allImages = (p: (typeof projects)[number]) =>
         overlay.setAttribute("aria-label", title);
 
         const frame = document.createElement("div");
-        frame.className =
-            "relative w-[85vw] max-w-5xl bg-zinc-950 border border-zinc-700/60 rounded-xl " +
-            "shadow-2xl shadow-black/50 overflow-hidden";
+        frame.className = "shot-pane";
         frame.addEventListener("click", (e) => e.stopPropagation());
 
         const bar = document.createElement("div");
-        bar.className =
-            "flex items-center gap-2 px-4 py-2.5 bg-zinc-900/80 border-b border-zinc-800";
-
-        // The red traffic light is the close control, so it is a real button
-        // rather than a decorative dot with a click handler.
-        const closeBtn = document.createElement("button");
-        closeBtn.type = "button";
-        closeBtn.className =
-            "w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-400 transition-colors " +
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
-            "focus-visible:outline-white";
-        closeBtn.setAttribute("aria-label", "Close screenshots");
-        bar.appendChild(closeBtn);
-        bar.insertAdjacentHTML(
-            "beforeend",
-            '<span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>' +
-            '<span class="w-3 h-3 rounded-full bg-green-500/80"></span>',
-        );
+        bar.className = "terminal-bar";
 
         const label = document.createElement("span");
-        label.className = "ml-3 font-mono text-xs text-zinc-400";
         label.textContent = title;
         bar.appendChild(label);
+
+        const closeBtn = document.createElement("button");
+        closeBtn.type = "button";
+        closeBtn.className = "pane-close";
+        closeBtn.setAttribute("aria-label", "Close screenshots");
+        bar.appendChild(closeBtn);
 
         const img = document.createElement("img");
         img.className = "w-full max-h-[75vh] object-contain bg-black";
@@ -213,15 +194,12 @@ const allImages = (p: (typeof projects)[number]) =>
 
         if (images.length > 1) {
             for (const [dir, glyph, side, name] of [
-                [-1, "‹", "left-4", "Previous screenshot"],
-                [1, "›", "right-4", "Next screenshot"],
+                [-1, "‹", "left-2", "Previous screenshot"],
+                [1, "›", "right-2", "Next screenshot"],
             ] as const) {
                 const btn = document.createElement("button");
                 btn.type = "button";
-                btn.className =
-                    `absolute ${side} top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center ` +
-                    "rounded-full bg-black/50 text-white/80 hover:bg-black/70 hover:text-white " +
-                    "transition-all duration-200 text-2xl";
+                btn.className = `shot-step ${side}`;
                 btn.textContent = glyph;
                 btn.setAttribute("aria-label", name);
                 btn.addEventListener("click", () => step(dir));

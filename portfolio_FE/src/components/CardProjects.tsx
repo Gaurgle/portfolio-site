@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from "react";
+import React, {Fragment, useEffect, useRef, useState} from "react";
 import {createPortal, flushSync} from "react-dom";
 import {lightboxPair, swapShot} from "../lib/shotTransition";
 import {fitLines} from "../lib/fitLines";
@@ -69,16 +69,12 @@ export function Lightbox({images, startIndex, title, onClose}: {
         >
             <div
                 ref={frameRef}
-                className="relative w-[85vw] max-w-5xl bg-zinc-950 border border-zinc-700/60 rounded-xl
-                           shadow-2xl shadow-black/50 overflow-hidden"
+                className="shot-pane"
                 onClick={e => e.stopPropagation()}
             >
-                {/* Terminal bar */}
-                <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900/80 border-b border-zinc-800">
-                    <button ref={closeRef} type="button" onClick={onClose} className="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-400 transition-colors" aria-label="Close screenshots"/>
-                    <span className="w-3 h-3 rounded-full bg-yellow-500/80"/>
-                    <span className="w-3 h-3 rounded-full bg-green-500/80"/>
-                    <span className="ml-3 font-mono text-xs text-zinc-400">{title}</span>
+                <div className="terminal-bar">
+                    <span>{title}</span>
+                    <button ref={closeRef} type="button" onClick={onClose} className="pane-close" aria-label="Close screenshots"/>
                 </div>
 
                 {/* Image area */}
@@ -101,18 +97,14 @@ export function Lightbox({images, startIndex, title, onClose}: {
                             <button
                                 onClick={goPrev}
                                 aria-label="Previous screenshot"
-                                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center
-                                           rounded-full bg-black/50 text-white/80 hover:bg-black/70 hover:text-white
-                                           transition-all duration-200 text-2xl"
+                                className="shot-step left-2"
                             >
                                 &#8249;
                             </button>
                             <button
                                 onClick={goNext}
                                 aria-label="Next screenshot"
-                                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center
-                                           rounded-full bg-black/50 text-white/80 hover:bg-black/70 hover:text-white
-                                           transition-all duration-200 text-2xl"
+                                className="shot-step right-2"
                             >
                                 &#8250;
                             </button>
@@ -120,8 +112,7 @@ export function Lightbox({images, startIndex, title, onClose}: {
                                 {images.map((_, i) => (
                                     <span
                                         key={i}
-                                        className={`block w-2 h-2 rounded-full transition-all duration-300
-                                                   ${i === currentIndex ? "bg-white/90 scale-110" : "bg-white/30"}`}
+                                        className={`shot-tick ${i === currentIndex ? "is-on" : ""}`}
                                     />
                                 ))}
                             </div>
@@ -228,7 +219,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
             ) : (
                 <div className="h-44 w-full flex-shrink-0 relative flex items-center justify-center
                                 bg-zinc-900/30 border-b border-zinc-800/50 overflow-hidden select-none">
-                    <div className="font-mono text-xs text-zinc-600 text-center leading-relaxed">
+                    <div className="text-sm text-zinc-600 text-center leading-relaxed">
                         <span className="text-zinc-500">No preview yet</span>
                     </div>
                 </div>
@@ -245,7 +236,7 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
             )}
 
             {project.wip && (
-                <span className="wip-pill wip-pill-over absolute top-3 right-3 z-20">WIP</span>
+                <span className="wip-note wip-note-over absolute top-3 right-3 z-20">In progress</span>
             )}
 
             {/* Content: title below the image (editorial order), info + links */}
@@ -261,17 +252,15 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                 </div>
 
                 {project.tags && (
-                    <div className="flex flex-wrap-reverse gap-1.5">
-                        {project.tags.map((tag: string) => (
-                            <span
-                                key={tag}
-                                className="px-2 py-0.5 text-[11px] font-mono
-                                           bg-zinc-800/80 text-zinc-300 border border-zinc-800"
-                            >
-                                {tag}
-                            </span>
+                    <p className="text-[13px] text-zinc-400">
+                        {project.tags.map((tag: string, i: number, all: string[]) => (
+                            <Fragment key={tag}>
+                                <span className="whitespace-nowrap">
+                                    {tag}{i < all.length - 1 && ","}
+                                </span>{" "}
+                            </Fragment>
                         ))}
-                    </div>
+                    </p>
                 )}
 
                 {/* Links */}
@@ -281,9 +270,9 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                             href={project.demoUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-zinc-400 hover:text-white transition-colors duration-200"
+                            className="text-link text-sm"
                         >
-                            Visit site &rarr;
+                            Visit site
                         </a>
                     )}
                     {project.link && project.link !== "#" && (
@@ -291,9 +280,9 @@ export function ProjectCard({project, idx}: { project: (typeof projects)[number]
                             href={project.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-zinc-400 hover:text-white transition-colors duration-200"
+                            className="text-link text-sm"
                         >
-                            GitHub &rarr;
+                            Source on GitHub
                         </a>
                     )}
                 </div>

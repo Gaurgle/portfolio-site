@@ -185,7 +185,7 @@ export default function TechStack({ parentId }: { parentId?: string }) {
                                 : "tech-icon w-8 h-8 grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
                         }
                     />
-                    <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 whitespace-nowrap font-mono text-[10px] text-zinc-300 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 whitespace-nowrap text-[11px] text-zinc-300 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
                         {name}
                     </span>
                 </div>

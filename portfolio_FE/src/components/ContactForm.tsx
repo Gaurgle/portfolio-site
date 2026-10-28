@@ -120,7 +120,7 @@ export default function ContactForm() {
                 <button
                     type="button"
                     onClick={reset}
-                    className="press pt-2 font-mono text-sm text-zinc-400 hover:text-white"
+                    className="press pt-2 text-sm text-zinc-400 hover:text-white"
                 >
                     Send another message
                 </button>
