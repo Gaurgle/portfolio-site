@@ -325,8 +325,6 @@ uniform vec2 fog;
 uniform vec3 skyTint;
 // Seconds of sky time: advances only while motion is allowed.
 uniform float skyTime;
-// The pointer as a soft light: xy in uv, z its eased strength (0 when off).
-uniform vec3 pointerLight;
 // How far the copy in front of the page leads the cloud while scrolling, uv.
 uniform float frontLead;
 // The portal at the sidebar's edge (portal.ts): x its uv, y the canvas's
@@ -485,7 +483,7 @@ void main() {
         beam=max(beam+grain/255.*smoothstep(0.,.004,max(beam.r,max(beam.g,beam.b))),0.)*.85;
         beamAlpha=max(beam.r,max(beam.g,beam.b));
     }
-    // Hue, sheen and pointer light, computed once from the cloud itself and
+    // Hue and sheen, computed once from the cloud itself and
     // carried by both layers so the copy in front stays the same cloud.
     // Hue: the shadowed body takes the stretch's tint most, the lit tops
     // least, so the cloud reads as lit by something not quite white.
@@ -496,14 +494,7 @@ void main() {
     // Thin-film sheen on the rim, shifting with where it sits on screen
     // (the view angle), the curvature and the scroll.
     vec3 sheen=film(dot(uv,vec2(.9,1.3))+curve.y*2.+progress*.6+skyTime*.012)*rim*.05;
-    // The pointer: cloud near it brightens, its rim catches a spectral edge
-    // that turns with the angle to the light. Not inside a lens: the light
-    // never lifts the cloud back up behind text that is in place.
-    vec2 toLight=(uv-pointerLight.xy)*vec2(aspect,1.);
-    float glow=pointerLight.z*exp(-dot(toLight,toLight)/.05)*(1.-lens.x);
-    vec3 lit=vec3(.92,.95,1.)*glow*raw.a*.2
-        +film(atan(toLight.y,toLight.x)*.159+skyTime*.02)*glow*rim*.14;
-    vec4 shaded=vec4(raw.rgb*tint+(sheen+lit)*raw.a,raw.a);
+    vec4 shaded=vec4(raw.rgb*tint+sheen*raw.a,raw.a);
     // Text over the sky: the cloud behind a settled text block is toned
     // down with a soft knee instead of being blacked out or carved away.
     // Bright parts are pressed down hardest and dim parts least, so its
@@ -797,7 +788,7 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     gl.bindFramebuffer(gl.FRAMEBUFFER,sceneBuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,sceneTexture,0);
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer","nightCap","fog","skyTint","skyTime","pointerLight","frontLead","portal","lenses[0]","lensPower[0]","lensDim[0]",...opticalUniformNames].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
+    const chromaticUniforms = Object.fromEntries(["scene","resolution","pointer","progress","cover","coverAmount","layer","nightCap","fog","skyTint","skyTime","frontLead","portal","lenses[0]","lensPower[0]","lensDim[0]",...opticalUniformNames].map(n => [n,gl.getUniformLocation(chromaticProgram,n)]));
     gl.useProgram(chromaticProgram);
     gl.uniform1i(chromaticUniforms.scene,1);
     // The clear-space haze reads the clouds' noise volume, already on unit 0.
@@ -806,9 +797,8 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
     // A faint split always drifts around the sky; mouse movement and scroll
     // speed each add a little more, and both ease back to the ambient level.
     const chroma={x:.5,y:.5,targetX:.5,targetY:.5,progress:0,mouse:0,scroll:0,time:0,moved:-Infinity};
-    // The pointer's light (eased strength) and how far the front copy leads,
-    // signed with the scroll direction (eased).
-    const sky={light:0,lead:0};
+    // How far the front copy leads, signed with the scroll direction (eased).
+    const sky={lead:0};
     // The starfield is DOM; it hears the sky's curvature and hue through
     // custom properties on its container (only written when they change).
     const starfield=document.querySelector<HTMLElement>(".particle-layers");
@@ -983,11 +973,6 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         // Signed: positive while the page scrolls down.
         const scrollVelocity=last!==0 && previousScroll>=0 ? (scroll-previousScroll)/Math.max(step,1/60) : 0;
         sky.lead+=(Math.max(-1,Math.min(1,scrollVelocity/1.5))-sky.lead)*(1-Math.exp(-step*4));
-        // The pointer lights the sky softly while it is on the page and a
-        // little more while it moves; fine pointers only, and never under
-        // reduced motion.
-        const lightTarget=desktop.matches && motion && pointerAt ? .35+.65*chroma.mouse : 0;
-        sky.light+=(lightTarget-sky.light)*(1-Math.exp(-step*(lightTarget>sky.light ? 5 : 1.5)));
         if(motion) chroma.time+=step;
         if(!mouseActive) {
             // At rest the split direction wanders on a slow orbit.
@@ -1351,7 +1336,6 @@ export function mountClouds(canvas: HTMLCanvasElement, foreground: HTMLCanvasEle
         const tint=skyTintAt(weatherScroll(scroll));
         gl.uniform3f(chromaticUniforms.skyTint,tint[0],tint[1],tint[2]);
         gl.uniform1f(chromaticUniforms.skyTime,chroma.time);
-        gl.uniform3f(chromaticUniforms.pointerLight,pointerAt?.x ?? .5,pointerAt?.y ?? .5,sky.light);
         gl.uniform1f(chromaticUniforms.frontLead,motion ? sky.lead*.012 : 0);
         gl.uniform2f(chromaticUniforms.portal,desktop.matches && motion ? portalEdge : 0,height);
         if(starfield) {
