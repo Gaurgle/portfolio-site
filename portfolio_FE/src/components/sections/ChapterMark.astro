@@ -1,6 +1,6 @@
 ---
 /**
- * Chapter mark: the chapter's title in one or two lines, one voice
+ * Chapter mark: the chapter's title in up to three lines, one voice
  * throughout: the same face, weight and white in every line, no accent
  * word and no number.
  *
@@ -18,10 +18,11 @@
 const {
     line1,
     line2,
+    line3,
     width = "w-[min(18rem,84vw)] lg:w-[min(28rem,36vw)]",
 } = Astro.props;
 
-const lines = [line1, line2].filter(Boolean) as string[];
+const lines = [line1, line2, line3].filter(Boolean) as string[];
 /** The longer line fills the mark at the settled width, measured at about
  *  0.86 of the size per character. As a share of the mark's width. */
 const longest = Math.max(...lines.map((l) => l.length));

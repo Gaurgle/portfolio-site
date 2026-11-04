@@ -39,12 +39,13 @@ const personSchema = {
 <meta name="description" content={pageDescription}/>
 <link rel="canonical" href={SITE_URL}/>
 
-<!-- All three files are painted above the fold: the ROOS mark (Victor Mono)
-     and its box glyphs, and the tagline and nav (Anybody).
+<!-- Above the fold: ROOS and its box glyphs, Inter text, Space Grotesk nav.
      The @font-face rules live in global.css. -->
 <link rel="preload" as="font" type="font/woff2" href="/fonts/victor-mono-latin-var.woff2" crossorigin/>
 <link rel="preload" as="font" type="font/woff2" href="/fonts/roos-box-noto-sans-mono.woff2" crossorigin/>
-<link rel="preload" as="font" type="font/woff2" href="/fonts/anybody-latin-var.woff2" crossorigin/>
+<link rel="preload" as="font" type="font/woff2" href="/fonts/inter-latin-var.woff2" crossorigin/>
+
+<link rel="preload" as="font" type="font/woff2" href="/fonts/space-grotesk-latin-var.woff2" crossorigin/>
 
 <meta property="og:type" content="website"/>
 <meta property="og:url" content={SITE_URL}/>

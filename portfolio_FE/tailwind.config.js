@@ -5,7 +5,7 @@ export default {
     ],
     theme: {
         fontFamily: {
-            sans: ["Anybody", "system-ui", "-apple-system", "sans-serif"],
+            sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
             mono: ['"Victor Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
         },
         extend: {

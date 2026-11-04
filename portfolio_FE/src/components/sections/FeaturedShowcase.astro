@@ -1,7 +1,7 @@
 ---
 /**
- * Featured projects as a pinned strip (desktop): the chapter mark enters
- * centered, the first project flies in and pushes it out, each project
+ * Featured projects as a pinned strip (desktop): the chapter mark shares
+ * the opening with the first project, then yields as it expands. Each project
  * leaves left as the next arrives, and the last one exits as the listing
  * below climbs in (smoothScroll.ts measureShowcases drives all transforms).
  * Projects have no surface, so nothing piles. On mobile the same markup
@@ -23,18 +23,17 @@ const allImages = (p: (typeof projects)[number]) =>
 
 <div data-hscroll data-hscroll-mode="strip" data-cardstack data-stack-mode="focus" class="hscroll-pin relative">
     <div class="hscroll-viewport">
-        <!-- Chapter mark: pinned WITH the strip, centered until the first
-             card arrives and pushes it out left -->
-        <div class="absolute inset-0 hidden lg:flex items-center justify-center z-0">
+        <!-- The first project is already visible beneath the chapter title. -->
+        <div class="project-intro hidden lg:block">
             <div data-cover-content class="will-change-transform">
-                <ChapterMark line1="Selected" line2="work" />
+                <ChapterMark line1="Things" line2="I’ve" line3="built" />
             </div>
         </div>
 
         <!-- Mobile: compact chapter header sharing the pinned screen with
              the deck (the mark is slimmed via .hscroll-pin .chapter-mark) -->
         <div class="lg:hidden px-4 pb-5 text-center">
-            <ChapterMark line1="Selected" line2="work" />
+            <ChapterMark line1="Things" line2="I’ve" line3="built" />
         </div>
 
         <div data-hscroll-track class="relative z-10 px-4" style="--deck-n: 0">
