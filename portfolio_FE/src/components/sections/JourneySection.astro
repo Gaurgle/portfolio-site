@@ -64,7 +64,7 @@ const milestones: Milestone[] = [
             <div class="relative z-10 w-full flex flex-col lg:flex-row items-center lg:items-start lg:justify-center gap-5 lg:gap-[4vw] px-4 lg:px-[2vw] py-4 lg:py-0">
                 <!-- Chapter mark: stays for the whole flight, with the
                      contents of the journey set under it -->
-                <div class="shrink-0 text-center lg:text-left">
+                <div class="chapter-anchor shrink-0 text-center lg:text-left">
                     <ChapterMark line1="How I" line2="got here" />
                     <nav aria-label="Journey stops">
                         <ol data-stack-contents class="stop-contents">
@@ -85,7 +85,6 @@ const milestones: Milestone[] = [
                     {milestones.map((m, i) => (
                         <article data-stack-card data-rn-card class="beam-stop" style={`--f: ${i === 0 ? 0 : -1}`}>
                             <header class="beam-head">
-                                <div class="passage-head">{m.cmd}</div>
                                 <h3 class="beam-title">{m.title}</h3>
                             </header>
                             <div class="beam-copy">

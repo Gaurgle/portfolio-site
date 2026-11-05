@@ -170,7 +170,7 @@ export default function ProjectsGrid() {
                                                cursor-pointer
                                                ${selected ? "ls-row-active bg-white/[0.03]" : ""}`}
                                 >
-                                    <span className="ls-name whitespace-nowrap text-lg text-zinc-200 transition-colors duration-200">
+                                    <span className="project-title ls-name whitespace-nowrap text-lg text-zinc-200 transition-colors duration-200">
                                         {p.projectTitle}
                                     </span>
                                     <span className="ml-auto" aria-hidden="true"></span>
@@ -206,13 +206,13 @@ export default function ProjectsGrid() {
                         resizes between projects - only content swaps. */}
                     <div className="w-[clamp(34rem,46%,64rem)] shrink-0 relative flex flex-col [container-type:inline-size]">
                         {shown && (
-                            <p className="absolute bottom-full left-0 mb-1 text-base text-white">
+                            <p className="project-title absolute bottom-full left-0 mb-1 text-base text-white">
                                 {shown.projectTitle}
                             </p>
                         )}
                         {!shown ? (
                             <div style={viewerFrame} className="w-full flex flex-col justify-end p-8 bg-zinc-900/20 border border-zinc-800 rounded-md">
-                                <p className="text-3xl font-bold leading-tight text-white/90 mb-4">
+                                <p className="project-title text-3xl font-bold leading-tight text-white/90 mb-4">
                                     {rest.length} more
                                     <br />
                                     projects.

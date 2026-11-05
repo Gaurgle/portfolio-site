@@ -1,18 +1,17 @@
-/* Two self-hosted families, latin subsets under the SIL Open Font License
-   (the licence texts sit next to the files in /fonts; the ROOS mark
-   borrows its drawing glyphs, see below). No third-party font host on the
-   critical path, so first paint never waits on an external stylesheet and
-   DNS round trip. */
-
-/* Anybody: one variable file with a width axis (50-150%) as well as weight.
-   The page speaks in it throughout: running copy near its normal width,
-   headlines opened out wide and light, the chapter marks wide and heavy.
-   The extended cuts are what make it read as air and distance. */
+/* Self-hosted fonts under the SIL Open Font License. Space Grotesk carries
+   headings and sidebar links; Inter carries reading text. Victor Mono and
+   its box-glyph subset retain the original ROOS artwork. */
 @font-face {
-    font-family: "Anybody";
-    src: url("/fonts/anybody-latin-var.woff2") format("woff2");
+    font-family: "Inter";
+    src: url("/fonts/inter-latin-var.woff2") format("woff2");
     font-weight: 100 900;
-    font-stretch: 50% 150%;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Space Grotesk";
+    src: url("/fonts/space-grotesk-latin-var.woff2") format("woff2");
+    font-weight: 300 700;
     font-style: normal;
     font-display: swap;
 }
@@ -82,10 +81,9 @@
         1px 0 2px rgb(var(--prism-amber) / 0.55);
 }
 
-/* Running copy sits a touch wider than the face's normal width, with a
-   hair of extra tracking: open, unhurried, never cramped against the sky. */
+/* Running text keeps the original spacing and reading rhythm. */
 body {
-    font-stretch: 104%;
+    font-stretch: normal;
     letter-spacing: 0.005em;
     font-optical-sizing: auto;
 }
@@ -93,6 +91,12 @@ body {
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+h1, h2, h3, h4, h5, h6,
+.passage-head, .beam-title, .section-head, .project-title {
+    font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
 
 :focus-visible {
     outline: 1.5px solid rgb(240 243 247 / 0.9);
@@ -566,11 +570,11 @@ html.is-loading .hero-mark-sky .hero-mark-glyphs {
     mix-blend-mode: screen;
 }
 
-/* Sidebar nav: the site's own face at reading size, not a terminal label.
-   Emphasis comes from colour and light (.nav-link below). */
+/* Sidebar links share the heading face at the original reading size. */
 #sidebar .nav-link {
+    font-family: "Space Grotesk", system-ui, sans-serif;
     font-size: 0.9375rem;
-    font-weight: 450;
+    font-weight: 500;
     letter-spacing: 0.01em;
 }
 
@@ -1066,21 +1070,20 @@ html.lenis, html.lenis body { height: auto; }
     }
 }
 
-/* Chapter mark: one voice, Anybody opened out wide and heavy, in cloud
+/* Chapter mark: Space Grotesk in cloud
    white. The type is sized from the mark's width (--cm-size, cqw), so the
    longer line spans it once the letters have settled. */
-/* Width axis: the letters ease open from a condensed cut to their resting
-   width as the chapter settles (--settle, smoothScroll.ts). The lines don't
-   wrap and the mark's width is fixed, so nothing around it reflows. */
+/* Space Grotesk has no width axis. Keep its metrics fixed while the
+   surrounding prism light follows the scroll. */
 .chapter-mark {
     container-type: inline-size;
 }
 .chapter-mark .cm-title {
     margin: 0;
-    font-family: "Anybody", system-ui, sans-serif;
+    font-family: "Space Grotesk", system-ui, sans-serif;
     font-size: var(--cm-size);
-    font-weight: 760;
-    font-stretch: calc(100% + var(--settle, 1) * 25%);
+    font-weight: 700;
+    font-stretch: normal;
     line-height: 1.02;
     letter-spacing: -0.01em;
     white-space: nowrap;
@@ -1088,17 +1091,6 @@ html.lenis, html.lenis body { height: auto; }
 }
 .chapter-mark .cm-line {
     display: block;
-}
-html.reduced-motion .chapter-mark .cm-title {
-    font-stretch: 125%;
-}
-/* Phones: the letters stand at their resting width. Touch scrolling runs
-   ahead of the script, so anything eased from the scroll there reads as
-   the headline jerking. */
-@media (max-width: 1023px) {
-    .chapter-mark .cm-title {
-        font-stretch: 125%;
-    }
 }
 /* The light a settled mark catches: its letters drawn again behind it,
    dispersed into a violet and an amber copy (ChapterMark.astro) and
@@ -1254,6 +1246,18 @@ html.reduced-motion .chapter-mark .cm-title {
     opacity: 0.6;
 }
 
+/* Sidebar text stays crisp in resting, hover, focus and active states. */
+#sidebar .nav-link {
+    text-shadow: none;
+}
+#sidebar .nav-link:is(:hover, :focus-visible) {
+    transform: none;
+}
+#sidebar .nav-link:focus-visible {
+    outline: 1px solid var(--cloud-shade);
+    outline-offset: 3px;
+}
+
 /* The reader's progress beside the desktop links (SidebarNav.tsx): a small
    point of cloud light that rests by each chapter's link while it is read
    and travels to the next between them. Its top is the links' top; the
@@ -1297,7 +1301,7 @@ html.reduced-motion .chapter-mark .cm-title {
     padding: 3px 0.75rem env(safe-area-inset-bottom);
     background: linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.62) 3px);
     font-size: 0.875rem;
-    font-weight: 450;
+    font-weight: 500;
     letter-spacing: 0.01em;
     /* Rises in with the scroll once the reader is on their way (--rail-reveal,
        the rail's script): out of sight over the hero. */
@@ -1428,6 +1432,21 @@ html.reduced-motion .chapter-mark .cm-title {
            clears the fixed banner */
         padding-top: 10vh;
     }
+    .project-intro {
+        position: absolute;
+        top: clamp(6rem, 12vh, 9rem);
+        left: max(11rem, 17.2vw);
+        z-index: 2;
+        pointer-events: none;
+    }
+    .project-intro .chapter-mark {
+        width: min(30rem, 42vw);
+    }
+    .project-intro .cm-title {
+        font-size: min(var(--cm-size), 10vh);
+        line-height: 0.88;
+        letter-spacing: -0.04em;
+    }
     /* The stage: one project at a time, at the scale of the screen. The
        engine slides each card through (strip mode) and then the whole
        track out left; --enter (0..1) is the card's arrival. */
@@ -1484,7 +1503,7 @@ html.reduced-motion .chapter-mark .cm-title {
         padding: 2.5rem;
         margin: -2.5rem -2.5rem -0.5rem calc(-32% - 2.5rem);
         font-size: clamp(2.75rem, 4.6vw, 6.5rem);
-        font-weight: 760;
+        font-weight: 600;
         font-stretch: 112%;
         line-height: 0.94;
         letter-spacing: -0.03em;
@@ -1732,11 +1751,6 @@ html.reduced-motion .chapter-mark .cm-title {
     inherits: false;
     initial-value: 0;
 }
-@property --exit {
-    syntax: "<number>";
-    inherits: false;
-    initial-value: 0;
-}
 /* Fully faded (smoothScroll.ts focusStack): skip drawing it at all. The
    featured cards only fly this way on phones. */
 .beam-stop.is-gone {
@@ -1750,9 +1764,6 @@ html.reduced-motion .chapter-mark .cm-title {
 .beam-stop {
     --ahead: min(0, var(--f, -1));
     --passed: max(0, var(--f, -1));
-    /* Squared: the exit gathers speed instead of starting at full rate, so
-       the copy stays readable until it is clearly on its way out. */
-    --exit: calc(var(--passed) * var(--passed));
     position: absolute;
     inset: 0;
     /* Seated at the top of the stage, so every stop's headline lands on the
@@ -1761,13 +1772,10 @@ html.reduced-motion .chapter-mark .cm-title {
     flex-direction: column;
     justify-content: flex-start;
     opacity: calc(1 + var(--ahead) * 1.2 - var(--passed) * 1.5);
-    /* Grows from its left edge, away from the chapter mark beside it. */
-    transform:
-        translate3d(0, calc(var(--ahead) * -7%), 0)
-        scale(calc(1 + var(--ahead) * 0.5 + var(--exit) * 2.6));
-    transform-origin: 0 50%;
+    /* Fades change the story without moving its heading off the baseline. */
+    transform: none;
     pointer-events: none;
-    will-change: transform, opacity;
+    will-change: opacity;
 }
 .beam-stop.is-active {
     pointer-events: auto;
@@ -1779,7 +1787,7 @@ html.reduced-motion .chapter-mark .cm-title {
     margin-bottom: 0.6rem;
     text-wrap: balance;
     font-size: clamp(1.25rem, 1.9vw, 1.7rem);
-    font-weight: 380;
+    font-weight: 500;
     font-stretch: 140%;
     line-height: 1.1;
     letter-spacing: 0.01em;
@@ -1798,7 +1806,7 @@ html.reduced-motion .chapter-mark .cm-title {
     margin-bottom: 1.5rem;
     font-size: clamp(2rem, 3.9vw, 3.75rem);
     text-wrap: balance;
-    font-weight: 760;
+    font-weight: 600;
     font-stretch: 112%;
     line-height: 0.98;
     letter-spacing: -0.025em;
@@ -1815,7 +1823,7 @@ html.reduced-motion .chapter-mark .cm-title {
 }
 /* Small headlines (the listing's): the passage heads' wide voice at weight. */
 .section-head {
-    font-weight: 620;
+    font-weight: 600;
     font-stretch: 130%;
 }
 .beam-copy {
@@ -1915,11 +1923,9 @@ html.reduced-motion .chapter-mark .cm-title {
         width: min(42rem, calc((100vw - 9.5rem) * 0.46));
         height: min(34rem, 70vh);
     }
-    /* Out of focus is out of focus: the blur is the depth of field. Desktop
-       only, like the ROOS blur, to spare phone GPUs. */
     html:not(.reduced-motion) .beam-stop {
-        filter: blur(calc((var(--exit) * 18 - var(--ahead) * 7) * 1px));
-        will-change: transform, opacity, filter;
+        filter: none;
+        will-change: opacity;
     }
     .stop-contents {
         display: block;
@@ -1993,6 +1999,67 @@ html.reduced-motion .chapter-mark .cm-title {
         }
     }
 }
+/* Narrative hierarchy: a large chapter anchor, a compact story title and
+   a quieter reading column. Scroll geometry stays with the existing engine. */
+.flight-stack .chapter-mark .cm-title {
+    font-size: calc(var(--cm-size) * 1.55);
+    font-weight: 700;
+    line-height: 0.94;
+    letter-spacing: -0.04em;
+}
+.flight-stack .beam-title {
+    font-size: clamp(1.5rem, 2.1vw, 2rem);
+    line-height: 1.18;
+    letter-spacing: -0.025em;
+    margin-bottom: 1.8rem;
+}
+.flight-stack .beam-copy {
+    font-size: clamp(1.0625rem, 1.3vw, 1.1875rem);
+    line-height: 1.75;
+    gap: 1.35rem;
+}
+@media (min-width: 1024px) {
+    .flight-stack .stack-area {
+        width: min(35rem, calc((100vw - 9.5rem) * 0.44));
+    }
+    .flight-stack .flight-viewport > div {
+        column-gap: clamp(3rem, 7vw, 8rem);
+    }
+    html:not(.reduced-motion) .flight-stack .beam-head {
+        margin-top: 0.65rem;
+    }
+    .flight-stack .chapter-anchor {
+        padding-top: 0.65rem;
+    }
+    .stop-contents {
+        margin-top: 3.5rem;
+    }
+}
+@media (max-width: 1023px) {
+    .flight-stack .flight-viewport > div {
+        row-gap: 1.75rem;
+    }
+    .flight-stack .chapter-mark .cm-title {
+        font-size: calc(var(--cm-size) * 1.3);
+    }
+    .flight-stack .beam-title {
+        font-size: 1.375rem;
+        margin-bottom: 1.25rem;
+    }
+    .flight-stack .beam-copy {
+        font-size: 1rem;
+        line-height: 1.6;
+        gap: 1rem;
+    }
+    @container (max-height: 30rem) {
+        .flight-stack .beam-copy {
+            font-size: 0.9375rem;
+            line-height: 1.5;
+            gap: 0.75rem;
+        }
+    }
+}
+
 /* Phones run the featured projects through the same flight (the desktop
    strip needs the width): one project in focus, the rest out of sight. */
 @media (max-width: 1023px) {
@@ -2000,9 +2067,7 @@ html.reduced-motion .chapter-mark .cm-title {
         --ahead: min(0, var(--f, -1));
         --passed: max(0, var(--f, -1));
         opacity: calc(1 + var(--ahead) * 1.2 - var(--passed) * 1.5);
-        transform:
-            translate3d(0, calc(var(--ahead) * -7%), 0)
-            scale(calc(1 + var(--ahead) * 0.35 + var(--passed) * var(--passed) * 1.4));
+        transform: none;
         pointer-events: none;
     }
     .hscroll-pin .featured-card.is-active {
@@ -2028,6 +2093,9 @@ html.reduced-motion .beam-stop {
 @media (min-width: 1024px) {
     html.reduced-motion .hscroll-pin .hscroll-viewport {
         padding-top: 0;
+    }
+    html.reduced-motion .project-intro {
+        position: static;
     }
     html.reduced-motion .hscroll-pin [data-cover-content] {
         margin-bottom: 3rem;
@@ -2623,6 +2691,23 @@ svg.rough-annotation.rn-primed {
     }
 }
 
+@media (max-width: 1023px) and (min-height: 760px) {
+    :is(#about, #journey) .chapter-mark {
+        width: min(14rem, 65vw);
+    }
+}
+
+
+@media (max-width: 1023px) {
+    #projects .hscroll-pin .chapter-mark {
+        width: min(13rem, 56vw);
+    }
+    #projects .hscroll-pin .cm-title {
+        font-size: min(var(--cm-size), 5.5vh);
+        line-height: 0.88;
+        letter-spacing: -0.04em;
+    }
+}
 
 /* Phone drawer: it springs (SidebarToggle.tsx) and may overshoot open by a
    few pixels, so its material runs on past its left edge. */

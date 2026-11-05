@@ -110,9 +110,8 @@ import { ROOS, ROOS_OUTLINE } from "../data/roos";
          the page away while the visitor reads the list) -->
     <section id="projects" data-section="projects"
              class="relative max-w-6xl mx-auto px-4 pb-16 lg:pb-[30vh]">
-        <!-- Flagship projects: pinned horizontal filmstrip; the 03 chapter
-             mark lives inside the strip's viewport and gets pushed out by
-             the first card -->
+        <!-- The chapter title shares its opening with the first flagship
+             project, which expands into the pinned showcase. -->
         <FeaturedShowcase />
 
         <!-- ...then the rest, flowing freely: after the pinned filmstrip a
@@ -129,7 +128,7 @@ import { ROOS, ROOS_OUTLINE } from "../data/roos";
              nearly a screen tall and its last row must fit. -->
         <div data-hold="0.4" data-hold-at="0.09" class="more-projects-stage relative z-10 mt-10 md:mt-[6vh] lg:-mt-[30vh]">
             <div data-hold-content>
-                <h3 data-depth="0.05" class="section-head text-2xl md:text-3xl text-white/90 select-none mb-10">
+                <h3 class="section-head text-2xl md:text-3xl text-white/90 select-none mb-10">
                     More projects
                 </h3>
                 <ProjectsGrid client:load />

@@ -73,7 +73,7 @@ export function Lightbox({images, startIndex, title, onClose}: {
                 onClick={e => e.stopPropagation()}
             >
                 <div className="terminal-bar">
-                    <span>{title}</span>
+                    <span className="project-title">{title}</span>
                     <button ref={closeRef} type="button" onClick={onClose} className="pane-close" aria-label="Close screenshots"/>
                 </div>
 

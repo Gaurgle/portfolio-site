@@ -546,18 +546,17 @@ function applyPins(): void {
 
 /**
  * Desktop flow of the featured projects section (the [data-hscroll]
- * attribute names survive from its filmstrip past): the chapter mark
- * enters centered, the first card flies in from the right and pushes it
- * out left, every card lands on a journey-style pile, and once the pile
- * is complete it exits left as one object while the listing below climbs
- * in. Mobile runs the cardstack deck instead.
+ * attribute names survive from its filmstrip past). Strip mode opens with
+ * the chapter mark and first project together. The mark leaves as that
+ * project grows, later projects slide through, and the final track exits
+ * while the listing below climbs in. Mobile runs the cardstack deck.
  */
 type Showcase = {
     section: HTMLElement;
     /** The pile container: cards stack inside it; the exit slides IT left. */
     track: HTMLElement;
     cards: HTMLElement[];
-    /** Chapter-cover mark: pushed out left by the first card's arrival. */
+    /** Opening chapter mark: leaves as the first project expands. */
     coverEl: HTMLElement | null;
     /** Viewport x of the mark's right edge at rest (for the exit fade). */
     coverRight: number;
@@ -620,12 +619,13 @@ function measureShowcases(): Showcase[] {
         const per = Math.round(vh * (strip ? 0.85 : 0.75));
         const settle = Math.round(vh * 0.3);
         const exitDist = Math.round(vh * 0.5);
-        const buffer = Math.round(vh * 0.3);
+        const buffer = strip ? 0 : Math.round(vh * 0.3);
         // Cascade offsets; keep in sync with the .hscroll-pin CSS calc.
         const offX = parseFloat(section.dataset.offX ?? "24");
         const offY = parseFloat(section.dataset.offY ?? "28");
 
-        // A cushion on entry only: the pin lets go as the pile leaves, so
+        // Strip openings show the first project immediately, without an
+        // entry cushion. The pin lets go as the pile leaves, so
         // the listing below (index.astro, negative margin) climbs in under
         // the exit instead of after an empty stage.
         section.style.height =
@@ -1289,7 +1289,8 @@ function bindScrollDriven(reduced: boolean): void {
                 // Strip: ease both ways, so a project also settles into its
                 // seat instead of only braking at it.
                 const eased = sc.strip ? t * t * (3 - 2 * t) : 1 - Math.pow(1 - t, 3);
-                const slide = (1 - eased) * (window.innerWidth * 1.05);
+                const firstProject = sc.strip && i === 0;
+                const slide = firstProject ? 0 : (1 - eased) * (window.innerWidth * 1.05);
                 if (sc.strip) {
                     // Nothing piles: a project leaves to the left in step
                     // with the next one's arrival, like frames of a strip.
@@ -1298,13 +1299,16 @@ function bindScrollDriven(reduced: boolean): void {
                         ? Math.max(0, Math.min(1, (local - (i + 1) * sc.per) / arrive))
                         : 0;
                     const gone = next * next * (3 - 2 * next) * (window.innerWidth * 1.05);
-                    card.style.transform = `translate3d(${slide - gone}px, 0, 0)`;
-                    // Arrival, 0..1: CSS moves the screenshot and the copy
-                    // at different rates inside the card, for depth.
-                    card.style.setProperty("--enter", eased.toFixed(3));
+                    const opening = firstProject ? eased : 1;
+                    const scale = 0.82 + opening * 0.18;
+                    const drop = (1 - opening) * vh * 0.065;
+                    card.style.transform = `translate3d(${slide - gone}px, ${drop}px, 0) scale(${scale})`;
+                    // The opening project starts readable; later projects
+                    // retain their existing screenshot/copy arrival.
+                    card.style.setProperty("--enter", firstProject ? "1" : eased.toFixed(3));
                     // How far from rest the card is, 0..1, arriving or
                     // leaving: the title's chromatic split opens with it.
-                    const drift = Math.max(1 - eased, gone / (window.innerWidth * 1.05));
+                    const drift = Math.max(firstProject ? 0 : 1 - eased, gone / (window.innerWidth * 1.05));
                     card.style.setProperty("--drift", drift.toFixed(3));
                     setLight(card, "settle", 1 - drift);
                     card.style.visibility = next >= 1 ? "hidden" : "";

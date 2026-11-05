@@ -200,7 +200,7 @@ export default function MiniTerminal() {
             <div className="terminal-bar">
                 <span>~/portfolio</span>
             </div>
-            <div ref={scrollRef} className="p-3 font-mono text-xs max-h-80 overflow-y-auto space-y-1">
+            <div ref={scrollRef} className="p-3 font-sans text-xs max-h-80 overflow-y-auto space-y-1">
                 <div className="text-zinc-500">A small terminal. Try help.</div>
                 {history.map((entry, i) => (
                     <div key={i}>
