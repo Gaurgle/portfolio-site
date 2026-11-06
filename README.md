@@ -7,9 +7,9 @@
 [![Frontend Demo](https://img.shields.io/badge/Frontend-Demo-blue?logo=vercel)](https://andreasroos.vercel.app)
 
 # DevOps Portfolio
-This is a showcase portfolio application built as a part of the DevOps course at Nackademin.
+My developer portfolio, built with Astro and deployed on Vercel. It brings together my Android and backend work, Rust terminal tools, and projects from professional audio.
 
-A personal developer portfolio built with an **Astro** frontend and deployed on **Vercel**. A containerized **Spring Boot + PostgreSQL** backend remains in the repository as a DevOps showcase using Docker, Flyway, and GitHub Actions. The live site's contact form is handled by **Web3Forms**, so no server or database is required to run it.
+The homepage is an interactive sky built with WebGL2, with scroll-driven project and career sections. The repository also contains a Kotlin and Spring Boot contact API backed by PostgreSQL. That API is a local DevOps showcase; the live contact form uses Web3Forms.
 
 ---
 ## 📖 Documentation
