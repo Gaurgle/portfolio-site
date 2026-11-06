@@ -241,7 +241,7 @@ html.reduced-motion #arrival-flash {
    GPU with that work. Without the loading screen (a return to home) it
    simply plays from the start. */
 html.is-loading:not(.is-rising) :is(.hero-mark-sky, .hero-mark-sky .hero-mark-glyphs,
-    .hero-mark-ground, .hero-mark-horizon) {
+    .hero-mark-ground) {
     animation-play-state: paused;
 }
 .hero-mark-sky {
@@ -284,23 +284,6 @@ html.is-loading:not(.is-rising) :is(.hero-mark-sky, .hero-mark-sky .hero-mark-gl
         rgba(0, 0, 0, .24), rgba(0, 0, 0, .1) 45%, transparent 75%);
     animation: roos-sweep-ground 1.4s cubic-bezier(.4, 0, .2, 1) both,
         roos-reflection-fade .9s ease-out 1.95s both;
-}
-/* The horizon haze: black fading out both ways from the line, so the two
-   clips there (the rising glyphs above, the reflection below) meet in a
-   soft band instead of a hard edge. Leaves with the reflection. */
-.hero-mark-horizon {
-    position: absolute;
-    top: 118%;
-    left: -100%;
-    right: -100%;
-    /* In the glyphs' own size (the size classes sit on it), so the band
-       covers about one row on every screen instead of a third of the
-       mark on a phone. */
-    height: 1.7em;
-    margin-top: -.85em;
-    pointer-events: none;
-    background: linear-gradient(to bottom, transparent, #000 50%, transparent);
-    animation: roos-reflection-fade .9s ease-out 1.95s both;
 }
 .hero-mark-ground pre {
     /* Flipped about the bottom row, which is the row that meets the line. */
@@ -1792,11 +1775,7 @@ html.lenis, html.lenis body { height: auto; }
     line-height: 1.1;
     letter-spacing: 0.01em;
     color: rgb(228 228 231); /* zinc-200 */
-    /* Near the pointer it catches a faint teal and rose edge (--lit). */
-    text-shadow:
-        calc(var(--lx, -1) * -1.5px) calc(var(--ly, 0) * -1.5px) 10px rgb(var(--prism-teal) / calc(var(--lit, 0) * 0.45)),
-        calc(var(--lx, -1) * 1.5px) calc(var(--ly, 0) * 1.5px) 10px rgb(var(--prism-rose) / calc(var(--lit, 0) * 0.4)),
-        var(--halo);
+    text-shadow: none;
 }
 .passage-head::first-letter {
     text-transform: uppercase;
@@ -1811,15 +1790,7 @@ html.lenis, html.lenis body { height: auto; }
     line-height: 0.98;
     letter-spacing: -0.025em;
     color: var(--cloud);
-    /* The stop in focus catches the light as it settles (--settle, set on
-       its card) and from the pointer (--lit): violet one side, amber the
-       other, soft enough that the halo still holds the letters. */
-    --glow: calc(var(--settle, 0) * 0.3 + var(--lit, 0) * 0.25);
-    text-shadow:
-        calc(var(--lx, -1) * -2px) calc(var(--ly, 0) * -2px) 16px rgb(var(--prism-violet) / var(--glow)),
-        calc(var(--lx, -1) * 2px) calc(var(--ly, 0) * 2px) 16px rgb(var(--prism-amber) / var(--glow)),
-        0 0 6px rgb(0 0 0 / 0.9),
-        0 0 18px rgb(0 0 0 / 0.9);
+    text-shadow: none;
 }
 /* Small headlines (the listing's): the passage heads' wide voice at weight. */
 .section-head {
@@ -2645,7 +2616,6 @@ html.reduced-motion .hero-mark-sky .hero-mark-glyphs {
     opacity: 1 !important;
 }
 html.reduced-motion .hero-mark-ground,
-html.reduced-motion .hero-mark-horizon,
 html.reduced-motion .hero-mark-ghost {
     display: none;
 }
