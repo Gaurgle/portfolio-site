@@ -35,7 +35,7 @@ export const projects = [
     featuredOrder: 2,
     details: {
       long:
-        "Testing doesn't end on the phone. The platform keeps sessions and results together, associates scripts with devices, and lets engineers follow progress from a web dashboard. I worked on the Ktor backend and Svelte interface, with PostgreSQL for test history and server-sent events for live updates.",
+        "The platform keeps sessions and results together, links scripts to devices, and lets engineers follow progress from a web dashboard. I worked on the Ktor backend and Svelte interface, with PostgreSQL for test history and server-sent events for live updates.",
       highlights: [
         "Follow test activity from the browser",
         "Keep results linked to devices and sessions",
@@ -47,7 +47,7 @@ export const projects = [
   {
     projectTitle: "Studio Tools",
     description:
-      "Internal software for IMRSV Music, helping colleagues find information and reducing repetitive production work. Part of my wider responsibility for the studio's tools, services, and IT.",
+      "Kotlin tools and service integrations for IMRSV Music that make information easier to find and cut down repetitive production work. I build them as part of running the studio's IT.",
     tags: ["Kotlin", "API integrations", "Automation", "Internal tools"],
     image: "/pictures/release-pipeline.webp",
     link: "#",
@@ -58,12 +58,12 @@ export const projects = [
     featuredOrder: 3,
     details: {
       long:
-        "At IMRSV, I can see where software would help because I work with the same systems as the people using it. I build tools and integrations to make information easier to reach and reduce manual work. Some services are running today; the production-automation tooling is still being developed.",
+        "The tools connect to the systems the studio already uses. Some services are running today; the production-automation tooling is still being developed.",
       highlights: [
-        "Easier access to information across systems",
+        "Integrations with the studio's existing tools",
         "Automation of repetitive production work",
-        "Integrations with existing tools",
-        "Internal services and ongoing development"
+        "Scheduled jobs and internal services",
+        "Some services live, more in development"
       ],
     },
   },
@@ -96,7 +96,7 @@ export const projects = [
   {
     projectTitle: "airwavez",
     description:
-      "Designing tools for putting Auracast into practice: checking broadcasts, mapping their coverage, and managing shared audio in a venue. An early LE Audio project connecting my interests in sound, devices, and systems.",
+      "Design work on tools for running Auracast in practice: checking broadcasts, mapping their coverage, and managing shared audio in a venue.",
     tags: ["LE Audio", "Auracast", "System design"],
     image: null,
     link: "#",
@@ -105,7 +105,7 @@ export const projects = [
   {
     projectTitle: "noiz-kmp",
     description:
-      "Exploring a touch-controlled soundscape: move a single control to change the character of the sound. An Android prototype with a Rust audio engine, bringing noiz's noise and binaural tones to a different kind of interface.",
+      "Exploring a touch-controlled soundscape: move a single control to change the character of the sound. An Android prototype with a Rust audio engine that plays noiz's noise and binaural tones.",
     tags: ["Kotlin Multiplatform", "Compose", "Rust", "UniFFI", "Android", "DSP"],
     image: null,
     link: "#",
@@ -122,7 +122,7 @@ export const projects = [
   {
     projectTitle: "repoz",
     description:
-      "Pick up where you left off, even on another machine. One command shows which repositories need pulling, which have unpushed commits, and where you've left unfinished changes.",
+      "One command that shows which repositories need pulling, which have unpushed commits, and where you've left unfinished changes, so you can pick up where you left off on another machine.",
     tags: ["Bash", "GitHub CLI", "jq", "Git"],
     image: "/pictures/repoz.webp",
     link: "https://github.com/Gaurgle/repoz",
@@ -171,7 +171,7 @@ export const projects = [
   {
     projectTitle: "stdz",
     description:
-      "Look up a Kotlin function or Android concept without breaking out of the terminal. Searchable signatures, examples, and common mistakes, with quick command-line answers or an interactive reference to browse.",
+      "A terminal reference for Kotlin functions and Android concepts: searchable signatures, examples, and common mistakes, as quick command-line answers or an interactive reference to browse.",
     tags: ["Rust", "ratatui", "Kotlin", "CLI", "TUI"],
     image: "/pictures/stdz.webp",
     link: "#",
@@ -187,7 +187,7 @@ export const projects = [
   {
     projectTitle: "zalary",
     description:
-      "Work backwards from a salary, take-home amount, or invoice to see how the numbers relate. A terminal calculator for comparing Swedish employment and consulting scenarios, including taxes, company costs, and working hours.",
+      "A terminal calculator for comparing Swedish employment and consulting scenarios. Work backwards from a salary, take-home amount, or invoice to see how taxes, company costs, and working hours relate.",
     tags: ["Rust", "ratatui", "TUI"],
     image: "/pictures/zalary.webp",
     link: "#",
